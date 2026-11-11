@@ -1,0 +1,22 @@
+import { BrowserRouter, Routes, Route } from "react-router";
+
+import { Navigation } from "@/components/navigation";
+import Home from "@/pages/home";
+import HelloNear from "@/pages/hello_near";
+import { NearProvider } from '@/providers/near-provider';
+
+function App () {
+  return (
+    <NearProvider>
+      <BrowserRouter>
+        <Navigation />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/hello-near" element={<HelloNear />} />
+        </Routes>
+      </BrowserRouter>
+    </NearProvider>
+  );
+};
+
+export default App;

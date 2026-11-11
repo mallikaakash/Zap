@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "near-docs": {
+      "url": "https://docs.near.org/mcp"
+    },
+    "near-mcp": {
+      "command": "npx",
+      "args": ["-y", "@nearai/near-mcp@latest", "run"]
+    }
+  }
+}

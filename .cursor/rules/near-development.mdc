@@ -1,0 +1,30 @@
+---
+description: NEAR Protocol hackathon defaults — networks, safety, and where code lives
+alwaysApply: true
+---
+
+# NEAR development (this repo)
+
+## Layout
+
+- `contract/` — Rust smart contract (`near-sdk`, `cargo-near`, sandbox tests in `tests/`).
+- `frontend/` — Vite + React dApp with `@hot-labs/near-connect` and `near-api-js`.
+- `.agents/skills/` — Official [NEAR Agent Skills](https://github.com/near/agent-skills); read the relevant `SKILL.md` before CLI, contracts, dApp, Intents, or audits.
+
+## Networks
+
+- Default to **testnet** for development unless the user asks for mainnet.
+- Never commit private keys, seed phrases, or `.env` files with secrets.
+- Fund testnet accounts via the [testnet faucet](https://near-faucet.io/) (browser).
+
+## Agent tooling
+
+1. **Docs**: Prefer the `near-docs` MCP server (`search_near_docs`, `query_docs_filesystem_near_docs`) or https://docs.near.org/llms.txt for grounding.
+2. **Terminal**: Use `near-cli-rs` (`near` command) for accounts, tokens, deploy, and view calls — see `.agents/skills/near-cli-rs/SKILL.md`.
+3. **Contracts**: Build with `cargo near build non-reproducible-wasm` from `contract/`; run `cargo test --locked` before deploy.
+4. **Frontend**: Wallet UX via `NearProvider` in `frontend/src/providers/`; set contract IDs in `frontend/src/config.ts`.
+5. **Security**: Run `.agents/skills/near-contract-audit` guidance before mainnet deploy.
+
+## Command completeness
+
+When generating `near` CLI commands, include `network-config testnet|mainnet` and a terminal action (`now`, `send`, etc.) so commands are non-interactive.

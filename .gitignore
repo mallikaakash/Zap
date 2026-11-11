@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+contract/target/
+frontend/dist/
+
+# Environment & keys (never commit)
+.env
+.env.*
+!.env.example
+*.key
+*.key.json
+**/credentials.json
+**/near-credentials/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Optional NEAR MCP keystore (local-only)
+.near-mcp/
