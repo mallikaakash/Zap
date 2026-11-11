@@ -126,8 +126,22 @@ export class Chain {
     return (await this.near.view<T>(contract, method, args, { finality: "optimistic" })) as T;
   }
 
+  private readonly queues = new Map<string, Promise<unknown>>();
+
+  /** Run sends for one signer strictly one after another, so access-key nonces never collide. */
+  private serial<T>(signer: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.queues.get(signer) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    this.queues.set(signer, next.catch(() => undefined));
+    return next;
+  }
+
   /** Send one function call and wait for the whole receipt tree (callbacks included). */
-  async call<T = unknown>(signer: string, contract: string, method: string, args: object, opts: { gas?: string; deposit?: string } = {}): Promise<TxResult<T>> {
+  call<T = unknown>(signer: string, contract: string, method: string, args: object, opts: { gas?: string; deposit?: string } = {}): Promise<TxResult<T>> {
+    return this.serial(signer, () => this.callNow<T>(signer, contract, method, args, opts));
+  }
+
+  private async callNow<T = unknown>(signer: string, contract: string, method: string, args: object, opts: { gas?: string; deposit?: string } = {}): Promise<TxResult<T>> {
     if (!this.canSignFor(signer)) throw new ChainError(`No key available for ${signer}`);
     let outcome;
     try {
