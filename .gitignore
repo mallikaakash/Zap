@@ -27,3 +27,14 @@ npm-debug.log*
 
 # Optional NEAR MCP keystore (local-only)
 .near-mcp/
+
+# Universal Checkout
+**/node_modules/
+**/dist/
+**/target/
+!contracts/artifacts/
+.next/
+*.db
+*.db-journal
+.uc/
+proof.json
