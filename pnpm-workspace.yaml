@@ -2,3 +2,13 @@ packages:
   - "apps/*"
   - "packages/*"
   - "services/*"
+
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - esbuild
+  - prisma

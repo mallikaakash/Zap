@@ -1,0 +1,143 @@
+// Universal Checkout — off-chain state. SQLite locally, Postgres when hosted
+// (scripts/use-postgres.mjs swaps the provider line; the models are identical).
+// Money is always integer minor units (USDC, 6 dp) stored as strings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Merchant {
+  id                String   @id // NEAR account id
+  name              String
+  payoutAccount     String
+  approverAccount   String
+  guardThreshold    String   // minor units; refunds above this need approval
+  defaultWindowSecs Int
+  webhookUrl        String?
+  webhookSecret     String
+  policyJson        String   @default("{}") // AI refund policy
+  buttonJson        String   @default("{}") // saved button style
+  createdAt         DateTime @default(now())
+  products          Product[]
+  sessions          Session[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  merchantId   String
+  merchant     Merchant @relation(fields: [merchantId], references: [id])
+  name         String
+  description  String   @default("")
+  emoji        String   @default("🛍️")
+  amount       String   // minor units, total
+  kind         String   // OneTime | Subscription | Schedule
+  scheduleJson String   @default("[]") // [{ afterSecs, amount }]
+  createdAt    DateTime @default(now())
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  merchantId    String
+  merchant      Merchant @relation(fields: [merchantId], references: [id])
+  orderRef      String
+  product       String?
+  amount        String   // minor units
+  kind          String   // OneTime | Subscription | Schedule
+  scheduleJson  String   @default("[]") // [{ afterSecs, amount }]
+  metadataJson  String   @default("{}")
+  // created → quoted → deposit_detected → paid → released | refund_requested → refunded ; failed | expired
+  status        String   @default("created")
+  originAsset   String?
+  originSymbol  String?
+  originChain   String?
+  refundAddress String?
+  secretHash    String?  // sha256(secret_0), hex — set by the customer's browser
+  depositAddress String? @unique
+  depositMemo   String?
+  amountIn      String?
+  amountInFormatted String?
+  quoteDeadline DateTime?
+  quoteJson     String?
+  receiptId     String?  @unique
+  mintTxHash    String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  paidAt        DateTime?
+
+  @@unique([merchantId, orderRef])
+  @@index([status])
+}
+
+model RefundJob {
+  id             String   @id @default(cuid())
+  receiptId      String
+  amount         String   // minor units of USDC leaving escrow
+  // requested → pending_approval → quoted → sent → delivered ; rejected | failed
+  status         String   @default("requested")
+  reason         String?  // refund | cancel | dispute
+  depositAddress String?
+  amountOut      String?
+  amountOutFormatted String?
+  quoteJson      String?
+  txHash         String?
+  error          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([receiptId])
+  @@index([status])
+}
+
+model Dispute {
+  id           String   @id @default(cuid())
+  receiptId    String
+  message      String
+  category     String?
+  imageName    String?
+  decision     String?  // refund | escalate | reject
+  amount       String?
+  reason       String?
+  engine       String?  // near-ai | rules
+  createdAt    DateTime @default(now())
+
+  @@index([receiptId])
+}
+
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  merchantId String
+  event      String
+  payload    String
+  signature  String
+  status     String   @default("pending") // pending | delivered | failed | skipped
+  attempts   Int      @default(0)
+  lastError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status])
+  @@index([merchantId])
+}
+
+model ChainEvent {
+  id        String   @id @default(cuid())
+  receiptId String?
+  event     String
+  dataJson  String
+  txHash    String?
+  createdAt DateTime @default(now())
+
+  @@index([receiptId])
+}
+
+model Kv {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
