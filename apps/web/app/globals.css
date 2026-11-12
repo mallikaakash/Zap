@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-canvas: var(--canvas);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --accent: #4f46e5;
+  --accent-soft: #eef2ff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --surface: #ffffff;
+  --canvas: #f6f7fb;
+  --good: #059669;
+  --warn: #b45309;
+  --bad: #dc2626;
+}
+
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Shared primitives. One accent colour; everything else is ink on white. */
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)];
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:brightness-110 shadow-[0_6px_16px_-6px_var(--accent)];
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-surface text-ink hover:bg-canvas;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-red-50 text-bad hover:bg-red-100;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold tracking-wide text-muted uppercase;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap;
+  }
+  .mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.28s ease-out both;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  width: 1em;
+  height: 1em;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .spinner {
+    animation: none;
+  }
 }
