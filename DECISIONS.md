@@ -26,3 +26,13 @@ Choices made while building that are not spelled out in `SPEC.md`, or that devia
 - **Webhooks**: `X-UC-Signature: sha256=HMAC(secret, "{timestamp}.{body}")`, `X-UC-Timestamp`, `X-UC-Event-Id`; five-minute tolerance; retries with backoff.
 - **Photos in the refund chat are recorded by file name only**; the image is not uploaded or analysed yet.
 - **Demo clock.** `UC_TIME_SCALE` divides schedule delays (never in live mode) so "30 days" can be shown in a minute on the sandbox. The UI labels it.
+
+## Product direction (agreed with the project owner, 2026-11-13)
+- **Goal:** a real, Stripe/Dodo-style payment gateway that drops into any site as a widget. Sellers get paid and everyone is notified of what happens.
+- **Primary user:** indie / no-code sellers (Carrd, Notion, Framer, Webflow pages). They usually have no server, so email and the dashboard matter more than webhooks; webhooks stay for developers.
+- **Real money:** a hosted testnet site for judges, with swaps simulated and clearly labelled, plus a real $1–2 mainnet payment and refund run by the owner (`pnpm proof:mainnet`) with tx links in the README. NEAR Intents has no testnet, and the contract is unaudited.
+- **Merchant onboarding:** the seller gives a name and a payout account; the operator registers the shop on chain, with no wallet popups. Refund approvals happen in the dashboard behind an email magic-link login. Wallet connect is planned.
+- **Customer receipts:** optional email at checkout; the receipt link is emailed to the customer.
+- **Email:** Resend in hosted mode; a dev inbox page in local mode.
+- **Remaining scope:** WooCommerce plugin and the real NEAR AI model stay in. MCP server and Shopify are cut; everything else goes to polish.
+- **Video story:** pay with any coin → item arrives broken → the assistant asks for a photo → it approves → the money returns on the original chain → a pass changes hands → "works on any site".
