@@ -11,6 +11,18 @@ importers:
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
+      '@uc/chain':
+        specifier: workspace:*
+        version: link:packages/chain
+      '@uc/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@uc/db':
+        specifier: workspace:*
+        version: link:packages/db
+      near-kit:
+        specifier: ^0.20.2
+        version: 0.20.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
