@@ -125,3 +125,103 @@ Views: `get_receipt(id) -> ReceiptView | null`, `get_receipt_by_order_ref(order_
 - Storage: a fixed `receipt_storage_cost` (0.01 NEAR) is charged per mint from the merchant's prepaid `storage_balance`.
 - USDC storage registration of payout and refund deposit accounts is done by the backend before the transfer; a transfer to an unregistered account rolls back cleanly.
 - `customer_reply_secs`, `min_order_usd`, refund-address rate limits and blocklists are enforced off-chain by the backend.
+
+## As built — details and deviations (checked against the code and the sandbox tests)
+
+Everything above is implemented as written, except for the points marked **Deviation**.
+The rest of this section pins down details the tables leave open.
+
+### Deployment prerequisites
+- The receipts contract account **must be registered with the USDC contract**
+  (`usdc.storage_deposit({account_id: <receipts>, registration_only: true})`) before it can
+  receive USDC. Without it every `ft_transfer_call` / plain transfer to it fails in the token contract.
+  (mock-usdc's `mint` faucet registers the target automatically.)
+- Payout accounts and refund deposit accounts must be registered with USDC by the backend.
+- A merchant needs `storage_balance >= receipt_storage_cost` (0.01 NEAR) per mint.
+
+### Return values
+| Method | Returns |
+|---|---|
+| `mint_receipt` | receipt id (number). If the balance check or a re-validation fails in the callback, the **transaction fails** with the reason as panic message (e.g. `insufficient unassigned USDC: …`, `order_ref already used`) and `mint_lock` is cleared. |
+| `release`, `execute_refund` | `true` if the USDC transfer succeeded; `false` if it failed and was rolled back. **The transaction itself succeeds in both cases** — check the value (or look for `transfer_failed`). |
+| `ft_on_transfer` | `"0"` accepted, or the full amount on rejection (so `ft_transfer_call` returns the used amount: the full amount when accepted, `"0"` when rejected). |
+| everything else | nothing |
+
+### Gas and deposits
+| Call | Gas to attach | Deposit |
+|---|---|---|
+| `mint_receipt` | 100 Tgas (minimum ≈ 50) | 0 |
+| `usdc.ft_transfer_call` → `ft_on_transfer` | 100 Tgas | 1 yocto (to USDC) |
+| `release`, `execute_refund` | 100 Tgas (minimum ≈ 60) | 0 (the contract pays the 1 yocto) |
+| `register_merchant`, `fund_storage` | 30 Tgas | NEAR to add to `storage_balance` (may be 0 on updates) |
+| `nft_transfer` | 30 Tgas | 1 yocto |
+| `nft_transfer_call` | 100 Tgas | 1 yocto |
+| all other change methods | 30 Tgas | 0 |
+
+### Deviations from the tables above
+1. **Deviation — `mint_receipt` needs `refund_target`.** Only `ft_on_transfer` has a default (the sender). `mint_receipt` panics with `refund_target required` if it is missing. `amount` is also required there.
+2. **Deviation — `mint_receipt` balance check is slightly stricter.** Required balance is `allocated + in_flight_total + amount + (USDC that left the contract since mint_receipt was called)`. This closes the case where a transfer settles between the balance read and the callback. It can only cause a spurious "insufficient" failure (retry), never over-allocation.
+3. **Addition — `reset_mint_lock()`** (owner only). Emergency reset if a mint callback ever dies (out of gas). `mint_failed(reason)`, `on_mint_balance` and `on_transfer_resolved` are private callbacks.
+4. **Deviation — `ft_on_transfer` panics (instead of returning the amount) when the caller is not the configured USDC contract.** A foreign token's own `ft_resolve_transfer` then refunds its sender; nothing is recorded.
+5. **Addition — top-up limits.** A top-up is also rejected (amount returned) while a refund request is active on that receipt, or when the receipt already has 60 tranches. Schedules passed to mint may have 1..=60 tranches.
+6. **Detail — schedules.** `window_secs` is rejected for Subscription/Schedule (`window_secs is for OneTime receipts`); their `window_end` equals `created_at` and is not used.
+7. **Detail — `cancel` emits two events:** `cancelled` and then `refund_requested` (with `is_cancel: true`). `merchant_refund` emits `refund_approved` with `by_merchant: true`.
+8. **Detail — `released` and `refund_executed` are emitted from the callback, only when the transfer succeeded.** A failed transfer emits `transfer_failed` instead.
+9. **Detail — `appeal` on a cancel request** re-marks every `Pending` tranche with `at > now` as `RefundPending` and sets `request.amount` to their sum (tranches released in the meantime are gone); panics with `funds were already released` if the sum is 0. OneTime: panics if `request.amount > amount − released − refunded`.
+10. **Detail — `veto`** sets `veto_until` back to `null`.
+11. **Detail — `daily_refund_cap` is a hard cap:** `0` means the executor can refund nothing for that merchant. A failed transfer gives the amount back to the day's allowance.
+12. **Detail — NFT.** `nft_transfer`/`nft_transfer_call` also refuse the contract account as receiver. The approval extension (NEP-178) is not enabled. Storage for a new owner is paid by the contract.
+13. **Detail — claimed receipts:** `sig` is ignored; the receipt key is deleted at claim and `nonce` stops moving.
+14. **Detail — no new request after `Rejected` or `AiDenied`** (only after `Executed`), exactly as the table says; `merchant_refund` is still possible and replaces the closed request.
+
+### Input limits (a violation panics)
+- `order_ref`: 1..=64 characters.
+- `reason_hash`, `summary_hash`: lowercase hex, 0..=64 characters (empty allowed).
+- `receipt_key`: exactly 64 hex characters; `sig`: exactly 128 hex characters.
+- `refund_target.chain/asset/address`: 1..=128 characters each, no `|`.
+- `note`: ≤ 256 characters; `quote_id`: ≤ 128 characters.
+- `ai_decide.amount` is required in every call (send `"0"` for `escalate` / `deny`).
+- `from_index`, `limit` in list views: JSON numbers; `limit` default 50, max 100.
+
+### Signature preimage examples
+For contract `receipts.testnet`, receipt `7`, nonce `0`:
+```
+uc:v1|receipts.testnet|7|request_refund|15000000|5e88…42d8|0
+uc:v1|receipts.testnet|7|cancel|5e88…42d8|0
+uc:v1|receipts.testnet|7|appeal||0                (empty params → two bars)
+uc:v1|receipts.testnet|7|confirm_received||0
+uc:v1|receipts.testnet|7|claim|alice.testnet|0
+uc:v1|receipts.testnet|7|set_refund_target|base|usdc|0x00…bb|0
+```
+`sig = hex(ed25519_sign(private_key, sha256(utf8(preimage))))` — the 32-byte digest is the signed message.
+A failed transaction does not consume the nonce; read `nonce` from `get_receipt` before signing.
+
+### Event payloads (`data[0]`)
+All amounts are strings; `receipt_id` is a number.
+```
+receipt_minted        { receipt_id, merchant_id, order_ref, amount, kind, window_end, schedule, refund_target, transferable }
+topped_up             { receipt_id, merchant_id, order_ref, amount, at, total_amount, sender_id }
+payment_rejected      { receipt_id|null, merchant_id|null, order_ref|null, sender_id, amount, reason }
+released              { receipt_id, merchant_id, order_ref, amount, payout, released_total, status }
+refund_requested      { receipt_id, merchant_id, order_ref, amount, reason_hash, is_cancel, ai_triage, decision_deadline, refund_target }
+cancelled             { receipt_id, merchant_id, order_ref, amount, reason_hash }
+ai_decided            { receipt_id, merchant_id, order_ref, decision, state, amount, summary_hash, veto_until|null, decision_deadline }
+vetoed                { receipt_id, merchant_id, order_ref, amount, note, decision_deadline }
+appealed              { receipt_id, merchant_id, order_ref, amount, decision_deadline }
+refund_approved       { receipt_id, merchant_id, order_ref, amount, by_merchant, refund_target }
+refund_rejected       { receipt_id, merchant_id, order_ref, amount, note }
+request_finalized     { receipt_id, merchant_id, order_ref, amount, from_state, state: "Approved", refund_target }
+refund_executed       { receipt_id, merchant_id, order_ref, amount, deposit_account, quote_id, refund_target, refunded_total, status }
+transfer_failed       { receipt_id, merchant_id, order_ref, amount, action: "release"|"refund", to, quote_id|null }
+confirmed             { receipt_id, merchant_id, order_ref, amount }
+claimed               { receipt_id, merchant_id, order_ref, amount, owner_id }
+refund_target_changed { receipt_id, merchant_id, order_ref, refund_target }
+paused / unpaused     { by }
+```
+`ai_decided.decision` is what the executor asked for; `state` is what the contract did
+(an `approve` above `auto_approve_max` or `guard_threshold` yields `state: "Escalated"`).
+The standard NEP-171 `nft_mint` / `nft_transfer` events are emitted as well.
+
+### mock-usdc
+`new()`, `mint({account_id, amount})` (anyone; registers the account), plus standard NEP-141 /
+NEP-145 / NEP-148 (`ft_transfer`, `ft_transfer_call`, `ft_balance_of`, `storage_deposit`, `ft_metadata` …).

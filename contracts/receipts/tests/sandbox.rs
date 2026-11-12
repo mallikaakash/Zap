@@ -146,6 +146,8 @@ impl Env {
             .await?
             .assert_success();
 
+        // The receipts contract must be registered with USDC before it can receive any.
+        env.register_usdc("receipts").await;
         env.register_merchant("shop", true, DAILY_CAP).await;
         Ok(env)
     }

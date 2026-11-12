@@ -254,9 +254,16 @@ export class Chain {
     return r ? normalize(r) : null;
   }
 
-  async receiptsForMerchant(merchantId: string, fromIndex = 0, limit = 100): Promise<Receipt[]> {
-    const rows = await this.view<RawReceipt[]>(this.receipts, "receipts_for_merchant", { merchant_id: merchantId, from_index: fromIndex, limit });
-    return (rows ?? []).map(normalize);
+  /** Oldest first. The contract returns at most 100 per call, so this pages until `max` or the end. */
+  async receiptsForMerchant(merchantId: string, fromIndex = 0, max = 100): Promise<Receipt[]> {
+    const out: Receipt[] = [];
+    while (out.length < max) {
+      const limit = Math.min(100, max - out.length);
+      const rows = (await this.view<RawReceipt[]>(this.receipts, "receipts_for_merchant", { merchant_id: merchantId, from_index: fromIndex + out.length, limit })) ?? [];
+      out.push(...rows.map(normalize));
+      if (rows.length < limit) break;
+    }
+    return out;
   }
 
   async receiptsForOwner(accountId: string, fromIndex = 0, limit = 100): Promise<Receipt[]> {
@@ -355,8 +362,9 @@ export class Chain {
     return this.call<string>(sender, this.usdc, "ft_transfer_call", { receiver_id: this.receipts, amount, msg: JSON.stringify({ topup_of: Number(id), ...(at ? { at: isoToNs(at) } : {}) }) }, { gas: GAS.mint, deposit: "1 yocto" });
   }
 
+  /** Resolves to `false` in `value` when the USDC transfer failed and the contract rolled back. */
   release(signer: string, id: string) {
-    return this.call(signer, this.receipts, "release", { id: Number(id) }, { gas: GAS.transfer });
+    return this.call<boolean>(signer, this.receipts, "release", { id: Number(id) }, { gas: GAS.transfer });
   }
 
   /** `sig` = receipt-key signature for unclaimed receipts; omit when `signer` is the NFT owner. */
@@ -400,8 +408,11 @@ export class Chain {
     return this.call(signer, this.receipts, "confirm_received", { id: Number(id), sig: sig ?? null });
   }
 
-  executeRefund(executor: string, id: string, depositAccount: string, amount: string, quoteId: string) {
-    return this.call(executor, this.receipts, "execute_refund", { id: Number(id), deposit_account: depositAccount, amount, quote_id: quoteId }, { gas: GAS.transfer });
+  /** Throws if the USDC transfer failed (the contract has already rolled the refund back to `Approved`). */
+  async executeRefund(executor: string, id: string, depositAccount: string, amount: string, quoteId: string) {
+    const tx = await this.call<boolean>(executor, this.receipts, "execute_refund", { id: Number(id), deposit_account: depositAccount, amount, quote_id: quoteId.slice(0, 128) }, { gas: GAS.transfer });
+    if (tx.value === false) throw new ChainError("The USDC transfer for this refund failed and was rolled back; it will be retried", tx.logs);
+    return tx;
   }
 
   claim(signer: string, id: string, account: string, sig: string) {

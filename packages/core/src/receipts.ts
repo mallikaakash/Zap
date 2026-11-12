@@ -274,7 +274,7 @@ export async function merchantDecide(id: string, action: "approve" | "reject" | 
   const r = await mustGet(id);
   const approver = await approverFor(r);
   const chain = getChain();
-  const clean = note.trim().slice(0, 280);
+  const clean = note.trim().slice(0, 250);
   const tx = await run(() => (action === "approve" ? chain.approveRefund(approver, id) : action === "reject" ? chain.rejectRefund(approver, id, clean) : chain.veto(approver, id, clean)));
   const c = await db.refundCase.findFirst({ where: { receiptId: id, closed: false }, orderBy: { createdAt: "desc" } });
   const text = { approve: "The shop approved your refund. It is on its way.", reject: "The shop declined this request.", veto: "The shop asked to review this request before it is paid." }[action];
