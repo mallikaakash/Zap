@@ -233,7 +233,8 @@ export async function simulatePayment(id: string): Promise<Session> {
       const payer = getConfig().relayer;
       await chain.mintMockUsdc(payer, payer, session.amount);
       const tx = await chain.payDirect(payer, mintArgsFor(session, await chain.now()));
-      if (tx.value !== "0") throw new Error(tx.events.find((e) => e.event === "payment_rejected")?.data.reason?.toString() ?? "the contract returned the payment");
+      // ft_transfer_call resolves to the amount the receiver kept: all of it when accepted, "0" when returned.
+      if (tx.value !== session.amount) throw new Error(tx.events.find((e) => e.event === "payment_rejected")?.data.reason?.toString() ?? "the contract returned the payment");
     } else {
       const status = await getMockAdapter()!.simulatePayment(session.depositAddress!);
       if (status !== "SUCCESS") throw new Error(`swap ended as ${status}`);
