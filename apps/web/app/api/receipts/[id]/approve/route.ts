@@ -1,6 +1,10 @@
-import { decideRefund } from "@uc/core";
-import { handle, type Ctx } from "@/lib/api";
+import { merchantDecide } from "@uc/core";
+import { body, handle, type Ctx } from "@/lib/api";
 
-export function POST(_req: Request, { params }: Ctx) {
-  return handle(async () => ({ receipt: await decideRefund((await params).id, true) }));
+/** Merchant decision, signed by the merchant's approver account. Body: `{ note? }`. */
+export function POST(req: Request, { params }: Ctx) {
+  return handle(async () => {
+    const b = await body(req).catch(() => ({}) as Record<string, unknown>);
+    return { receipt: await merchantDecide((await params).id, "approve", typeof b.note === "string" ? b.note : "") };
+  });
 }

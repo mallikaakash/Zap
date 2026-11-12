@@ -3,6 +3,7 @@ import { db, kvGet, kvSet } from "@uc/db";
 import { json } from "@/lib/api";
 
 interface Seen {
+  id?: string;
   event: string;
   verified: boolean;
   at: string;
@@ -11,14 +12,15 @@ interface Seen {
 
 /**
  * The demo shop's own webhook endpoint. It does what every merchant server must do:
- * verify `X-UC-Signature` with the shared secret before trusting the event.
+ * verify `X-UC-Signature` over `timestamp.body` with the shared secret, reject stale timestamps,
+ * and ignore event ids it has already handled, before trusting the event.
  */
 export async function POST(req: Request) {
   const raw = await req.text();
   const merchantId = new URL(req.url).searchParams.get("merchant") ?? "";
   const merchant = await db.merchant.findUnique({ where: { id: merchantId } });
-  const verified = !!merchant && verifyWebhook(merchant.webhookSecret, raw, req.headers.get("x-uc-signature") ?? "");
-  let parsed: { event?: string; data?: unknown } = {};
+  const verified = !!merchant && verifyWebhook(merchant.webhookSecret, raw, req.headers.get("x-uc-signature") ?? "", req.headers.get("x-uc-timestamp") ?? "");
+  let parsed: { id?: string; event?: string; data?: unknown } = {};
   try {
     parsed = JSON.parse(raw) as typeof parsed;
   } catch {
@@ -26,7 +28,8 @@ export async function POST(req: Request) {
   }
   const key = `sink:${merchantId}`;
   const seen = (await kvGet<Seen[]>(key)) ?? [];
-  seen.unshift({ event: parsed.event ?? "unknown", verified, at: new Date().toISOString(), data: parsed.data ?? null });
+  if (verified && parsed.id && seen.some((x) => x.id === parsed.id)) return json({ ok: true, duplicate: true });
+  seen.unshift({ id: parsed.id, event: parsed.event ?? "unknown", verified, at: new Date().toISOString(), data: parsed.data ?? null });
   await kvSet(key, seen.slice(0, 30));
   return verified ? json({ ok: true }) : json({ error: "bad signature" }, 401);
 }
