@@ -4,7 +4,7 @@ import type { Kind } from "@uc/chain";
 import type { Token } from "@uc/intents-adapter";
 import { UserError } from "./errors";
 import { fromMinor, isMinor, sumMinor } from "./money";
-import { getAdapter, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
+import { env, getAdapter, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
 
 export interface ScheduleItem {
   afterSecs: number;
@@ -23,6 +23,12 @@ export interface CreateSessionInput {
 
 const KINDS: Kind[] = ["OneTime", "Subscription", "Schedule"];
 const MAX_AMOUNT = 1_000_000_000_000n; // $1,000,000
+
+/** `UC_TIME_SCALE` (never applied in live mode): schedule delays are divided by this. */
+export function timeScale(): number {
+  const n = Number(env().UC_TIME_SCALE);
+  return getConfig().mode !== "live" && Number.isFinite(n) && n > 1 ? n : 1;
+}
 
 export function checkoutUrl(sessionId: string): string {
   return `${getConfig().publicUrl}/checkout/${sessionId}`;
@@ -46,6 +52,9 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
       if (!isMinor(t.amount) || BigInt(t.amount) <= 0n) throw new UserError("schedule[].amount must be a positive integer string in minor units");
     }
     if (sumMinor(schedule.map((t) => t.amount)) !== input.amountUsd) throw new UserError("schedule amounts must add up to amountUsd");
+    // Demo clock: on the local sandbox "30 days" can be squeezed into a minute so releases are watchable.
+    const scale = timeScale();
+    if (scale > 1) schedule = schedule.map((t) => ({ ...t, afterSecs: Math.ceil(t.afterSecs / scale) }));
     schedule.sort((a, b) => a.afterSecs - b.afterSecs);
   }
 

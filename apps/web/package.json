@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "pnpm sdk && next dev",
+    "build": "pnpm sdk && next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sdk": "pnpm --filter @uc/sdk build && mkdir -p public && cp ../../packages/sdk/dist/pay.js public/pay.js"
   },
   "dependencies": {
     "@uc/chain": "workspace:*",
