@@ -1,18 +1,30 @@
 {
-  "name": "near-hackathon",
+  "name": "universal-checkout",
   "private": true,
   "version": "0.1.0",
-  "description": "NEAR Web3 hackathon workspace with agent skills, MCP, contract, and frontend",
+  "description": "Universal Checkout \u2014 pay in any coin on any chain, merchants get USDC, every payment is a receipt NFT that holds the money.",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "dev": "npm run dev --prefix frontend",
-    "build:frontend": "npm run build --prefix frontend",
-    "build:contract": "cd contract && cargo near build non-reproducible-wasm",
-    "test:contract": "cd contract && cargo test --locked",
-    "setup": "bash scripts/setup.sh",
+    "demo": "tsx scripts/demo.ts",
+    "test": "pnpm -r --if-present test",
+    "test:contracts": "cd contracts && cargo test",
+    "build:contracts": "bash scripts/build-contracts.sh",
+    "typecheck": "pnpm -r --if-present typecheck",
     "skills:update": "npx skills update -p -y",
-    "skills:add": "npx skills add near/agent-skills -y -p"
+    "dev": "tsx scripts/dev.ts",
+    "test:e2e": "tsx scripts/e2e.ts"
   },
   "engines": {
-    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
-  }
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@uc/chain": "workspace:*",
+    "@uc/core": "workspace:*",
+    "@uc/db": "workspace:*",
+    "near-kit": "^0.20.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "type": "module"
 }

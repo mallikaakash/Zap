@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Universal Checkout — pay-button demo</title>
+<!--
+  Standalone demo, no backend needed:
+    pnpm --filter @uc/sdk build && open packages/sdk/demo.html
+  window.fetch is mocked for POST …/api/sessions, and this same file doubles as the
+  fake hosted checkout page when opened with ?checkout=<sessionId> (inside the modal).
+-->
+<style>
+  :root { --ink:#0f172a; --mute:#64748b; --line:#e2e8f0; --bg:#f8fafc; --accent:#4F46E5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width:960px; margin:0 auto; padding:48px 20px 80px; }
+  h1 { font-size:28px; letter-spacing:-.02em; margin:0 0 6px; }
+  p.lead { color:var(--mute); margin:0 0 32px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:10px; }
+  .card h2 { font-size:16px; margin:0; }
+  .card .price { font-size:26px; font-weight:700; letter-spacing:-.02em; }
+  .card .price small { font-size:13px; font-weight:500; color:var(--mute); }
+  .card p { margin:0; color:var(--mute); font-size:13px; flex:1; }
+  .card pay-button { width:100%; margin-top:8px; }
+  h3 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--mute); margin:40px 0 12px; }
+  .styler { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; }
+  .styler form { display:grid; grid-template-columns:auto 1fr; gap:10px 14px; align-items:center; font-size:13px; }
+  .styler input[type=text], .styler select { width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  .styler .preview { display:grid; place-items:center; min-height:140px; border-radius:12px; background:repeating-conic-gradient(#f1f5f9 0 25%,#fff 0 50%) 0 0/20px 20px; }
+  pre { margin:0; background:#0f172a; color:#e2e8f0; border-radius:12px; padding:14px 16px; font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+  #log { min-height:120px; max-height:300px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  @media (max-width:640px) { .styler { grid-template-columns:1fr; } }
+
+  /* fake hosted checkout (iframe) */
+  .co { max-width:420px; margin:0 auto; padding:24px 20px; }
+  .co h1 { font-size:20px; }
+  .co .amt { font-size:34px; font-weight:700; letter-spacing:-.02em; margin:4px 0 16px; }
+  .co .box { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:#fff; margin-bottom:10px; display:flex; justify-content:space-between; font-size:14px; }
+  .co button { width:100%; min-height:46px; border:0; border-radius:12px; background:var(--accent); color:#fff; font:600 15px/1 inherit; cursor:pointer; margin-top:10px; }
+  .co button.ghost { background:transparent; color:var(--mute); }
+  .co .ok { text-align:center; padding:28px 0; }
+  .co .ok div { width:56px; height:56px; border-radius:50%; background:#dcfce7; color:#16a34a; display:grid; place-items:center; font-size:28px; margin:0 auto 12px; }
+</style>
+</head>
+<body>
+<main id="shop" hidden>
+  <h1>Universal Checkout — <code>&lt;pay-button&gt;</code></h1>
+  <p class="lead">Three modes, one tag. The backend is mocked on this page; open the console/log below to see the exact session request.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Ebook</h2>
+      <div class="price">$49</div>
+      <p>One-time payment in any coin, settled in USDC.</p>
+      <pay-button api="https://demo.invalid" merchant="shop.testnet" amount="49" product="Ebook" mode="one-time"
+                  label="Pay any way" color="#4F46E5" radius="12"></pay-button>
+    </div>
+    <div class="card">
+      <h2>Pro plan</h2>
+      <div class="price">$9.99 <small>/ month × 3</small></div>
+      <p>Subscription: three monthly tranches, cancel any time for the unreleased part.</p>
+      <pay-button api="https://demo.invalid" merchant="shop.testnet" product="Pro plan" mode="subscription" months="3" monthly="9.99"
+                  label="Subscribe" color="#0f172a" radius="999" icon="coins"></pay-button>
+    </div>
+    <div class="card">
+      <h2>Website build</h2>
+      <div class="price">$1,500 <small>in 3 milestones</small></div>
+      <p>Schedule: 500 now, 500 after 14 days, 500 after 30 days.</p>
+      <pay-button api="https://demo.invalid" merchant="shop.testnet" product="Website build" mode="schedule"
+                  tranches='[{"afterDays":0,"amount":"500"},{"afterDays":14,"amount":"500"},{"afterDays":30,"amount":"500"}]'
+                  label="Pay in milestones" color="#059669" radius="8" metadata='{"project":"acme-site"}'></pay-button>
+    </div>
+  </div>
+
+  <h3>Live styler (attributes are reactive)</h3>
+  <div class="styler">
+    <form id="styler" onsubmit="return false">
+      <label for="s-label">Label</label><input id="s-label" type="text" data-attr="label" value="Pay any way">
+      <label for="s-color">Colour</label><input id="s-color" type="color" data-attr="color" value="#4F46E5">
+      <label for="s-radius">Radius</label><input id="s-radius" type="range" min="0" max="28" data-attr="radius" value="12">
+      <label for="s-size">Size</label><select id="s-size" data-attr="size"><option>sm</option><option selected>md</option><option>lg</option></select>
+      <label for="s-icon">Icon</label><select id="s-icon" data-attr="icon"><option selected>lock</option><option>coins</option><option>none</option></select>
+    </form>
+    <div class="preview">
+      <pay-button id="styled" api="https://demo.invalid" merchant="shop.testnet" amount="19.50" product="Styled item"></pay-button>
+    </div>
+  </div>
+
+  <h3>States</h3>
+  <div class="row">
+    <pay-button api="https://demo.invalid" merchant="shop.testnet" amount="5" label="Network error" data-fail="1"></pay-button>
+    <pay-button api="https://demo.invalid" merchant="shop.testnet" amount="not-a-number" label="Invalid config"></pay-button>
+    <pay-button api="https://demo.invalid" merchant="shop.testnet" amount="5" label="Disabled" disabled></pay-button>
+    <pay-button api="https://demo.invalid" merchant="shop.testnet" amount="5" label="Themed by CSS vars"
+                style="--uc-color:#f59e0b;--uc-text-color:#1c1917;--uc-radius:4px;--uc-font:Georgia,serif"></pay-button>
+  </div>
+
+  <h3>Shareable link (checkoutLink)</h3>
+  <pre id="link"></pre>
+
+  <h3>Event + request log</h3>
+  <pre id="log"></pre>
+</main>
+
+<div id="checkout" class="co" hidden>
+  <div id="co-pay">
+    <h1 id="co-product">Checkout</h1>
+    <div class="amt" id="co-amount"></div>
+    <div class="box"><span>Pay with</span><b>ETH on Arbitrum</b></div>
+    <div class="box"><span>Merchant receives</span><b>USDC on NEAR</b></div>
+    <button id="co-sim">Simulate payment</button>
+    <button id="co-cancel" class="ghost">Cancel</button>
+  </div>
+  <div id="co-done" class="ok" hidden>
+    <div>✓</div>
+    <h1>Payment complete</h1>
+    <p>Receipt <code id="co-receipt"></code></p>
+    <button id="co-close">Done</button>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get("checkout");
+
+  if (sessionId) {
+    // ---- fake hosted checkout page (runs inside the modal iframe) ----
+    document.getElementById("checkout").hidden = false;
+    document.getElementById("co-product").textContent = params.get("product") || "Checkout";
+    document.getElementById("co-amount").textContent = "$" + (params.get("usd") || "");
+    const send = (type, extra) =>
+      window.parent.postMessage(Object.assign({ source: "universal-checkout", type, sessionId }, extra), "*");
+    const resize = () => send("uc:resize", { height: document.getElementById("checkout").offsetHeight });
+    resize();
+    document.getElementById("co-sim").onclick = () => {
+      const receiptId = "rcpt_" + Math.random().toString(36).slice(2, 10);
+      document.getElementById("co-pay").hidden = true;
+      document.getElementById("co-done").hidden = false;
+      document.getElementById("co-receipt").textContent = receiptId;
+      send("uc:paid", { receiptId, receiptUrl: location.origin + "/r/" + receiptId + "#secret" });
+      resize();
+    };
+    document.getElementById("co-cancel").onclick = document.getElementById("co-close").onclick = () => send("uc:close");
+    addEventListener("keydown", (e) => e.key === "Escape" && send("uc:close"));
+  } else {
+    // ---- demo shop: mock the Universal Checkout backend ----
+    document.getElementById("shop").hidden = false;
+    const logEl = document.getElementById("log");
+    const log = (title, data) => {
+      logEl.textContent = `${new Date().toLocaleTimeString()}  ${title}\n${JSON.stringify(data, null, 2)}\n\n` + logEl.textContent;
+    };
+    let failNext = false;
+    document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-fail]")) failNext = true; }, true);
+
+    const realFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = String(input && input.url ? input.url : input);
+      if (!url.endsWith("/api/sessions")) return realFetch(input, init);
+      const body = JSON.parse(init.body);
+      log("POST " + url, body);
+      await new Promise((r) => setTimeout(r, 700));
+      if (failNext) { failNext = false; return new Response(JSON.stringify({ error: "demo failure" }), { status: 503 }); }
+      const id = "sess_" + Math.random().toString(36).slice(2, 10);
+      const checkout = new URL(location.href.split(/[?#]/)[0]);
+      checkout.searchParams.set("checkout", id);
+      checkout.searchParams.set("product", body.product || "");
+      checkout.searchParams.set("usd", window.UniversalCheckout.minorToUsd(body.amountUsd));
+      return new Response(JSON.stringify({ sessionId: id, checkoutUrl: checkout.toString() }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    };
+
+    for (const type of ["uc:paid", "uc:closed", "uc:error"]) {
+      document.addEventListener(type, (e) => log(type + "  ← " + (e.target.getAttribute("product") || e.target.getAttribute("label")), e.detail));
+    }
+
+    const styled = document.getElementById("styled");
+    const apply = (el) => styled.setAttribute(el.dataset.attr, el.value);
+    document.querySelectorAll("#styler [data-attr]").forEach((el) => { el.addEventListener("input", () => apply(el)); });
+
+    addEventListener("DOMContentLoaded", () => {
+      document.getElementById("link").textContent = window.UniversalCheckout.checkoutLink({
+        api: "https://pay.example", merchant: "shop.testnet", mode: "subscription", months: 3, monthly: "9.99", product: "Pro plan",
+      });
+    });
+  }
+</script>
+<script src="./dist/pay.js" defer></script>
+</body>
+</html>
