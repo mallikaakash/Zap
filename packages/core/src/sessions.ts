@@ -1,10 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { db, type Session } from "@uc/db";
 import type { Kind } from "@uc/chain";
 import type { Token } from "@uc/intents-adapter";
 import { UserError } from "./errors";
 import { fromMinor, isMinor, sumMinor } from "./money";
-import { env, getAdapter, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
+import { env, getAdapter, getChain, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
 
 export interface ScheduleItem {
   afterSecs: number;
@@ -30,6 +30,28 @@ export function timeScale(): number {
   return getConfig().mode !== "live" && Number.isFinite(n) && n > 1 ? n : 1;
 }
 
+/** What goes on chain instead of the merchant's order id: no names, emails or product details. */
+export function orderRefHash(merchantId: string, orderRef: string): string {
+  return createHash("sha256").update(`${merchantId}:${orderRef}`).digest("hex");
+}
+
+/** Pseudo-asset for "Pay with USDC on NEAR": no swap, straight into the contract. */
+export const DIRECT_ASSET = "near-usdc-direct";
+
+const EVM = new Set(["eth", "pol", "base", "arb", "op", "bsc", "avax", "gnosis", "bera", "monad", "xlayer", "plasma"]);
+const BASE58 = /^[1-9A-HJ-NP-Za-km-z]+$/;
+
+/** Catch the obvious wrong-chain mistakes before money moves. Returns an error message or null. */
+export function validateAddress(chain: string, address: string): string | null {
+  const a = address.trim();
+  if (EVM.has(chain)) return /^0x[0-9a-fA-F]{40}$/.test(a) ? null : "That does not look like an address on this chain (expected 0x followed by 40 hex characters)";
+  if (chain === "sol") return BASE58.test(a) && a.length >= 32 && a.length <= 44 ? null : "That does not look like a Solana address";
+  if (chain === "tron") return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a) ? null : "That does not look like a Tron address (they start with T)";
+  if (chain === "btc") return /^(bc1[0-9a-z]{20,80}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/.test(a) ? null : "That does not look like a Bitcoin address";
+  if (chain === "near") return /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/.test(a) && a.length >= 2 && a.length <= 64 ? null : "That does not look like a NEAR account";
+  return a.length >= 4 && a.length <= 128 && !/\s/.test(a) ? null : "Enter the address refunds should go back to";
+}
+
 export function checkoutUrl(sessionId: string): string {
   return `${getConfig().publicUrl}/checkout/${sessionId}`;
 }
@@ -40,6 +62,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   if (!merchant) throw new UserError(`Unknown merchant "${merchantId}"`, 404);
   if (!isMinor(input.amountUsd) || BigInt(input.amountUsd) <= 0n) throw new UserError("amountUsd must be a positive integer string in USDC minor units (6 dp)");
   if (BigInt(input.amountUsd) > MAX_AMOUNT) throw new UserError("Amount is above the per-payment limit");
+  if (BigInt(input.amountUsd) < BigInt(merchant.minOrder)) throw new UserError(`This shop's minimum order is $${fromMinor(merchant.minOrder)}`);
   const kind = input.kind ?? "OneTime";
   if (!KINDS.includes(kind)) throw new UserError(`kind must be one of ${KINDS.join(", ")}`);
 
@@ -69,6 +92,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
     data: {
       merchantId,
       orderRef,
+      orderRefHash: orderRefHash(merchantId, orderRef),
       product: input.product ? String(input.product).slice(0, 120) : null,
       amount: input.amountUsd,
       kind,
@@ -97,27 +121,60 @@ function formatUnits(minor: string, decimals: number): string {
 }
 
 export interface QuoteInput {
+  /** A token's `assetId`, or `DIRECT_ASSET` to pay with USDC on NEAR. */
   originAsset: string;
   refundAddress: string;
-  /** sha256(secret_0) hex, made in the customer's browser. */
-  secretHash: string;
+  /** ed25519 public key (hex) made in the customer's browser. The private key never leaves it. */
+  receiptKey: string;
 }
 
 export async function quoteSession(id: string, input: QuoteInput): Promise<Session> {
   const session = await db.session.findUnique({ where: { id } });
   if (!session) throw new UserError("Session not found", 404);
   if (!["created", "quoted", "expired"].includes(session.status)) throw new UserError("This payment has already started and can no longer be re-quoted", 409);
-  if (!/^[0-9a-f]{64}$/.test(String(input.secretHash))) throw new UserError("secretHash must be 64 hex characters");
+  if (!/^[0-9a-f]{64}$/.test(String(input.receiptKey))) throw new UserError("receiptKey must be a 64-character hex ed25519 public key");
   const refundAddress = String(input.refundAddress ?? "").trim();
-  if (refundAddress.length < 2 || refundAddress.length > 128) throw new UserError("Enter the address refunds should go back to");
-  const token = (await listTokens()).find((t) => t.assetId === input.originAsset);
+  const c = getConfig();
+
+  if (input.originAsset === DIRECT_ASSET) {
+    const bad = validateAddress("near", refundAddress);
+    if (bad) throw new UserError(bad);
+    return db.session.update({
+      where: { id },
+      data: {
+        status: "quoted",
+        direct: true,
+        originAsset: c.usdc,
+        originSymbol: "USDC",
+        originChain: "near",
+        refundAddress,
+        receiptKey: input.receiptKey,
+        depositAddress: null,
+        amountIn: session.amount,
+        amountInFormatted: fromMinor(session.amount).replace(/,/g, ""),
+        quoteDeadline: new Date(Date.now() + 30 * 60_000),
+        quoteJson: null,
+        error: null,
+      },
+    });
+  }
+
+  let tokens: Token[];
+  try {
+    tokens = await listTokens();
+  } catch {
+    throw new UserError("Coin prices are unavailable right now. You can still pay with USDC on NEAR.", 503);
+  }
+  const token = tokens.find((t) => t.assetId === input.originAsset);
   if (!token) throw new UserError("That coin is not supported");
+  const bad = validateAddress(token.chain, refundAddress);
+  if (bad) throw new UserError(bad);
 
   let quote;
   try {
-    quote = await getAdapter().quotePay({ originAsset: token.assetId, amountUsd: session.amount, refundTo: refundAddress, recipientNear: getConfig().receipts });
+    quote = await getAdapter().quotePay({ originAsset: token.assetId, amountUsd: session.amount, refundTo: refundAddress, recipientNear: c.receipts });
   } catch (e) {
-    throw new UserError(`Could not get a quote: ${e instanceof Error ? e.message : String(e)}`, 502);
+    throw new UserError(`Could not get a quote: ${e instanceof Error ? e.message : String(e)}. You can still pay with USDC on NEAR.`, 502);
   }
   if (!quote.depositAddress) throw new UserError("The swap provider returned no deposit address", 502);
 
@@ -125,11 +182,12 @@ export async function quoteSession(id: string, input: QuoteInput): Promise<Sessi
     where: { id },
     data: {
       status: "quoted",
+      direct: false,
       originAsset: token.assetId,
       originSymbol: token.symbol,
       originChain: token.chain,
       refundAddress,
-      secretHash: input.secretHash,
+      receiptKey: input.receiptKey,
       depositAddress: quote.depositAddress,
       depositMemo: quote.depositMemo ?? null,
       amountIn: quote.amountIn,
@@ -141,21 +199,49 @@ export async function quoteSession(id: string, input: QuoteInput): Promise<Sessi
   });
 }
 
-/** Pretend the customer sent the coins (mock swaps only). The settlement worker then mints the receipt. */
+/** Mint args shared by both payment paths. */
+export function mintArgsFor(s: Session, now: Date) {
+  const schedule = (JSON.parse(s.scheduleJson) as ScheduleItem[]).map((t) => ({ at: new Date(now.getTime() + t.afterSecs * 1000).toISOString(), amount: t.amount }));
+  return {
+    merchantId: s.merchantId,
+    orderRef: s.orderRefHash,
+    amount: s.amount,
+    kind: s.kind as Kind,
+    schedule,
+    refundTarget: { chain: s.originChain ?? "", asset: s.originAsset ?? "", address: s.refundAddress ?? "" },
+    receiptKey: s.receiptKey ?? undefined,
+  };
+}
+
+/**
+ * Pretend the customer paid (never available in live mode).
+ * - Swap path: the mock adapter "delivers" USDC to the contract; the worker then calls `mint_receipt`.
+ * - Direct path: mock USDC is minted to a demo payer who does the real `ft_transfer_call`; the
+ *   contract mints the receipt in `ft_on_transfer`.
+ */
 export async function simulatePayment(id: string): Promise<Session> {
   if (!simulationAllowed()) throw new UserError("Simulated payments are not available in this mode", 403);
   const session = await db.session.findUnique({ where: { id } });
   if (!session) throw new UserError("Session not found", 404);
-  if (session.status !== "quoted" || !session.depositAddress) throw new UserError("Pick a coin and get a quote first", 409);
-  // Claim the session first so a double click cannot deliver twice.
+  if (session.status !== "quoted") throw new UserError("Pick a coin and get a quote first", 409);
+  // Claim the session first so a double click cannot pay twice.
   const claimed = await db.session.updateMany({ where: { id, status: "quoted" }, data: { status: "deposit_detected" } });
   if (claimed.count === 0) throw new UserError("Payment is already in progress", 409);
   try {
-    const status = await getMockAdapter()!.simulatePayment(session.depositAddress);
-    if (status !== "SUCCESS") throw new Error(`swap ended as ${status}`);
+    if (session.direct) {
+      const chain = getChain();
+      const payer = getConfig().relayer;
+      await chain.mintMockUsdc(payer, payer, session.amount);
+      const tx = await chain.payDirect(payer, mintArgsFor(session, await chain.now()));
+      if (tx.value !== "0") throw new Error(tx.events.find((e) => e.event === "payment_rejected")?.data.reason?.toString() ?? "the contract returned the payment");
+    } else {
+      const status = await getMockAdapter()!.simulatePayment(session.depositAddress!);
+      if (status !== "SUCCESS") throw new Error(`swap ended as ${status}`);
+    }
   } catch (e) {
-    await db.session.update({ where: { id }, data: { status: "quoted", error: `Simulated payment failed: ${e instanceof Error ? e.message : String(e)}` } });
-    throw new UserError(`Simulated payment failed: ${e instanceof Error ? e.message : String(e)}`, 502);
+    const m = `Simulated payment failed: ${e instanceof Error ? e.message : String(e)}`;
+    await db.session.update({ where: { id }, data: { status: "quoted", error: m } });
+    throw new UserError(m, 502);
   }
   return db.session.findUniqueOrThrow({ where: { id } });
 }
@@ -176,6 +262,8 @@ export function sessionView(s: Session & { merchant?: { name: string } | null })
     originSymbol: s.originSymbol,
     originChain: s.originChain,
     refundAddress: s.refundAddress,
+    direct: s.direct,
+    payTo: s.direct ? { contract: getConfig().receipts, token: getConfig().usdc } : null,
     depositAddress: s.depositAddress,
     depositMemo: s.depositMemo,
     amountIn: s.amountIn,
@@ -187,6 +275,7 @@ export function sessionView(s: Session & { merchant?: { name: string } | null })
     paidAt: s.paidAt?.toISOString() ?? null,
     mode: getConfig().mode,
     canSimulate: simulationAllowed(),
+    directAsset: DIRECT_ASSET,
   };
 }
 

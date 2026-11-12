@@ -1,13 +1,16 @@
 import { InMemoryKeyStore, Near, parseKey } from "near-kit";
 import type {
+  AiDecision,
   ChainEventLog,
   ContractConfig,
   Kind,
   MerchantConfig,
+  MerchantState,
   MintArgs,
   Receipt,
   ReceiptStatus,
   RefundTarget,
+  RequestState,
   TrancheState,
   TxResult,
 } from "./types";
@@ -21,7 +24,7 @@ export interface ChainOptions {
   keys: Record<string, string>;
 }
 
-const GAS = { light: "30 Tgas", transfer: "100 Tgas", mint: "100 Tgas" } as const;
+const GAS = { light: "30 Tgas", transfer: "120 Tgas", mint: "150 Tgas" } as const;
 
 const nsToIso = (ns: string | number): string => new Date(Number(BigInt(ns) / 1_000_000n)).toISOString();
 const isoToNs = (iso: string): string => (BigInt(new Date(iso).getTime()) * 1_000_000n).toString();
@@ -30,22 +33,53 @@ interface RawReceipt {
   id: number;
   owner_id: string;
   claimed: boolean;
+  transferable: boolean;
   merchant_id: string;
   order_ref: string;
   amount: string;
   released: string;
   refunded: string;
-  pending_refund: string;
+  in_flight: string;
   kind: Kind;
   status: ReceiptStatus;
   window_end: string;
   created_at: string;
+  confirmed: boolean;
   schedule: Array<{ at: string; amount: string; state: TrancheState }>;
   refund_target: RefundTarget;
-  secret_nonce: number;
+  receipt_key: string | null;
+  nonce: number;
+  request: null | {
+    amount: string;
+    reason_hash: string;
+    summary_hash: string | null;
+    opened_at: string;
+    decision_deadline: string;
+    veto_until: string | null;
+    appealed: boolean;
+    is_cancel: boolean;
+    by_merchant: boolean;
+    state: RequestState;
+  };
+}
+
+interface RawMerchant {
+  payout: string;
+  approver: string;
+  guard_threshold: string;
+  default_window_secs: number;
+  response_secs: number;
+  daily_refund_cap: string;
+  ai_triage: boolean;
+  auto_approve_max: string;
+  veto_secs: number;
+  storage_balance: string;
+  refunded_today: string;
+  receipt_count: number;
 }
 
 function normalize(r: RawReceipt): Receipt {
+  const q = r.request;
   return {
     id: String(r.id),
     merchantId: r.merchant_id,
@@ -53,16 +87,45 @@ function normalize(r: RawReceipt): Receipt {
     amount: r.amount,
     released: r.released,
     refunded: r.refunded,
-    pendingRefund: r.pending_refund,
+    inFlight: r.in_flight,
     kind: r.kind,
+    status: r.status,
     windowEnd: nsToIso(r.window_end),
+    createdAt: nsToIso(r.created_at),
+    confirmed: r.confirmed,
     schedule: r.schedule.map((t) => ({ at: nsToIso(t.at), amount: t.amount, state: t.state })),
     refundTarget: r.refund_target,
     owner: r.owner_id,
     claimed: r.claimed,
-    secretNonce: r.secret_nonce,
-    status: r.status,
-    createdAt: nsToIso(r.created_at),
+    transferable: r.transferable,
+    receiptKey: r.receipt_key,
+    nonce: r.nonce,
+    request: q && {
+      amount: q.amount,
+      reasonHash: q.reason_hash,
+      summaryHash: q.summary_hash,
+      openedAt: nsToIso(q.opened_at),
+      decisionDeadline: nsToIso(q.decision_deadline),
+      vetoUntil: q.veto_until ? nsToIso(q.veto_until) : null,
+      appealed: q.appealed,
+      isCancel: q.is_cancel,
+      byMerchant: q.by_merchant,
+      state: q.state,
+    },
+  };
+}
+
+function mintArgsJson(a: MintArgs, withAmount: boolean): Record<string, unknown> {
+  return {
+    merchant_id: a.merchantId,
+    order_ref: a.orderRef,
+    ...(withAmount ? { amount: a.amount } : {}),
+    kind: a.kind,
+    window_secs: a.windowSecs ?? null,
+    schedule: a.schedule.map((t) => ({ at: isoToNs(t.at), amount: t.amount })),
+    refund_target: a.refundTarget ?? null,
+    receipt_key: a.receiptKey ?? null,
+    transferable: a.transferable ?? null,
   };
 }
 
@@ -186,8 +249,8 @@ export class Chain {
     return r ? normalize(r) : null;
   }
 
-  async getReceiptByOrderRef(merchantId: string, orderRef: string): Promise<Receipt | null> {
-    const r = await this.view<RawReceipt | null>(this.receipts, "get_receipt_by_order_ref", { merchant_id: merchantId, order_ref: orderRef });
+  async getReceiptByOrderRef(orderRef: string): Promise<Receipt | null> {
+    const r = await this.view<RawReceipt | null>(this.receipts, "get_receipt_by_order_ref", { order_ref: orderRef });
     return r ? normalize(r) : null;
   }
 
@@ -201,14 +264,42 @@ export class Chain {
     return (rows ?? []).map(normalize);
   }
 
-  async getMerchant(id: string): Promise<MerchantConfig | null> {
-    const m = await this.view<{ payout: string; approver: string; guard_threshold: string; default_window_secs: number } | null>(this.receipts, "get_merchant", { id });
-    return m ? { payout: m.payout, approver: m.approver, guardThreshold: m.guard_threshold, defaultWindowSecs: m.default_window_secs } : null;
+  async getMerchant(id: string): Promise<MerchantState | null> {
+    const m = await this.view<RawMerchant | null>(this.receipts, "get_merchant", { id });
+    return m
+      ? {
+          payout: m.payout,
+          approver: m.approver,
+          guardThreshold: m.guard_threshold,
+          defaultWindowSecs: m.default_window_secs,
+          responseSecs: m.response_secs,
+          dailyRefundCap: m.daily_refund_cap,
+          aiTriage: m.ai_triage,
+          autoApproveMax: m.auto_approve_max,
+          vetoSecs: m.veto_secs,
+          storageBalance: m.storage_balance,
+          refundedToday: m.refunded_today,
+          receiptCount: m.receipt_count,
+        }
+      : null;
   }
 
   async getConfig(): Promise<ContractConfig> {
-    const c = await this.view<{ usdc: string; executor: string; allocated: string; in_flight: string; receipt_count: number }>(this.receipts, "get_config");
-    return { usdc: c.usdc, executor: c.executor, allocated: c.allocated, inFlight: c.in_flight, receiptCount: c.receipt_count };
+    const c = await this.view<{ usdc: string; executor: string; owner: string; allocated: string; in_flight_total: string; mint_lock: boolean; paused: boolean; receipt_count: number; receipt_storage_cost: string }>(
+      this.receipts,
+      "get_config",
+    );
+    return {
+      usdc: c.usdc,
+      executor: c.executor,
+      owner: c.owner,
+      allocated: c.allocated,
+      inFlightTotal: c.in_flight_total,
+      mintLock: c.mint_lock,
+      paused: c.paused,
+      receiptCount: c.receipt_count,
+      receiptStorageCost: c.receipt_storage_cost,
+    };
   }
 
   async usdcBalance(accountId: string): Promise<string> {
@@ -218,7 +309,7 @@ export class Chain {
   /** USDC sitting in the receipt contract that no receipt has claimed yet. */
   async unassignedUsdc(): Promise<string> {
     const [bal, cfg] = await Promise.all([this.usdcBalance(this.receipts), this.getConfig()]);
-    const free = BigInt(bal) - BigInt(cfg.allocated) - BigInt(cfg.inFlight);
+    const free = BigInt(bal) - BigInt(cfg.allocated) - BigInt(cfg.inFlightTotal);
     return (free > 0n ? free : 0n).toString();
   }
 
@@ -228,71 +319,106 @@ export class Chain {
 
   // ---------- receipt contract calls ----------
 
-  registerMerchant(merchantId: string, m: MerchantConfig) {
-    return this.call(merchantId, this.receipts, "register_merchant", {
-      payout: m.payout,
-      approver: m.approver,
-      guard_threshold: m.guardThreshold,
-      default_window_secs: m.defaultWindowSecs,
-    });
+  /** `storageNear` (e.g. "0.5 NEAR") tops up the merchant's prepaid receipt storage. */
+  registerMerchant(merchantId: string, m: MerchantConfig, storageNear?: string) {
+    return this.call(
+      merchantId,
+      this.receipts,
+      "register_merchant",
+      {
+        payout: m.payout,
+        approver: m.approver,
+        guard_threshold: m.guardThreshold,
+        default_window_secs: m.defaultWindowSecs,
+        response_secs: m.responseSecs,
+        daily_refund_cap: m.dailyRefundCap,
+        ai_triage: m.aiTriage,
+        auto_approve_max: m.autoApproveMax,
+        veto_secs: m.vetoSecs,
+      },
+      { deposit: storageNear },
+    );
   }
 
+  /** Primary path: the swap already paid the contract; attribute that money to an order. Executor only. */
   mintReceipt(executor: string, a: MintArgs) {
-    return this.call<number>(
-      executor,
-      this.receipts,
-      "mint_receipt",
-      {
-        args: {
-          merchant_id: a.merchantId,
-          order_ref: a.orderRef,
-          amount: a.amount,
-          kind: a.kind,
-          window_secs: a.windowSecs ?? null,
-          schedule: a.schedule.map((t) => ({ at: isoToNs(t.at), amount: t.amount })),
-          refund_target: a.refundTarget,
-          secret_hash: a.secretHash ?? null,
-        },
-      },
-      { gas: GAS.mint },
-    );
+    return this.call<number>(executor, this.receipts, "mint_receipt", { args: mintArgsJson(a, true) }, { gas: GAS.mint });
+  }
+
+  /** Direct USDC path: `ft_transfer_call` to the contract; the receipt is minted in `ft_on_transfer`. Any sender. */
+  payDirect(sender: string, a: MintArgs) {
+    return this.call<string>(sender, this.usdc, "ft_transfer_call", { receiver_id: this.receipts, amount: a.amount, msg: JSON.stringify(mintArgsJson(a, false)) }, { gas: GAS.mint, deposit: "1 yocto" });
+  }
+
+  /** Renew a pass: append a tranche to an existing Subscription/Schedule receipt. */
+  topUp(sender: string, id: string, amount: string, at?: string) {
+    return this.call<string>(sender, this.usdc, "ft_transfer_call", { receiver_id: this.receipts, amount, msg: JSON.stringify({ topup_of: Number(id), ...(at ? { at: isoToNs(at) } : {}) }) }, { gas: GAS.mint, deposit: "1 yocto" });
   }
 
   release(signer: string, id: string) {
     return this.call(signer, this.receipts, "release", { id: Number(id) }, { gas: GAS.transfer });
   }
 
-  requestRefund(signer: string, id: string, amount: string, auth?: { secret: string; nextSecretHash: string }) {
-    return this.call(signer, this.receipts, "request_refund", {
-      id: Number(id),
-      amount,
-      secret: auth?.secret ?? null,
-      next_secret_hash: auth?.nextSecretHash ?? null,
-    });
+  /** `sig` = receipt-key signature for unclaimed receipts; omit when `signer` is the NFT owner. */
+  requestRefund(signer: string, id: string, amount: string, reasonHash: string, sig?: string) {
+    return this.call(signer, this.receipts, "request_refund", { id: Number(id), amount, reason_hash: reasonHash, sig: sig ?? null });
   }
 
-  cancel(signer: string, id: string, auth?: { secret: string; nextSecretHash: string }) {
-    return this.call(signer, this.receipts, "cancel", { id: Number(id), secret: auth?.secret ?? null, next_secret_hash: auth?.nextSecretHash ?? null });
+  cancel(signer: string, id: string, reasonHash: string, sig?: string) {
+    return this.call(signer, this.receipts, "cancel", { id: Number(id), reason_hash: reasonHash, sig: sig ?? null });
+  }
+
+  aiDecide(executor: string, id: string, decision: AiDecision, amount: string, summaryHash: string) {
+    return this.call(executor, this.receipts, "ai_decide", { id: Number(id), decision, amount, summary_hash: summaryHash });
+  }
+
+  veto(approver: string, id: string, note: string) {
+    return this.call(approver, this.receipts, "veto", { id: Number(id), note });
+  }
+
+  appeal(signer: string, id: string, sig?: string) {
+    return this.call(signer, this.receipts, "appeal", { id: Number(id), sig: sig ?? null });
   }
 
   approveRefund(approver: string, id: string) {
     return this.call(approver, this.receipts, "approve_refund", { id: Number(id) });
   }
 
-  rejectRefund(approver: string, id: string) {
-    return this.call(approver, this.receipts, "reject_refund", { id: Number(id) });
+  rejectRefund(approver: string, id: string, note: string) {
+    return this.call(approver, this.receipts, "reject_refund", { id: Number(id), note });
   }
 
-  executeRefund(executor: string, id: string, depositAccount: string, amount: string) {
-    return this.call(executor, this.receipts, "execute_refund", { id: Number(id), deposit_account: depositAccount, amount }, { gas: GAS.transfer });
+  finalizeRequest(signer: string, id: string) {
+    return this.call(signer, this.receipts, "finalize_request", { id: Number(id) });
   }
 
-  claim(signer: string, id: string, secret: string, account: string) {
-    return this.call(signer, this.receipts, "claim", { id: Number(id), secret, account });
+  merchantRefund(approver: string, id: string, amount: string) {
+    return this.call(approver, this.receipts, "merchant_refund", { id: Number(id), amount });
   }
 
-  setRefundTarget(owner: string, id: string, target: RefundTarget) {
-    return this.call(owner, this.receipts, "set_refund_target", { id: Number(id), target });
+  confirmReceived(signer: string, id: string, sig?: string) {
+    return this.call(signer, this.receipts, "confirm_received", { id: Number(id), sig: sig ?? null });
+  }
+
+  executeRefund(executor: string, id: string, depositAccount: string, amount: string, quoteId: string) {
+    return this.call(executor, this.receipts, "execute_refund", { id: Number(id), deposit_account: depositAccount, amount, quote_id: quoteId }, { gas: GAS.transfer });
+  }
+
+  claim(signer: string, id: string, account: string, sig: string) {
+    return this.call(signer, this.receipts, "claim", { id: Number(id), account, sig });
+  }
+
+  setRefundTarget(signer: string, id: string, target: RefundTarget, sig?: string) {
+    return this.call(signer, this.receipts, "set_refund_target", { id: Number(id), target, sig: sig ?? null });
+  }
+
+  /** Standard NEP-171 transfer (only for transferable receipts). */
+  nftTransfer(owner: string, id: string, receiver: string) {
+    return this.call(owner, this.receipts, "nft_transfer", { receiver_id: receiver, token_id: id }, { deposit: "1 yocto" });
+  }
+
+  pause(owner: string, paused: boolean) {
+    return this.call(owner, this.receipts, paused ? "pause" : "unpause", {});
   }
 
   // ---------- USDC ----------

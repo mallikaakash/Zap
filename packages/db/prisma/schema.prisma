@@ -16,8 +16,15 @@ model Merchant {
   name              String
   payoutAccount     String
   approverAccount   String
-  guardThreshold    String   // minor units; refunds above this need approval
+  guardThreshold    String   // minor units; above this even AI approvals go to the merchant
   defaultWindowSecs Int
+  responseSecs      Int      @default(259200) // merchant decision window; silence = approve
+  dailyRefundCap    String   @default("1000000000")
+  aiTriage          Boolean  @default(true)
+  autoApproveMax    String   @default("20000000")
+  vetoSecs          Int      @default(43200)
+  minOrder          String   @default("5000000")
+  blockedRefundAddresses String @default("[]")
   webhookUrl        String?
   webhookSecret     String
   policyJson        String   @default("{}") // AI refund policy
@@ -56,7 +63,11 @@ model Session {
   originSymbol  String?
   originChain   String?
   refundAddress String?
-  secretHash    String?  // sha256(secret_0), hex — set by the customer's browser
+  orderRefHash  String   @unique // sha256(merchantId:orderRef) — what goes on chain
+  receiptKey    String?  // ed25519 public key (hex) made in the customer's browser
+  direct        Boolean  @default(false) // paid with USDC on NEAR straight into the contract
+  fulfilment    String   @default("none") // none | shipped | delivered | digital_accessed
+  trackingUrl   String?
   depositAddress String? @unique
   depositMemo   String?
   amountIn      String?
@@ -74,39 +85,39 @@ model Session {
   @@index([status])
 }
 
-model RefundJob {
+// One refund request on a receipt: the off-chain half (conversation, AI decision,
+// payout tracking). The on-chain `request` is the source of truth for its state.
+model RefundCase {
   id             String   @id @default(cuid())
   receiptId      String
-  amount         String   // minor units of USDC leaving escrow
-  // requested → pending_approval → quoted → sent → delivered ; rejected | failed
-  status         String   @default("requested")
-  reason         String?  // refund | cancel | dispute
+  merchantId     String
+  kind           String   // refund | cancel | merchant
+  amount         String   // minor units requested
+  reason         String   // customer's first message (hashed on chain as reason_hash)
+  refundAddress  String   @default("")
+  messagesJson   String   @default("[]") // [{ role: customer|agent|merchant|system, text, imageName?, at }]
+  rounds         Int      @default(0)    // clarifying questions asked so far
+  // triage: none (no AI) | asking | decided (waiting for the worker to post ai_decide) | submitted
+  aiState        String   @default("none")
+  decisionJson   String?  // { decision, amount, category, summary, confidence, engine }
+  summaryHash    String?
+  customerDeadline DateTime? // reply-by time for a clarifying question
+  // payout: none | sent | delivered | failed
+  payoutState    String   @default("none")
   depositAddress String?
+  quoteId        String?
   amountOut      String?
   amountOutFormatted String?
   quoteJson      String?
   txHash         String?
   error          String?
+  closed         Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([receiptId])
-  @@index([status])
-}
-
-model Dispute {
-  id           String   @id @default(cuid())
-  receiptId    String
-  message      String
-  category     String?
-  imageName    String?
-  decision     String?  // refund | escalate | reject
-  amount       String?
-  reason       String?
-  engine       String?  // near-ai | rules
-  createdAt    DateTime @default(now())
-
-  @@index([receiptId])
+  @@index([merchantId])
+  @@index([closed])
 }
 
 model WebhookDelivery {
@@ -114,6 +125,7 @@ model WebhookDelivery {
   merchantId String
   event      String
   payload    String
+  timestamp  Int      // unix seconds; the signature covers `${timestamp}.${payload}`
   signature  String
   status     String   @default("pending") // pending | delivered | failed | skipped
   attempts   Int      @default(0)
