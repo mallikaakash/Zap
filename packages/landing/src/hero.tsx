@@ -125,11 +125,13 @@ function useInView(ref: RefObject<HTMLElement | null>) {
 function useFlow() {
   const [s, setS] = useState<FlowState>(INITIAL_FLOW);
   const [reduced, setReduced] = useState(false);
+  const [still, setStill] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const still = q.get("still");
     const coin = q.get("coin")?.toUpperCase();
     if (still !== null) {
+      setStill(true);
       const step = Number(still) || 0;
       setS((x) => ({ ...x, step, mode: step > 9 ? "refund" : "pay", paused: true, coin: coin && coin in COINS ? (coin as CoinKey) : x.coin }));
       return;
@@ -145,14 +147,18 @@ function useFlow() {
     return () => clearTimeout(t);
   }, [s]);
   const go = useCallback((patch: Partial<FlowState>) => setS((x) => ({ ...x, ...patch })), []);
-  return { s, setS, go, reduced };
+  return { s, setS, go, reduced, still };
 }
 
 type View = ReturnType<typeof flowView>;
 type Go = (patch: Partial<FlowState>) => void;
 
 export function HeroFlow() {
-  const { s, setS, go, reduced } = useFlow();
+  const { s, setS, go, reduced, still } = useFlow();
+  // The "try it" hint: shown until the visitor first touches the phone, never in stills.
+  const [touched, setTouched] = useState(false);
+  const [near, setNear] = useState(false);
+  const hint: HintState = { hidden: touched || still, near, touch: () => setTouched(true), hover: setNear };
   const f = flowView(s);
   const boxRef = useRef<HTMLDivElement>(null);
   const width = useWidth(boxRef);
@@ -165,7 +171,7 @@ export function HeroFlow() {
         <Honesty />
       </div>
       <div id="how" ref={boxRef} className="z-posterbox" style={{ scrollMarginTop: 24 }}>
-        {width === 0 ? <div style={{ height: 600 }} /> : poster ? <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} /> : <Stacked s={s} f={f} go={go} width={width} />}
+        {width === 0 ? <div style={{ height: 600 }} /> : poster ? <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} hint={hint} /> : <Stacked s={s} f={f} go={go} width={width} hint={hint} />}
       </div>
 
       <div className="z-wrap" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 28, marginTop: poster ? 0 : 20 }}>
@@ -242,8 +248,44 @@ function Headline({ style }: { style?: React.CSSProperties }) {
   );
 }
 
+interface HintState {
+  hidden: boolean;
+  near: boolean;
+  touch: () => void;
+  hover: (on: boolean) => void;
+}
+
+/** A small floating nudge beside the phone: it is a real checkout you can tap. Fades for good after the first touch. */
+function TryHint({ hint, style, compact }: { hint: HintState; style?: React.CSSProperties; compact?: boolean }) {
+  if (compact)
+    return (
+      <p className={`z-hint-pill${hint.hidden ? " gone" : ""}`} aria-hidden={hint.hidden || undefined}>
+        <span className="z-hint-spark" aria-hidden="true" />
+        Tap the phone to try it
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 5v14M6 13l6 6 6-6" />
+        </svg>
+      </p>
+    );
+  return (
+    <div className={`z-hint${hint.hidden ? " gone" : ""}${hint.near ? " near" : ""}`} style={style} aria-hidden={hint.hidden || undefined}>
+      <svg className="z-hint-arrow" width="90" height="120" viewBox="0 0 90 120" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M86 30 C 50 26, 22 52, 14 104" strokeDasharray="2 6" />
+        <path d="M9.7 94.8 L14 106 L21.5 96.6" />
+      </svg>
+      <div className="z-hint-card" role="note">
+        <b>
+          <span className="z-hint-spark" aria-hidden="true" />
+          Tap the phone
+        </b>
+        <span>Pick a coin, press Pay, and watch the money move.</span>
+      </div>
+    </div>
+  );
+}
+
 /** Desktop: one picture. Headline top-left, phone bottom-left on the floor, scene rising to the top-right. */
-function Poster({ s, f, go, width, fitHeight }: { s: FlowState; f: View; go: Go; width: number; fitHeight: number }) {
+function Poster({ s, f, go, width, fitHeight, hint }: { s: FlowState; f: View; go: Go; width: number; fitHeight: number; hint: HintState }) {
   // fit the whole picture in the window: by width and by the height left under the header
   const scale = Math.max(0.5, Math.min(0.92, width / W, fitHeight / H));
   // keep the headline on the same left edge as the rest of the page (40px gutter)
@@ -270,11 +312,17 @@ function Poster({ s, f, go, width, fitHeight }: { s: FlowState; f: View; go: Go;
         <Floor x={0} y={160} w={W} h={H - 160} />
         <Headline style={{ left: 40, top: 6, maxWidth: 720 }} />
         {/* scale and perspective live on separate elements: combined, Chromium mis-hit-tests the tilted screen */}
-        <div style={{ position: "absolute", left: PHONE.left, top: PHONE.top, zIndex: 2, transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}>
+        <div
+          style={{ position: "absolute", left: PHONE.left, top: PHONE.top, zIndex: 2, transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}
+          onPointerDown={hint.touch}
+          onPointerEnter={() => hint.hover(true)}
+          onPointerLeave={() => hint.hover(false)}
+        >
           <div className="z-phw">
             <Phone s={s} f={f} go={go} anchorRef={anchorRef} />
           </div>
         </div>
+        <TryHint hint={hint} style={{ left: 300, top: 292 }} />
         <SceneLayer s={s} f={f} phone={anchor} />
       </div>
     </div>
@@ -282,7 +330,7 @@ function Poster({ s, f, go, width, fitHeight }: { s: FlowState; f: View; go: Go;
 }
 
 /** Narrow screens: headline, then the phone, then the scene below it (mounted when it scrolls into view). */
-function Stacked({ s, f, go, width }: { s: FlowState; f: View; go: Go; width: number }) {
+function Stacked({ s, f, go, width, hint }: { s: FlowState; f: View; go: Go; width: number; hint: HintState }) {
   const inner = Math.min(width, 900) - 32;
   const k = inner / CROP.w;
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -291,7 +339,8 @@ function Stacked({ s, f, go, width }: { s: FlowState; f: View; go: Go; width: nu
   return (
     <div className="z-wrap z-col" style={{ gap: 28, paddingTop: 12 }}>
       <Headline style={{ fontSize: "clamp(44px, 13vw, 80px)" }} />
-      <div className="z-phw" style={{ alignSelf: "center", maxWidth: "100%" }}>
+      <TryHint hint={hint} compact />
+      <div className="z-phw" style={{ alignSelf: "center", maxWidth: "100%" }} onPointerDown={hint.touch}>
         <Phone s={s} f={f} go={go} anchorRef={anchorRef} flat={width < 420} />
       </div>
       <div ref={sceneRef} aria-hidden="true" style={{ height: CROP.h * k, position: "relative", overflow: "hidden" }}>
