@@ -21,7 +21,7 @@ export default function Home() {
     api<{ merchants: Array<{ id: string }> }>("/api/merchants").then((r) => setMerchant(r.merchants[0]?.id ?? null)).catch(() => {});
     api<{ mode: string }>("/api/dev/state").then((r) => setMode(r.mode)).catch(() => {});
   }, []);
-  const snippet = `<script src="${origin}/pay.js" defer></script>\n<pay-button merchant="${merchant ?? "your-shop.near"}" amount="49" product="Ebook"></pay-button>`;
+  const snippet = `<script src="${origin}/pay.js" defer></script>\n<pay-button merchant="${merchant ?? "your-shop.near"}" amount="1" product="Test purchase"></pay-button>`;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8">
@@ -39,7 +39,7 @@ export default function Home() {
           <h1 className="text-4xl leading-tight font-semibold tracking-tight md:text-5xl">One button for every way money moves.</h1>
           <p className="mt-4 text-lg leading-relaxed text-muted">Add two lines to any website. Customers pay in any coin on any chain, you get USDC, and every payment is a receipt that holds the money until the refund period ends.</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            {merchant ? <PayButton merchant={merchant} amount="49" product="Ebook" label="Try it: pay $49" /> : null}
+            {merchant ? <PayButton merchant={merchant} amount="1" product="Test purchase" label="Try it: pay $1" /> : null}
             <a className="btn-ghost" href="/shop">See it in a shop</a>
           </div>
         </div>
