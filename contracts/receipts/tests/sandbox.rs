@@ -5,7 +5,8 @@
 
 use std::sync::{Arc, OnceLock};
 
-use near_api::{AccountId, Contract, NearGas, NearToken, NetworkConfig, Signer};
+use near_api::{Account, AccountId, Contract, NearGas, NearToken, NetworkConfig, Signer};
+use receipts::{DEFAULT_MAX_RECEIPT_AMOUNT, DEFAULT_RECEIPT_STORAGE_COST};
 use ed25519_dalek::{Signer as _, SigningKey};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -355,6 +356,52 @@ impl Env {
             .expect("no request")
             .to_string()
     }
+
+    /// Bytes of state (code included) the account currently uses.
+    async fn storage_bytes(&self, account: &str) -> u64 {
+        Account(id(account))
+            .view()
+            .fetch_from(&self.net)
+            .await
+            .expect("view_account")
+            .data
+            .storage_usage
+    }
+
+    async fn merchant(&self, merchant_id: &str) -> Value {
+        self.view("receipts", "get_merchant", json!({"id": merchant_id}))
+            .await
+    }
+
+    /// `register_merchant_for` signed by `caller` for `merchant_id` (any valid account id; it
+    /// does not have to exist), paying out to `payout`.
+    async fn register_for(
+        &self,
+        caller: &str,
+        merchant_id: &str,
+        payout: &str,
+        deposit: NearToken,
+    ) -> Outcome {
+        self.call_with(
+            caller,
+            "receipts",
+            "register_merchant_for",
+            json!({
+                "merchant_id": merchant_id,
+                "payout": payout,
+                "approver": id("approver"),
+                "guard_threshold": GUARD.to_string(),
+                "default_window_secs": 0,
+                "response_secs": RESPONSE_SECS,
+                "daily_refund_cap": DAILY_CAP.to_string(),
+                "ai_triage": false,
+                "auto_approve_max": "0",
+                "veto_secs": 0,
+            }),
+            deposit,
+        )
+        .await
+    }
 }
 
 
@@ -552,7 +599,8 @@ async fn mint_receipt_is_gated_on_unassigned_balance() -> TestResult {
     assert_eq!(cfg["paused"], false);
     assert_eq!(cfg["usdc"], json!(id("usdc")));
     assert_eq!(cfg["executor"], json!(id("executor")));
-    assert_eq!(cfg["receipt_storage_cost"], "10000000000000000000000");
+    assert_eq!(as_u128(&cfg["receipt_storage_cost"]), DEFAULT_RECEIPT_STORAGE_COST);
+    assert_eq!(as_u128(&cfg["max_receipt_amount"]), DEFAULT_MAX_RECEIPT_AMOUNT);
 
     // receipt shape
     let r = env.receipt(1).await;
@@ -603,7 +651,11 @@ async fn mint_receipt_is_gated_on_unassigned_balance() -> TestResult {
     assert_eq!(merchant["receipt_count"], 2);
     assert_eq!(merchant["ai_triage"], true);
     assert_eq!(merchant["veto_secs"], VETO_SECS);
-    assert_eq!(merchant["storage_balance"], "980000000000000000000000");
+    assert_eq!(
+        as_u128(&merchant["storage_balance"]),
+        NearToken::from_near(1).as_yoctonear() - 2 * DEFAULT_RECEIPT_STORAGE_COST
+    );
+    assert_eq!(merchant["self_managed"], true);
     assert_eq!(merchant["refunded_today"], "0");
     Ok(())
 }
@@ -1383,5 +1435,322 @@ async fn private_callbacks_and_admin_checks() -> TestResult {
         .call("bob", "receipts", "mint_receipt", json!({"args": mint_args("order-2", USDC)}))
         .await;
     assert_eq!(out.json(), 2);
+
+    // withdraw callbacks are private too
+    env.call(
+        "owner",
+        "receipts",
+        "on_withdraw_balance",
+        json!({"to": id("owner"), "amount": "1", "settled_at_init": "0"}),
+    )
+    .await
+    .fails_with("Method on_withdraw_balance is private");
+    env.call("owner", "receipts", "on_withdraw_resolved", json!({"to": id("owner"), "amount": "1"}))
+        .await
+        .fails_with("Method on_withdraw_resolved is private");
+
+    // ownership transfer: owner only; the old owner loses its rights
+    env.call("executor", "receipts", "set_owner", json!({"owner": id("executor")}))
+        .await
+        .fails_with("owner only");
+    let out = env
+        .call("owner", "receipts", "set_owner", json!({"owner": id("alice")}))
+        .await
+        .success();
+    let ev = out.event("config_changed");
+    assert_eq!((ev["key"].as_str(), ev["by"].clone()), (Some("owner"), json!(id("owner"))));
+    assert_eq!(env.config().await["owner"], json!(id("alice")));
+    env.call("owner", "receipts", "pause", json!({})).await.fails_with("owner only");
+    env.call("alice", "receipts", "pause", json!({})).await.success();
+    env.call("alice", "receipts", "unpause", json!({})).await.success();
+    env.call("alice", "receipts", "set_executor", json!({"executor": id("executor")}))
+        .await
+        .success();
+    Ok(())
+}
+
+/// Storage bytes per receipt, read from the receipts account's `storage_usage` before and after
+/// each payment (receipt, NFT token + metadata, owner index entry, order_ref and merchant index).
+/// The numbers are printed (`cargo test -- --nocapture`) and documented in INTERFACE.md.
+#[tokio::test]
+async fn storage_cost_per_receipt_is_measured() -> TestResult {
+    let env = Env::new().await?;
+    // Realistic worst-case strings: a 64-character implicit account as merchant id, the
+    // backend's 64-hex order_ref, a long 1Click asset id and an EVM address.
+    let implicit = "9f".repeat(32);
+    env.register_for("owner", &implicit, &implicit, NearToken::from_near(1))
+        .await
+        .success();
+    let target = json!({
+        "chain": "polygon",
+        "asset": "nep141:pol-0xc2132d05d31c914a87c6611c10748aeb04b58e8f.omdep.near",
+        "address": "0x00000000000000000000000000000000000000aa",
+    });
+    let order_ref = |n: u32| hex::encode(Sha256::digest(format!("order-{n}")));
+    let now = env.now().await;
+    let month = 30 * 86_400 * SEC;
+    let mut n = 0;
+    let mut next = |merchant: &str, kind: &str| {
+        n += 1;
+        let mut msg = json!({
+            "merchant_id": merchant,
+            "order_ref": order_ref(n),
+            "kind": kind,
+            "refund_target": target,
+            "receipt_key": receipt_key(),
+        });
+        if kind == "Subscription" {
+            msg["schedule"] = (1..=3u64)
+                .map(|i| json!({"at": (now + i * month).to_string(), "amount": USDC.to_string()}))
+                .collect();
+        }
+        msg
+    };
+
+    // The very first receipt also creates the owner index of the contract account.
+    let before = env.storage_bytes("receipts").await;
+    env.paid(USDC, next(id("shop").as_str(), "OneTime")).await;
+    let first = env.storage_bytes("receipts").await - before;
+
+    let mut measured = vec![];
+    for (label, merchant) in [("shop.sandbox (12 chars)", id("shop").to_string()), ("implicit (64 chars)", implicit.clone())] {
+        for (kind, amount) in [("OneTime", USDC), ("Subscription", 3 * USDC)] {
+            let balance_before = as_u128(&env.merchant(&merchant).await["storage_balance"]);
+            let before = env.storage_bytes("receipts").await;
+            env.paid(amount, next(&merchant, kind)).await;
+            let bytes = env.storage_bytes("receipts").await - before;
+            println!("storage per receipt: {kind:<12} merchant {label}: {bytes} bytes");
+            measured.push((kind, bytes));
+            // the merchant is charged exactly receipt_storage_cost per receipt
+            let balance_after = as_u128(&env.merchant(&merchant).await["storage_balance"]);
+            assert_eq!(balance_before - balance_after, DEFAULT_RECEIPT_STORAGE_COST);
+        }
+    }
+    println!("storage per receipt: first receipt ever (OneTime, shop.sandbox): {first} bytes");
+
+    // Later growth, paid from the contract's own balance.
+    // the last receipt: the implicit merchant's Subscription
+    let sub_id = env.config().await["receipt_count"].as_u64().unwrap();
+    let before = env.storage_bytes("receipts").await;
+    env.signed(sub_id, "cancel", REASON, json!({"reason_hash": REASON})).await.success();
+    println!("storage growth: refund request on a receipt: {} bytes", env.storage_bytes("receipts").await - before);
+    let before = env.storage_bytes("receipts").await;
+    env.signed(sub_id, "claim", id("alice").as_str(), json!({"account": id("alice")})).await.success();
+    println!("storage growth: claim to an account with no receipts yet: {} bytes", env.storage_bytes("receipts").await as i64 - before as i64);
+    let pass = env.paid(2 * USDC, schedule("pass-x", "Subscription", &[(1, USDC), (2, USDC)])).await;
+    let before = env.storage_bytes("receipts").await;
+    env.fund("alice", USDC).await;
+    env.pay("alice", USDC, json!({"topup_of": pass})).await.success();
+    println!("storage growth: one top-up tranche: {} bytes", env.storage_bytes("receipts").await - before);
+    let before = env.storage_bytes("receipts").await;
+    env.register_for("owner", &"ab".repeat(32), &"ab".repeat(32), NearToken::from_yoctonear(0)).await.success();
+    println!("storage growth: new merchant entry (64-char id): {} bytes", env.storage_bytes("receipts").await - before);
+
+    // The default is the 3-tranche receipt (12-char merchant id) plus about 20%, and still
+    // covers the largest measured receipt (3 tranches, 64-char merchant id).
+    let per_byte = 10u128.pow(19);
+    let typical = measured[1].1 as u128 * per_byte;
+    let worst = measured.iter().map(|(_, b)| *b).max().unwrap() as u128 * per_byte;
+    println!(
+        "default receipt_storage_cost {DEFAULT_RECEIPT_STORAGE_COST}: {:.3} x typical 3-tranche receipt, {:.3} x worst",
+        DEFAULT_RECEIPT_STORAGE_COST as f64 / typical as f64,
+        DEFAULT_RECEIPT_STORAGE_COST as f64 / worst as f64
+    );
+    assert!(DEFAULT_RECEIPT_STORAGE_COST >= worst, "default no longer covers the largest receipt");
+    assert!(DEFAULT_RECEIPT_STORAGE_COST >= typical * 115 / 100, "margin below ~20%");
+    assert!(DEFAULT_RECEIPT_STORAGE_COST <= typical * 130 / 100, "margin far above ~20%");
+    Ok(())
+}
+
+#[tokio::test]
+async fn operator_registered_seller_is_paid_out() -> TestResult {
+    let env = Env::new().await?;
+    let seller = id("bob"); // the seller's merchant id is its payout account
+    let storage = NearToken::from_millinear(100);
+
+    // only the owner or the executor may register someone else
+    env.register_for("alice", seller.as_str(), seller.as_str(), storage)
+        .await
+        .fails_with("owner or executor only");
+    // a merchant that registered itself cannot be taken over by the operator
+    env.register_for("executor", id("shop").as_str(), id("alice").as_str(), storage)
+        .await
+        .fails_with("merchant manages its own registration");
+    assert_eq!(env.merchant(id("shop").as_str()).await["payout"], json!(id("payout")));
+
+    // the executor registers without a deposit, the owner funds storage later
+    let out = env
+        .register_for("executor", seller.as_str(), seller.as_str(), NearToken::from_yoctonear(0))
+        .await
+        .success();
+    let ev = out.event("merchant_registered");
+    assert_eq!(ev["merchant_id"], json!(seller));
+    assert_eq!(ev["payout"], json!(seller));
+    assert_eq!(ev["approver"], json!(id("approver")));
+    assert_eq!(ev["by"], json!(id("executor")));
+    let m = env.merchant(seller.as_str()).await;
+    assert_eq!(m["storage_balance"], "0");
+    assert_eq!(m["self_managed"], false);
+    env.mint(with(mint_args("seller-1", USDC), "merchant_id", json!(seller)))
+        .await
+        .fails_with("merchant storage balance too low");
+    env.call_with("owner", "receipts", "fund_storage", json!({"merchant_id": seller}), storage)
+        .await
+        .success();
+
+    // primary path: USDC lands, the executor mints, anyone releases to the seller's payout
+    env.register_usdc("bob").await;
+    env.fund("receipts", 10 * USDC).await;
+    let receipt_id = env
+        .mint(with(mint_args("seller-1", 10 * USDC), "merchant_id", json!(seller)))
+        .await
+        .json();
+    let out = env.call("alice", "receipts", "release", json!({"id": receipt_id})).await.success();
+    assert_eq!(out.value, Some(json!(true)));
+    assert_eq!(out.event("released")["payout"], json!(seller));
+    assert_eq!(env.usdc_balance("bob").await, 10 * USDC);
+
+    // direct path for the same seller
+    let direct = env.paid(4 * USDC, with(one_time("seller-2"), "merchant_id", json!(seller))).await;
+    env.call("alice", "receipts", "release", json!({"id": direct})).await.success();
+    assert_eq!(env.usdc_balance("bob").await, 14 * USDC);
+
+    let m = env.merchant(seller.as_str()).await;
+    assert_eq!(m["receipt_count"], 2);
+    assert_eq!(
+        as_u128(&m["storage_balance"]),
+        storage.as_yoctonear() - 2 * DEFAULT_RECEIPT_STORAGE_COST
+    );
+
+    // the owner changes the storage charge; the next receipt is charged the new amount
+    let cost: u128 = 1_000_000_000_000_000_000_000; // 0.001 NEAR
+    env.call("executor", "receipts", "set_receipt_storage_cost", json!({"amount": cost.to_string()}))
+        .await
+        .fails_with("owner only");
+    let out = env
+        .call("owner", "receipts", "set_receipt_storage_cost", json!({"amount": cost.to_string()}))
+        .await
+        .success();
+    assert_eq!(out.event("config_changed")["key"], "receipt_storage_cost");
+    assert_eq!(as_u128(&env.config().await["receipt_storage_cost"]), cost);
+    env.paid(USDC, with(one_time("seller-3"), "merchant_id", json!(seller))).await;
+    assert_eq!(
+        as_u128(&env.merchant(seller.as_str()).await["storage_balance"]),
+        storage.as_yoctonear() - 2 * DEFAULT_RECEIPT_STORAGE_COST - cost
+    );
+
+    // an operator update changes the payout and keeps balances and counters
+    env.register_usdc("alice").await;
+    env.register_for("owner", seller.as_str(), id("alice").as_str(), NearToken::from_yoctonear(0))
+        .await
+        .success();
+    let m = env.merchant(seller.as_str()).await;
+    assert_eq!(m["payout"], json!(id("alice")));
+    assert_eq!(m["receipt_count"], 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn payment_cap_applies_to_both_paths_and_top_ups() -> TestResult {
+    let env = Env::new().await?;
+    let cap = 50 * USDC;
+    env.call("executor", "receipts", "set_max_receipt_amount", json!({"amount": cap.to_string()}))
+        .await
+        .fails_with("owner only");
+    env.call("owner", "receipts", "set_max_receipt_amount", json!({"amount": cap.to_string()}))
+        .await
+        .success();
+    assert_eq!(as_u128(&env.config().await["max_receipt_amount"]), cap);
+
+    // direct path: returned in full, no panic
+    env.fund("alice", 200 * USDC).await;
+    let out = env.pay("alice", cap + 1, one_time("big-1")).await.success();
+    assert_eq!(out.value, Some(json!("0")), "nothing was used");
+    let ev = out.event("payment_rejected");
+    assert_eq!(ev["reason"], "amount above max_receipt_amount");
+    assert_eq!(ev["order_ref"], "big-1");
+    assert_eq!(env.usdc_balance("alice").await, 200 * USDC);
+    assert_eq!(env.usdc_balance("receipts").await, 0);
+
+    // primary path: the transaction fails
+    env.fund("receipts", cap + 1).await;
+    env.mint(mint_args("big-2", cap + 1))
+        .await
+        .fails_with("amount above max_receipt_amount");
+    assert_eq!(env.config().await["mint_lock"], false);
+    assert_eq!(env.mint(mint_args("big-2", cap)).await.json(), 1);
+
+    // top-ups count the receipt's new total
+    let now = env.now().await;
+    let pass = schedule("pass-1", "Subscription", &[(now, 20 * USDC), (now + 1000 * SEC, 20 * USDC)]);
+    let pass_id = env.paid(40 * USDC, pass).await;
+    let out = env.pay("alice", 10 * USDC + 1, json!({"topup_of": pass_id})).await.success();
+    assert_eq!(out.value, Some(json!("0")));
+    assert_eq!(out.event("payment_rejected")["reason"], "amount above max_receipt_amount");
+    assert_eq!(out.event("payment_rejected")["receipt_id"], pass_id);
+    let out = env.pay("alice", 10 * USDC, json!({"topup_of": pass_id})).await.success();
+    assert_eq!(as_u128(&out.event("topped_up")["total_amount"]), cap);
+    assert_eq!(as_u128(&env.receipt(pass_id).await["amount"]), cap);
+    assert_eq!(as_u128(&env.config().await["allocated"]), 2 * cap);
+    Ok(())
+}
+
+#[tokio::test]
+async fn withdraw_unassigned_recovers_only_surplus() -> TestResult {
+    let env = Env::new().await?;
+    let receipt_id = env.paid(10 * USDC, one_time("order-1")).await;
+    // 1Click over-delivered: 3 USDC arrive with a plain transfer that no receipt claims
+    env.fund("receipts", 3 * USDC).await;
+    let withdraw = |to: &str, amount: u128| json!({"to": id(to), "amount": amount.to_string()});
+
+    env.call("executor", "receipts", "withdraw_unassigned", withdraw("executor", USDC))
+        .await
+        .fails_with("owner only");
+    env.call("owner", "receipts", "withdraw_unassigned", withdraw("owner", 3 * USDC + 1))
+        .await
+        .fails_with("insufficient unassigned USDC");
+    assert_eq!(env.config().await["mint_lock"], false);
+
+    // `sink` is not registered with USDC: the transfer fails and nothing changes
+    let out = env
+        .call("owner", "receipts", "withdraw_unassigned", withdraw("sink", 3 * USDC))
+        .await
+        .success();
+    assert_eq!(out.value, Some(json!(false)));
+    assert_eq!(out.event("transfer_failed")["action"], "withdraw");
+    assert!(out.events("unassigned_withdrawn").is_empty());
+    let cfg = env.config().await;
+    assert_eq!(as_u128(&cfg["allocated"]), 10 * USDC);
+    assert_eq!(as_u128(&cfg["in_flight_total"]), 0);
+    assert_eq!(cfg["mint_lock"], false);
+    assert_eq!(env.usdc_balance("receipts").await, 13 * USDC);
+
+    // genuine surplus goes out
+    env.register_usdc("sink").await;
+    let out = env
+        .call("owner", "receipts", "withdraw_unassigned", withdraw("sink", 3 * USDC))
+        .await
+        .success();
+    assert_eq!(out.value, Some(json!(true)));
+    let ev = out.event("unassigned_withdrawn");
+    assert_eq!(ev["to"], json!(id("sink")));
+    assert_eq!(as_u128(&ev["amount"]), 3 * USDC);
+    assert_eq!(ev["by"], json!(id("owner")));
+    assert_eq!(env.usdc_balance("sink").await, 3 * USDC);
+    assert_eq!(env.usdc_balance("receipts").await, 10 * USDC);
+    assert_eq!(as_u128(&env.config().await["in_flight_total"]), 0);
+
+    // receipt money stays put, and the receipt still pays out in full
+    env.call("owner", "receipts", "withdraw_unassigned", withdraw("sink", 1))
+        .await
+        .fails_with("insufficient unassigned USDC");
+    env.signed(receipt_id, "confirm_received", "", json!({})).await.success();
+    env.register_usdc("payout").await;
+    assert_eq!(
+        env.call("bob", "receipts", "release", json!({"id": receipt_id})).await.json(),
+        true
+    );
+    assert_eq!(env.usdc_balance("payout").await, 10 * USDC);
+    assert_eq!(env.usdc_balance("receipts").await, 0);
     Ok(())
 }

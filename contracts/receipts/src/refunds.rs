@@ -12,7 +12,6 @@
 //! ```
 
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde_json::json;
 use near_sdk::{env, near, require, AccountId, Promise};
 
 use crate::*;
@@ -59,16 +58,10 @@ impl Contract {
         assert_can_open_request(&r);
         let total = mark_future_tranches(&mut r);
         require!(total > 0, "nothing to cancel");
-        emit(
-            "cancelled",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(total),
-                "reason_hash": reason_hash,
-            }),
-        );
+        receipt_event("cancelled", &r)
+            .field("amount", &U128(total))
+            .field("reason_hash", &reason_hash)
+            .emit();
         self.open_request(&mut r, total, reason_hash, true);
         self.receipts.insert(id, r);
     }
@@ -112,20 +105,14 @@ impl Contract {
         if state == RequestState::AiDenied {
             r.flip_tranches(TrancheState::RefundPending, TrancheState::Pending);
         }
-        emit(
-            "ai_decided",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "decision": decision,
-                "state": state,
-                "amount": U128(amount),
-                "summary_hash": summary_hash,
-                "veto_until": r.request.as_ref().and_then(|q| q.veto_until).map(U64),
-                "decision_deadline": r.request.as_ref().map(|q| U64(q.decision_deadline)),
-            }),
-        );
+        receipt_event("ai_decided", &r)
+            .field("decision", &decision)
+            .field("state", &state)
+            .field("amount", &U128(amount))
+            .field("summary_hash", &summary_hash)
+            .field("veto_until", &r.request.as_ref().and_then(|q| q.veto_until).map(U64))
+            .field("decision_deadline", &r.request.as_ref().map(|q| U64(q.decision_deadline)))
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -144,17 +131,11 @@ impl Contract {
         q.veto_until = None;
         q.decision_deadline = deadline(now, m.response_secs);
         let (amount, until) = (q.amount, q.decision_deadline);
-        emit(
-            "vetoed",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "note": note,
-                "decision_deadline": U64(until),
-            }),
-        );
+        receipt_event("vetoed", &r)
+            .field("amount", &U128(amount))
+            .field("note", &note)
+            .field("decision_deadline", &U64(until))
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -184,16 +165,10 @@ impl Contract {
         q.state = RequestState::Escalated;
         q.decision_deadline = deadline(now, m.response_secs);
         let (amount, until) = (q.amount, q.decision_deadline);
-        emit(
-            "appealed",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "decision_deadline": U64(until),
-            }),
-        );
+        receipt_event("appealed", &r)
+            .field("amount", &U128(amount))
+            .field("decision_deadline", &U64(until))
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -217,16 +192,10 @@ impl Contract {
         q.state = RequestState::Rejected;
         let amount = q.amount;
         r.flip_tranches(TrancheState::RefundPending, TrancheState::Pending);
-        emit(
-            "refund_rejected",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "note": note,
-            }),
-        );
+        receipt_event("refund_rejected", &r)
+            .field("amount", &U128(amount))
+            .field("note", &note)
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -253,18 +222,12 @@ impl Contract {
         }
         q.state = RequestState::Approved;
         let amount = q.amount;
-        emit(
-            "request_finalized",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "from_state": from,
-                "state": RequestState::Approved,
-                "refund_target": r.refund_target,
-            }),
-        );
+        receipt_event("request_finalized", &r)
+            .field("amount", &U128(amount))
+            .field("from_state", &from)
+            .field("state", &RequestState::Approved)
+            .field("refund_target", &r.refund_target)
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -309,15 +272,9 @@ impl Contract {
         self.authorize_holder(&mut r, "confirm_received", "", sig);
         require!(!r.has_active_request(), "refund request active");
         r.confirmed = true;
-        emit(
-            "confirmed",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(r.remaining()),
-            }),
-        );
+        receipt_event("confirmed", &r)
+            .field("amount", &U128(r.remaining()))
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -387,16 +344,10 @@ impl Contract {
         r.receipt_key = None;
         self.tokens
             .internal_transfer(&this, &account, &id.to_string(), None, Some("claim".into()));
-        emit(
-            "claimed",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(r.amount),
-                "owner_id": account,
-            }),
-        );
+        receipt_event("claimed", &r)
+            .field("amount", &U128(r.amount))
+            .field("owner_id", &account)
+            .emit();
         self.receipts.insert(id, r);
     }
 
@@ -416,15 +367,9 @@ impl Contract {
             "a refund is approved and about to be executed"
         );
         r.refund_target = target;
-        emit(
-            "refund_target_changed",
-            json!({
-                "receipt_id": id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "refund_target": r.refund_target,
-            }),
-        );
+        receipt_event("refund_target_changed", &r)
+            .field("refund_target", &r.refund_target)
+            .emit();
         self.receipts.insert(id, r);
     }
 }
@@ -435,20 +380,14 @@ impl Contract {
         let m = self.merchant(&r.merchant_id);
         let now = env::block_timestamp();
         let decision_deadline = deadline(now, m.response_secs);
-        emit(
-            "refund_requested",
-            json!({
-                "receipt_id": r.id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "reason_hash": reason_hash,
-                "is_cancel": is_cancel,
-                "ai_triage": m.ai_triage,
-                "decision_deadline": U64(decision_deadline),
-                "refund_target": r.refund_target,
-            }),
-        );
+        receipt_event("refund_requested", r)
+            .field("amount", &U128(amount))
+            .field("reason_hash", &reason_hash)
+            .field("is_cancel", &is_cancel)
+            .field("ai_triage", &m.ai_triage)
+            .field("decision_deadline", &U64(decision_deadline))
+            .field("refund_target", &r.refund_target)
+            .emit();
         r.request = Some(Request {
             amount,
             reason_hash,
@@ -481,7 +420,15 @@ fn assert_can_open_request(r: &Receipt) {
 fn request_in<'a>(r: &'a mut Receipt, states: &[RequestState]) -> &'a mut Request {
     match r.request.as_mut() {
         Some(q) if states.contains(&q.state) => q,
-        Some(q) => env::panic_str(&format!("request is {:?}, expected {:?}", q.state, states)),
+        // "request is Open, expected [Approved]" (built by hand to keep Debug formatting out)
+        Some(q) => {
+            let expected: Vec<&str> = states.iter().map(|s| s.name()).collect();
+            env::panic_str(&format!(
+                "request is {}, expected [{}]",
+                q.state.name(),
+                expected.join(", ")
+            ))
+        }
         None => env::panic_str("no refund request"),
     }
 }
@@ -500,15 +447,9 @@ fn mark_future_tranches(r: &mut Receipt) -> u128 {
 }
 
 fn emit_approved(r: &Receipt, amount: u128, by_merchant: bool) {
-    emit(
-        "refund_approved",
-        json!({
-            "receipt_id": r.id,
-            "merchant_id": r.merchant_id,
-            "order_ref": r.order_ref,
-            "amount": U128(amount),
-            "by_merchant": by_merchant,
-            "refund_target": r.refund_target,
-        }),
-    );
+    receipt_event("refund_approved", r)
+        .field("amount", &U128(amount))
+        .field("by_merchant", &by_merchant)
+        .field("refund_target", &r.refund_target)
+        .emit();
 }

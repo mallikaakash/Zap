@@ -3,6 +3,7 @@
 //! Every payment is a NEP-171 receipt token that holds USDC until it is released to the
 //! merchant or refunded to the customer. The binding interface is `contracts/INTERFACE.md`.
 
+mod events;
 mod nft;
 mod refunds;
 mod types;
@@ -16,26 +17,37 @@ use near_contract_standards::non_fungible_token::events::NftMint;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde_json::{self, json, Value};
+use near_sdk::serde_json;
 use near_sdk::store::LookupMap;
 use near_sdk::{
     env, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise,
     PromiseError, PromiseOrValue,
 };
 
+pub(crate) use events::Event;
 pub use types::*;
 
 pub const EVENT_STANDARD: &str = "universal_checkout";
 pub const EVENT_VERSION: &str = "1.0.0";
 
-/// Fixed storage charge per minted receipt, taken from the merchant's prepaid balance.
-pub const RECEIPT_STORAGE_COST: u128 = 10_000_000_000_000_000_000_000; // 0.01 NEAR
+/// Default storage charge per minted receipt (yoctoNEAR), taken from the merchant's prepaid
+/// `storage_balance`. Measured in the sandbox (`storage_cost_per_receipt_is_measured`), with a
+/// 64-hex order_ref and a long 1Click refund asset: a Subscription receipt with 3 tranches adds
+/// 1,135 bytes of state (OneTime 1,060) for a 12-character merchant id, and 1,291 bytes for a
+/// 64-character one. 1,135 bytes + 20% ≈ 1,362, rounded up to 1,400 bytes at 1e19 yoctoNEAR
+/// per byte; that also covers the 64-character case. Owner-settable.
+pub const DEFAULT_RECEIPT_STORAGE_COST: u128 = 14_000_000_000_000_000_000_000; // 0.014 NEAR
+/// Default per-receipt cap: 1,000 USDC (6 decimals). Owner-settable.
+pub const DEFAULT_MAX_RECEIPT_AMOUNT: u128 = 1_000_000_000;
 
 const GAS_FT_BALANCE_OF: Gas = Gas::from_tgas(10);
 const GAS_MINT_CALLBACK: Gas = Gas::from_tgas(30);
 const GAS_MINT_FAILED: Gas = Gas::from_tgas(3);
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(20);
 const GAS_TRANSFER_CALLBACK: Gas = Gas::from_tgas(30);
+const GAS_WITHDRAW_RESOLVED: Gas = Gas::from_tgas(10);
+/// The withdraw balance callback starts the transfer and its resolve callback.
+const GAS_WITHDRAW_CALLBACK: Gas = Gas::from_tgas(50);
 const ONE_YOCTO: NearToken = NearToken::from_yoctonear(1);
 
 const MAX_TRANCHES: usize = 60;
@@ -69,13 +81,19 @@ pub struct Contract {
     allocated: u128,
     /// Sum of outgoing USDC transfers whose callback has not run yet.
     in_flight_total: u128,
-    /// Running total of USDC that has left the contract (successful transfers).
+    /// Running total of USDC that has left, or is about to leave, the contract outside
+    /// `in_flight_total`: successful transfers, plus direct payments `ft_on_transfer` returned
+    /// (the token contract refunds those afterwards). Only its growth is ever used.
     settled_total: u128,
-    /// True while a `mint_receipt` balance check is in flight.
+    /// True while a `mint_receipt` or `withdraw_unassigned` balance check is in flight.
     mint_lock: bool,
     paused: bool,
     /// Number of receipts minted. Receipt ids are 1..=receipt_count.
     receipt_count: u64,
+    /// yoctoNEAR charged to the merchant's `storage_balance` per minted receipt.
+    receipt_storage_cost: u128,
+    /// Largest receipt total (USDC minor units) accepted on any payment path, top-ups included.
+    max_receipt_amount: u128,
     receipts: LookupMap<u64, Receipt>,
     merchants: LookupMap<AccountId, Merchant>,
     /// (merchant, index) -> receipt id
@@ -109,6 +127,8 @@ impl Contract {
             mint_lock: false,
             paused: false,
             receipt_count: 0,
+            receipt_storage_cost: DEFAULT_RECEIPT_STORAGE_COST,
+            max_receipt_amount: DEFAULT_MAX_RECEIPT_AMOUNT,
             receipts: LookupMap::new(StorageKey::Receipts),
             merchants: LookupMap::new(StorageKey::Merchants),
             merchant_receipts: LookupMap::new(StorageKey::MerchantReceipts),
@@ -125,29 +145,134 @@ impl Contract {
 
     // ------------------------------------------------------------------ admin
 
+    /// Owner only: hand the contract to another owner account.
+    pub fn set_owner(&mut self, owner: AccountId) {
+        self.assert_owner();
+        config_changed("owner", owner.as_str());
+        self.owner = owner;
+    }
+
     /// Owner only: replace the executor (settlement worker) account.
     pub fn set_executor(&mut self, executor: AccountId) {
         self.assert_owner();
+        config_changed("executor", executor.as_str());
         self.executor = executor;
+    }
+
+    /// Owner only: yoctoNEAR charged per minted receipt from the merchant's `storage_balance`.
+    pub fn set_receipt_storage_cost(&mut self, amount: U128) {
+        self.assert_owner();
+        config_changed("receipt_storage_cost", &amount.0.to_string());
+        self.receipt_storage_cost = amount.0;
+    }
+
+    /// Owner only: largest receipt total (USDC minor units) accepted on any payment path.
+    pub fn set_max_receipt_amount(&mut self, amount: U128) {
+        self.assert_owner();
+        config_changed("max_receipt_amount", &amount.0.to_string());
+        self.max_receipt_amount = amount.0;
     }
 
     /// Owner only. Stops mints and releases. Refund requests, decisions and execution keep working.
     pub fn pause(&mut self) {
         self.assert_owner();
         self.paused = true;
-        emit("paused", json!({ "by": self.owner }));
+        Event::new("paused").field("by", &self.owner).emit();
     }
 
     pub fn unpause(&mut self) {
         self.assert_owner();
         self.paused = false;
-        emit("unpaused", json!({ "by": self.owner }));
+        Event::new("unpaused").field("by", &self.owner).emit();
     }
 
-    /// Owner only. Emergency reset in case a `mint_receipt` callback never ran (out of gas).
+    /// Owner only. Emergency reset in case a `mint_receipt` / `withdraw_unassigned` callback
+    /// never ran (out of gas).
     pub fn reset_mint_lock(&mut self) {
         self.assert_owner();
         self.mint_lock = false;
+    }
+
+    /// Owner only. Sends USDC that no receipt owns (over-deliveries, plain transfers nobody
+    /// minted for) to `to`. Like `mint_receipt` it takes `mint_lock` and reads the contract's
+    /// USDC balance; the callback requires `balance >= allocated + in_flight_total + amount`
+    /// (plus USDC that left since the call) and then transfers. Fails the transaction if the
+    /// surplus is too small. Resolves to `true` if the transfer succeeded, `false` if it failed
+    /// (nothing changes in that case).
+    pub fn withdraw_unassigned(&mut self, to: AccountId, amount: U128) -> Promise {
+        self.assert_owner();
+        require!(amount.0 > 0, "amount must be positive");
+        require!(!self.mint_lock, "another mint or withdrawal is in flight");
+        self.mint_lock = true;
+        ext_ft_core::ext(self.usdc.clone())
+            .with_static_gas(GAS_FT_BALANCE_OF)
+            .ft_balance_of(env::current_account_id())
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_WITHDRAW_CALLBACK)
+                    .on_withdraw_balance(to, amount, U128(self.settled_total)),
+            )
+    }
+
+    /// Never panics, so that `mint_lock` is always cleared.
+    #[private]
+    pub fn on_withdraw_balance(
+        &mut self,
+        to: AccountId,
+        amount: U128,
+        settled_at_init: U128,
+        #[callback_result] balance: Result<U128, PromiseError>,
+    ) -> PromiseOrValue<bool> {
+        self.mint_lock = false;
+        match self.check_unassigned(balance, amount.0, settled_at_init.0) {
+            Ok(()) => {
+                self.in_flight_total += amount.0;
+                ext_ft_core::ext(self.usdc.clone())
+                    .with_attached_deposit(ONE_YOCTO)
+                    .with_static_gas(GAS_FT_TRANSFER)
+                    .ft_transfer(to.clone(), amount, Some("unassigned:withdraw".to_string()))
+                    .then(
+                        Self::ext(env::current_account_id())
+                            .with_static_gas(GAS_WITHDRAW_RESOLVED)
+                            .on_withdraw_resolved(to, amount),
+                    )
+                    .into()
+            }
+            Err(reason) => Self::ext(env::current_account_id())
+                .with_static_gas(GAS_MINT_FAILED)
+                .mint_failed(reason)
+                .into(),
+        }
+    }
+
+    #[private]
+    pub fn on_withdraw_resolved(
+        &mut self,
+        to: AccountId,
+        amount: U128,
+        #[callback_result] result: Result<(), PromiseError>,
+    ) -> bool {
+        self.in_flight_total -= amount.0;
+        let ok = result.is_ok();
+        if ok {
+            self.settled_total += amount.0;
+            Event::new("unassigned_withdrawn")
+                .field("to", &to)
+                .field("amount", &amount)
+                .field("by", &self.owner)
+                .emit();
+        } else {
+            Event::new("transfer_failed")
+                .field("receipt_id", &None::<u64>)
+                .field("merchant_id", &None::<AccountId>)
+                .field("order_ref", &None::<String>)
+                .field("amount", &amount)
+                .field("action", "withdraw")
+                .field("to", &to)
+                .field("quote_id", &None::<String>)
+                .emit();
+        }
+        ok
     }
 
     // --------------------------------------------------------------- merchant
@@ -168,25 +293,61 @@ impl Contract {
         auto_approve_max: U128,
         veto_secs: u64,
     ) {
-        let merchant_id = env::predecessor_account_id();
-        let old = self.merchants.get(&merchant_id);
-        let merchant = Merchant {
+        let config = merchant_config(
             payout,
             approver,
-            guard_threshold: guard_threshold.0,
+            guard_threshold,
             default_window_secs,
             response_secs,
-            daily_refund_cap: daily_refund_cap.0,
+            daily_refund_cap,
             ai_triage,
-            auto_approve_max: auto_approve_max.0,
+            auto_approve_max,
             veto_secs,
-            storage_balance: old.map_or(0, |m| m.storage_balance)
-                + env::attached_deposit().as_yoctonear(),
-            refund_day: old.map_or(0, |m| m.refund_day),
-            refunded_today: old.map_or(0, |m| m.refunded_today),
-            receipt_count: old.map_or(0, |m| m.receipt_count),
-        };
-        self.merchants.insert(merchant_id, merchant);
+            true,
+        );
+        self.upsert_merchant(env::predecessor_account_id(), config);
+    }
+
+    /// Owner or executor. Creates or updates the merchant `merchant_id` on its behalf (the
+    /// seller never signs anything). Attached NEAR (may be 0) is added to its `storage_balance`.
+    /// Refuses a merchant that registered itself with `register_merchant`.
+    #[payable]
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_merchant_for(
+        &mut self,
+        merchant_id: AccountId,
+        payout: AccountId,
+        approver: AccountId,
+        guard_threshold: U128,
+        default_window_secs: u64,
+        response_secs: u64,
+        daily_refund_cap: U128,
+        ai_triage: bool,
+        auto_approve_max: U128,
+        veto_secs: u64,
+    ) {
+        let caller = env::predecessor_account_id();
+        require!(
+            caller == self.owner || caller == self.executor,
+            "owner or executor only"
+        );
+        require!(
+            !self.merchants.get(&merchant_id).is_some_and(|m| m.self_managed),
+            "merchant manages its own registration"
+        );
+        let config = merchant_config(
+            payout,
+            approver,
+            guard_threshold,
+            default_window_secs,
+            response_secs,
+            daily_refund_cap,
+            ai_triage,
+            auto_approve_max,
+            veto_secs,
+            false,
+        );
+        self.upsert_merchant(merchant_id, config);
     }
 
     /// Anyone. Adds the attached NEAR to a merchant's `storage_balance`.
@@ -234,23 +395,12 @@ impl Contract {
     ) -> PromiseOrValue<u64> {
         self.mint_lock = false;
         let amount = args.amount.map_or(0, |a| a.0);
-        let result = match balance {
-            Err(_) => Err("ft_balance_of failed".to_string()),
-            Ok(balance) => self.validate_mint(&args, amount, None).and_then(|valid| {
-                // The balance was read before this callback ran. USDC that left since then is
-                // either still in flight or counted in `settled_total`; treat both as spent.
-                let settled_since = self.settled_total - settled_at_init.0;
-                let required = self.allocated + self.in_flight_total + settled_since + amount;
-                if balance.0 >= required {
-                    Ok(valid)
-                } else {
-                    Err(format!(
-                        "insufficient unassigned USDC: balance {}, required {required} (allocated {}, in_flight_total {}, amount {amount})",
-                        balance.0, self.allocated, self.in_flight_total
-                    ))
-                }
-            }),
-        };
+        let result = self
+            .validate_mint(&args, amount, None)
+            .and_then(|valid| {
+                self.check_unassigned(balance, amount, settled_at_init.0)?;
+                Ok(valid)
+            });
         match result {
             Ok(valid) => PromiseOrValue::Value(self.do_mint(&args, amount, valid)),
             Err(reason) => Self::ext(env::current_account_id())
@@ -260,7 +410,8 @@ impl Contract {
         }
     }
 
-    /// Private helper whose only job is to fail the `mint_receipt` transaction with a reason.
+    /// Private helper whose only job is to fail the `mint_receipt` / `withdraw_unassigned`
+    /// transaction with a reason.
     #[private]
     pub fn mint_failed(&self, reason: String) -> u64 {
         env::panic_str(&reason)
@@ -330,32 +481,20 @@ impl Contract {
         if ok {
             self.settled_total += amount;
             match kind {
-                TransferKind::Release => emit(
-                    "released",
-                    json!({
-                        "receipt_id": id,
-                        "merchant_id": r.merchant_id,
-                        "order_ref": r.order_ref,
-                        "amount": U128(amount),
-                        "payout": to,
-                        "released_total": U128(r.released),
-                        "status": r.status(),
-                    }),
-                ),
-                TransferKind::Refund => emit(
-                    "refund_executed",
-                    json!({
-                        "receipt_id": id,
-                        "merchant_id": r.merchant_id,
-                        "order_ref": r.order_ref,
-                        "amount": U128(amount),
-                        "deposit_account": to,
-                        "quote_id": quote_id,
-                        "refund_target": r.refund_target,
-                        "refunded_total": U128(r.refunded),
-                        "status": r.status(),
-                    }),
-                ),
+                TransferKind::Release => receipt_event("released", &r)
+                    .field("amount", &U128(amount))
+                    .field("payout", &to)
+                    .field("released_total", &U128(r.released))
+                    .field("status", &r.status())
+                    .emit(),
+                TransferKind::Refund => receipt_event("refund_executed", &r)
+                    .field("amount", &U128(amount))
+                    .field("deposit_account", &to)
+                    .field("quote_id", &quote_id)
+                    .field("refund_target", &r.refund_target)
+                    .field("refunded_total", &U128(r.refunded))
+                    .field("status", &r.status())
+                    .emit(),
             }
         } else {
             self.allocated += amount;
@@ -380,18 +519,12 @@ impl Contract {
             for i in tranches {
                 r.schedule[i as usize].state = restored;
             }
-            emit(
-                "transfer_failed",
-                json!({
-                    "receipt_id": id,
-                    "merchant_id": r.merchant_id,
-                    "order_ref": r.order_ref,
-                    "amount": U128(amount),
-                    "action": kind,
-                    "to": to,
-                    "quote_id": quote_id,
-                }),
-            );
+            receipt_event("transfer_failed", &r)
+                .field("amount", &U128(amount))
+                .field("action", &kind)
+                .field("to", &to)
+                .field("quote_id", &quote_id)
+                .emit();
         }
         self.receipts.insert(id, r);
         ok
@@ -464,6 +597,7 @@ impl Contract {
             storage_balance: U128(m.storage_balance),
             refunded_today: U128(if m.refund_day == today { m.refunded_today } else { 0 }),
             receipt_count: m.receipt_count,
+            self_managed: m.self_managed,
         })
     }
 
@@ -477,7 +611,8 @@ impl Contract {
             mint_lock: self.mint_lock,
             paused: self.paused,
             receipt_count: self.receipt_count,
-            receipt_storage_cost: U128(RECEIPT_STORAGE_COST),
+            receipt_storage_cost: U128(self.receipt_storage_cost),
+            max_receipt_amount: U128(self.max_receipt_amount),
         }
     }
 }
@@ -498,16 +633,16 @@ impl FungibleTokenReceiver for Contract {
             env::predecessor_account_id() == self.usdc,
             "only the USDC contract may call ft_on_transfer"
         );
-        let parsed: Option<Value> = serde_json::from_str(&msg).ok();
-        let field = |name: &str| parsed.as_ref().map_or(Value::Null, |v| v[name].clone());
-        let is_topup = parsed.as_ref().is_some_and(|v| v.get("topup_of").is_some());
-
-        let result = match parsed.clone() {
-            None => Err("msg is not valid JSON".to_string()),
-            Some(v) if is_topup => serde_json::from_value::<TopUpArgs>(v)
+        let bytes = msg.as_bytes();
+        let head = serde_json::from_slice::<MsgHead>(bytes);
+        let result = match &head {
+            Err(e) if e.is_syntax() || e.is_eof() => Err("msg is not valid JSON".to_string()),
+            Err(e) if msg.contains("\"topup_of\"") => Err(format!("bad top-up msg: {e}")),
+            Err(e) => Err(format!("bad mint msg: {e}")),
+            Ok(h) if h.topup_of.is_some() => serde_json::from_slice::<TopUpArgs>(bytes)
                 .map_err(|e| format!("bad top-up msg: {e}"))
                 .and_then(|a| self.top_up(a, amount.0, &sender_id)),
-            Some(v) => serde_json::from_value::<MintArgs>(v)
+            Ok(_) => serde_json::from_slice::<MintArgs>(bytes)
                 .map_err(|e| format!("bad mint msg: {e}"))
                 .and_then(|args| {
                     let valid = self.validate_mint(&args, amount.0, Some(&sender_id))?;
@@ -517,17 +652,18 @@ impl FungibleTokenReceiver for Contract {
         match result {
             Ok(_) => PromiseOrValue::Value(U128(0)),
             Err(reason) => {
-                emit(
-                    "payment_rejected",
-                    json!({
-                        "receipt_id": field("topup_of"),
-                        "merchant_id": field("merchant_id"),
-                        "order_ref": field("order_ref"),
-                        "sender_id": sender_id,
-                        "amount": amount,
-                        "reason": reason,
-                    }),
-                );
+                // The token contract takes the returned amount back right after this call.
+                self.settled_total += amount.0;
+                let head = head.ok();
+                let head = head.as_ref();
+                Event::new("payment_rejected")
+                    .field("receipt_id", &head.and_then(|h| h.topup_of))
+                    .field("merchant_id", &head.and_then(|h| h.merchant_id.as_ref()))
+                    .field("order_ref", &head.and_then(|h| h.order_ref.as_ref()))
+                    .field("sender_id", &sender_id)
+                    .field("amount", &amount)
+                    .field("reason", &reason)
+                    .emit();
                 PromiseOrValue::Value(amount)
             }
         }
@@ -575,6 +711,46 @@ impl Contract {
             .unwrap_or_else(|| env::panic_str("receipt not found"))
     }
 
+    /// Stores `config` for `merchant_id`, keeping the balances and counters of an existing entry.
+    fn upsert_merchant(&mut self, merchant_id: AccountId, mut config: Merchant) {
+        if let Some(old) = self.merchants.get(&merchant_id) {
+            config.storage_balance += old.storage_balance;
+            config.refund_day = old.refund_day;
+            config.refunded_today = old.refunded_today;
+            config.receipt_count = old.receipt_count;
+        }
+        Event::new("merchant_registered")
+            .field("merchant_id", &merchant_id)
+            .field("payout", &config.payout)
+            .field("approver", &config.approver)
+            .field("by", &env::predecessor_account_id())
+            .emit();
+        self.merchants.insert(merchant_id, config);
+    }
+
+    /// The balance check shared by `mint_receipt` and `withdraw_unassigned`: is there at least
+    /// `amount` of USDC that no receipt owns? The balance was read before the callback ran;
+    /// USDC that left since then is either still in flight or counted in `settled_total`, and
+    /// both are treated as spent.
+    fn check_unassigned(
+        &self,
+        balance: Result<U128, PromiseError>,
+        amount: u128,
+        settled_at_init: u128,
+    ) -> Result<(), String> {
+        let balance = balance.map_err(|_| "ft_balance_of failed".to_string())?.0;
+        let settled_since = self.settled_total - settled_at_init;
+        let required = self.allocated + self.in_flight_total + settled_since + amount;
+        if balance >= required {
+            Ok(())
+        } else {
+            Err(format!(
+                "insufficient unassigned USDC: balance {balance}, required {required} (allocated {}, in_flight_total {}, amount {amount})",
+                self.allocated, self.in_flight_total
+            ))
+        }
+    }
+
     /// Checks mint arguments against current state without changing anything.
     /// `sender` is the payer in the `ft_on_transfer` path (default refund target).
     fn validate_mint(
@@ -600,7 +776,11 @@ impl Contract {
         )?;
         check(amount > 0, "amount must be positive")?;
         check(
-            merchant.storage_balance >= RECEIPT_STORAGE_COST,
+            amount <= self.max_receipt_amount,
+            "amount above max_receipt_amount",
+        )?;
+        check(
+            merchant.storage_balance >= self.receipt_storage_cost,
             "merchant storage balance too low",
         )?;
 
@@ -695,7 +875,7 @@ impl Contract {
         self.merchant_receipts
             .insert((args.merchant_id.clone(), merchant.receipt_count), id);
         merchant.receipt_count += 1;
-        merchant.storage_balance -= RECEIPT_STORAGE_COST;
+        merchant.storage_balance -= self.receipt_storage_cost;
         self.merchants.insert(args.merchant_id.clone(), merchant);
 
         // Storage is covered by the fixed charge above, so no deposit refund logic is needed.
@@ -718,20 +898,14 @@ impl Contract {
         }
         .emit();
 
-        emit(
-            "receipt_minted",
-            json!({
-                "receipt_id": id,
-                "merchant_id": receipt.merchant_id,
-                "order_ref": receipt.order_ref,
-                "amount": U128(amount),
-                "kind": receipt.kind,
-                "window_end": U64(window_end),
-                "schedule": receipt.schedule,
-                "refund_target": receipt.refund_target,
-                "transferable": receipt.transferable,
-            }),
-        );
+        receipt_event("receipt_minted", &receipt)
+            .field("amount", &U128(amount))
+            .field("kind", &receipt.kind)
+            .field("window_end", &U64(window_end))
+            .field("schedule", &receipt.schedule)
+            .field("refund_target", &receipt.refund_target)
+            .field("transferable", &receipt.transferable)
+            .emit();
         self.receipts.insert(id, receipt);
         id
     }
@@ -750,6 +924,10 @@ impl Contract {
             "top-up is for Subscription/Schedule receipts",
         )?;
         check(amount > 0, "amount must be positive")?;
+        check(
+            r.amount.saturating_add(amount) <= self.max_receipt_amount,
+            "amount above max_receipt_amount",
+        )?;
         check(!r.has_active_request(), "refund request active")?;
         check(r.schedule.len() < MAX_TRANCHES, "schedule is full")?;
         let now = env::block_timestamp();
@@ -762,18 +940,12 @@ impl Contract {
         });
         r.amount += amount;
         self.allocated += amount;
-        emit(
-            "topped_up",
-            json!({
-                "receipt_id": r.id,
-                "merchant_id": r.merchant_id,
-                "order_ref": r.order_ref,
-                "amount": U128(amount),
-                "at": U64(at),
-                "total_amount": U128(r.amount),
-                "sender_id": sender,
-            }),
-        );
+        receipt_event("topped_up", &r)
+            .field("amount", &U128(amount))
+            .field("at", &U64(at))
+            .field("total_amount", &U128(r.amount))
+            .field("sender_id", sender)
+            .emit();
         let id = r.id;
         self.receipts.insert(id, r);
         Ok(id)
@@ -860,16 +1032,53 @@ impl Contract {
     }
 }
 
-pub(crate) fn emit(event: &str, data: Value) {
-    env::log_str(&format!(
-        "EVENT_JSON:{}",
-        json!({
-            "standard": EVENT_STANDARD,
-            "version": EVENT_VERSION,
-            "event": event,
-            "data": [data],
-        })
-    ));
+/// A merchant entry with fresh balances; `upsert_merchant` carries over the old ones.
+#[allow(clippy::too_many_arguments)]
+fn merchant_config(
+    payout: AccountId,
+    approver: AccountId,
+    guard_threshold: U128,
+    default_window_secs: u64,
+    response_secs: u64,
+    daily_refund_cap: U128,
+    ai_triage: bool,
+    auto_approve_max: U128,
+    veto_secs: u64,
+    self_managed: bool,
+) -> Merchant {
+    Merchant {
+        payout,
+        approver,
+        guard_threshold: guard_threshold.0,
+        default_window_secs,
+        response_secs,
+        daily_refund_cap: daily_refund_cap.0,
+        ai_triage,
+        auto_approve_max: auto_approve_max.0,
+        veto_secs,
+        storage_balance: env::attached_deposit().as_yoctonear(),
+        refund_day: 0,
+        refunded_today: 0,
+        receipt_count: 0,
+        self_managed,
+    }
+}
+
+/// An event that starts with `receipt_id`, `merchant_id` and `order_ref`.
+pub(crate) fn receipt_event(name: &str, r: &Receipt) -> Event {
+    Event::new(name)
+        .field("receipt_id", &r.id)
+        .field("merchant_id", &r.merchant_id)
+        .field("order_ref", &r.order_ref)
+}
+
+/// `config_changed { key, value, by }` for owner settings.
+fn config_changed(key: &str, value: &str) {
+    Event::new("config_changed")
+        .field("key", key)
+        .field("value", value)
+        .field("by", &env::predecessor_account_id())
+        .emit();
 }
 
 /// Verifies a receipt-key signature and consumes the nonce.

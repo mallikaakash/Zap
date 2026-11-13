@@ -241,12 +241,12 @@ fn mint_receipt_stores_receipt_and_charges_storage() {
     assert!(r.request.is_none());
     let cfg = c.get_config();
     assert_eq!((cfg.allocated.0, cfg.receipt_count), (10 * USDC, 1));
-    assert_eq!(cfg.receipt_storage_cost.0, RECEIPT_STORAGE_COST);
+    assert_eq!(cfg.receipt_storage_cost.0, DEFAULT_RECEIPT_STORAGE_COST);
     let m = c.get_merchant(acc("shop.near")).unwrap();
     assert_eq!(m.receipt_count, 1);
     assert_eq!(
         m.storage_balance.0,
-        NearToken::from_near(1).as_yoctonear() - RECEIPT_STORAGE_COST
+        NearToken::from_near(1).as_yoctonear() - DEFAULT_RECEIPT_STORAGE_COST
     );
     assert_eq!(
         c.nft_token("1".into()).unwrap().metadata.unwrap().title.unwrap(),
@@ -1374,7 +1374,7 @@ fn register_merchant_update_keeps_balances() {
     assert_eq!((m.daily_refund_cap.0, m.auto_approve_max.0, m.ai_triage), (7, 8, false));
     assert_eq!(
         m.storage_balance.0,
-        NearToken::from_near(2).as_yoctonear() - RECEIPT_STORAGE_COST
+        NearToken::from_near(2).as_yoctonear() - DEFAULT_RECEIPT_STORAGE_COST
     );
 }
 
@@ -1397,4 +1397,436 @@ fn owner_can_unpause_and_rotate_executor() {
     assert!(!c.get_config().paused);
     c.set_executor(acc("executor2.near"));
     assert_eq!(c.get_config().executor, acc("executor2.near"));
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn set_executor_is_owner_only() {
+    let mut c = setup();
+    ctx("executor.near", T0);
+    c.set_executor(acc("executor2.near"));
+}
+
+#[test]
+fn set_owner_hands_over_the_contract() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    c.set_owner(acc("new-owner.near"));
+    assert!(has_event("config_changed"));
+    assert_eq!(c.get_config().owner, acc("new-owner.near"));
+    ctx("new-owner.near", T0);
+    c.pause();
+    c.unpause();
+    c.set_max_receipt_amount(U128(5));
+    assert_eq!(c.get_config().max_receipt_amount.0, 5);
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn old_owner_loses_rights_after_set_owner() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    c.set_owner(acc("new-owner.near"));
+    c.pause();
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn set_owner_is_owner_only() {
+    let mut c = setup();
+    ctx("executor.near", T0);
+    c.set_owner(acc("executor.near"));
+}
+
+// ------------------------------------------------------- operator registration
+
+/// `register_merchant_for` called by `caller`, payout `seller-payout.near`.
+fn register_for(c: &mut Contract, caller: &str, merchant: &str, deposit: NearToken) {
+    ctx_deposit(caller, T0, deposit);
+    c.register_merchant_for(
+        acc(merchant),
+        acc("seller-payout.near"),
+        acc("approver.near"),
+        U128(50 * USDC),
+        WINDOW,
+        RESPONSE,
+        U128(200 * USDC),
+        false,
+        U128(0),
+        0,
+    );
+}
+
+#[test]
+fn operator_registers_a_seller_then_mints_and_releases_to_its_payout() {
+    let mut c = setup();
+    // the executor registers with no deposit, the owner funds storage on an update
+    register_for(&mut c, "executor.near", "seller.near", NearToken::from_yoctonear(0));
+    assert!(has_event("merchant_registered"));
+    assert!(get_logs().iter().any(|l| l.contains("\"by\":\"executor.near\"")));
+    let m = c.get_merchant(acc("seller.near")).unwrap();
+    assert_eq!((m.payout.clone(), m.storage_balance.0, m.self_managed), (acc("seller-payout.near"), 0, false));
+    register_for(&mut c, "owner.near", "seller.near", NearToken::from_millinear(100));
+    assert_eq!(
+        c.get_merchant(acc("seller.near")).unwrap().storage_balance.0,
+        NearToken::from_millinear(100).as_yoctonear()
+    );
+
+    let mut args = one_time("seller-order");
+    args["merchant_id"] = json!("seller.near");
+    let id = mint(&mut c, args, 10 * USDC, 10 * USDC, T0).unwrap();
+    let m = c.get_merchant(acc("seller.near")).unwrap();
+    assert_eq!(m.receipt_count, 1);
+    assert_eq!(
+        m.storage_balance.0,
+        NearToken::from_millinear(100).as_yoctonear() - DEFAULT_RECEIPT_STORAGE_COST
+    );
+    // `release` reads the payout from the merchant entry; the callback confirms where it went
+    let now = T0 + WINDOW * SEC;
+    ctx("anyone.near", now);
+    let _ = c.release(id);
+    assert!(resolve(&mut c, id, TransferKind::Release, vec![], "seller-payout.near", now, true));
+    assert!(get_logs().iter().any(|l| l.contains("\"payout\":\"seller-payout.near\"")));
+    assert_eq!(c.get_receipt(id).unwrap().status, Status::Released);
+
+    // an operator update keeps the counters and balances
+    register_for(&mut c, "executor.near", "seller.near", NearToken::from_yoctonear(0));
+    let m = c.get_merchant(acc("seller.near")).unwrap();
+    assert_eq!(m.receipt_count, 1);
+    assert_eq!(
+        m.storage_balance.0,
+        NearToken::from_millinear(100).as_yoctonear() - DEFAULT_RECEIPT_STORAGE_COST
+    );
+}
+
+#[test]
+#[should_panic(expected = "owner or executor only")]
+fn register_merchant_for_is_owner_or_executor_only() {
+    let mut c = setup();
+    register_for(&mut c, "approver.near", "seller.near", NearToken::from_yoctonear(0));
+}
+
+#[test]
+#[should_panic(expected = "merchant manages its own registration")]
+fn operator_cannot_overwrite_a_self_registered_merchant() {
+    let mut c = setup();
+    assert!(c.get_merchant(acc("shop.near")).unwrap().self_managed);
+    register_for(&mut c, "owner.near", "shop.near", NearToken::from_yoctonear(0));
+}
+
+#[test]
+fn a_seller_can_take_over_its_operator_registered_entry() {
+    let mut c = setup();
+    register_for(&mut c, "executor.near", "seller.near", NearToken::from_millinear(50));
+    ctx("seller.near", T0);
+    c.register_merchant(
+        acc("own-payout.near"),
+        acc("seller.near"),
+        U128(0),
+        0,
+        0,
+        U128(0),
+        false,
+        U128(0),
+        0,
+    );
+    assert!(get_logs().iter().any(|l| l.contains("\"by\":\"seller.near\"")));
+    let m = c.get_merchant(acc("seller.near")).unwrap();
+    assert_eq!((m.payout, m.self_managed), (acc("own-payout.near"), true));
+    assert_eq!(m.storage_balance.0, NearToken::from_millinear(50).as_yoctonear());
+}
+
+// ------------------------------------------------------------- storage cost
+
+#[test]
+fn receipt_storage_cost_is_owner_settable_and_charged() {
+    let mut c = setup();
+    assert_eq!(c.get_config().receipt_storage_cost.0, DEFAULT_RECEIPT_STORAGE_COST);
+    let cost = 7_000_000_000_000_000_000_000; // 0.007 NEAR
+    ctx("owner.near", T0);
+    c.set_receipt_storage_cost(U128(cost));
+    assert_eq!(c.get_config().receipt_storage_cost.0, cost);
+    paid(&mut c, one_time("o1"), USDC, T0);
+    mint(&mut c, one_time("o2"), USDC, 2 * USDC, T0).unwrap();
+    assert_eq!(
+        c.get_merchant(acc("shop.near")).unwrap().storage_balance.0,
+        NearToken::from_near(1).as_yoctonear() - 2 * cost
+    );
+
+    // a merchant with exactly one receipt's worth can mint once
+    register_for(&mut c, "owner.near", "seller.near", NearToken::from_yoctonear(cost));
+    let mut msg = one_time("s1");
+    msg["merchant_id"] = json!("seller.near");
+    assert_eq!(pay(&mut c, msg, USDC, T0), 0);
+    assert_eq!(c.get_merchant(acc("seller.near")).unwrap().storage_balance.0, 0);
+    let mut msg = one_time("s2");
+    msg["merchant_id"] = json!("seller.near");
+    assert_eq!(pay(&mut c, msg, USDC, T0), USDC);
+    assert!(get_logs().iter().any(|l| l.contains("merchant storage balance too low")));
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn set_receipt_storage_cost_is_owner_only() {
+    let mut c = setup();
+    ctx("executor.near", T0);
+    c.set_receipt_storage_cost(U128(0));
+}
+
+// ------------------------------------------------------------ payment cap
+
+#[test]
+fn max_receipt_amount_defaults_to_1000_usdc_and_caps_direct_payments() {
+    let mut c = setup();
+    assert_eq!(c.get_config().max_receipt_amount.0, 1_000 * USDC);
+    assert_eq!(DEFAULT_MAX_RECEIPT_AMOUNT, 1_000_000_000);
+    ctx_deposit("owner.near", T0, NearToken::from_near(1));
+    c.fund_storage(acc("shop.near"));
+
+    // exactly at the cap is fine, one unit above is returned in full
+    assert_eq!(pay(&mut c, one_time("o1"), 1_000 * USDC, T0), 0);
+    assert_eq!(pay(&mut c, one_time("o2"), 1_000 * USDC + 1, T0), 1_000 * USDC + 1);
+    assert!(has_event("payment_rejected"));
+    assert!(get_logs().iter().any(|l| l.contains("amount above max_receipt_amount")));
+    assert!(get_logs().iter().any(|l| l.contains("\"order_ref\":\"o2\"")));
+    assert_eq!(c.get_config().allocated.0, 1_000 * USDC);
+    assert_eq!(c.get_config().receipt_count, 1);
+
+    // a schedule is capped on its total
+    let big = schedule("s1", &[(T0, 600 * USDC), (T0 + SEC, 600 * USDC)]);
+    assert_eq!(pay(&mut c, big, 1_200 * USDC, T0), 1_200 * USDC);
+    assert_eq!(c.get_config().receipt_count, 1);
+
+    // the owner can change it
+    ctx("owner.near", T0);
+    c.set_max_receipt_amount(U128(10 * USDC));
+    assert_eq!(pay(&mut c, one_time("o3"), 10 * USDC + 1, T0), 10 * USDC + 1);
+    assert_eq!(pay(&mut c, one_time("o3"), 10 * USDC, T0), 0);
+}
+
+#[test]
+#[should_panic(expected = "amount above max_receipt_amount")]
+fn mint_receipt_above_the_cap_panics() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    c.set_max_receipt_amount(U128(10 * USDC));
+    let mut args = one_time("o1");
+    args["amount"] = json!((10 * USDC + 1).to_string());
+    ctx("executor.near", T0);
+    let _ = c.mint_receipt(near_sdk::serde_json::from_value(args).unwrap());
+}
+
+#[test]
+fn mint_receipt_at_the_cap_works() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    c.set_max_receipt_amount(U128(10 * USDC));
+    assert_eq!(mint(&mut c, one_time("o1"), 10 * USDC, 10 * USDC, T0), Some(1));
+}
+
+#[test]
+fn top_ups_count_the_new_receipt_total_against_the_cap() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    c.set_max_receipt_amount(U128(30 * USDC));
+    let id = paid(&mut c, schedule("pass", &[(T0, 10 * USDC), (T0 + SEC, 10 * USDC)]), 20 * USDC, T0);
+    // the first tranche is released; the cap still applies to the receipt's whole amount
+    assert!(release(&mut c, id, T0, true));
+    assert_eq!(pay(&mut c, json!({"topup_of": id}), 10 * USDC + 1, T0), 10 * USDC + 1);
+    assert!(get_logs().iter().any(|l| l.contains("amount above max_receipt_amount")));
+    assert!(get_logs().iter().any(|l| l.contains(&format!("\"receipt_id\":{id}"))));
+    assert_eq!(c.get_receipt(id).unwrap().amount.0, 20 * USDC);
+    assert_eq!(pay(&mut c, json!({"topup_of": id}), 10 * USDC, T0), 0);
+    assert_eq!(c.get_receipt(id).unwrap().amount.0, 30 * USDC);
+    assert_eq!(pay(&mut c, json!({"topup_of": id}), 1, T0), 1);
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn set_max_receipt_amount_is_owner_only() {
+    let mut c = setup();
+    ctx("executor.near", T0);
+    c.set_max_receipt_amount(U128(1));
+}
+
+#[test]
+fn malformed_messages_keep_their_reasons() {
+    let mut c = setup();
+    let reason = |c: &mut Contract, msg: &str| {
+        ctx("usdc.near", T0);
+        let out = c.ft_on_transfer(acc("payer.near"), U128(5), msg.to_string());
+        assert!(matches!(out, PromiseOrValue::Value(U128(5))));
+        get_logs().into_iter().find(|l| l.contains("payment_rejected")).unwrap()
+    };
+    assert!(reason(&mut c, "{\"topup_of\": \"x\"}").contains("bad top-up msg"));
+    assert!(reason(&mut c, "{\"topup_of\": 1, \"at\": 5}").contains("bad top-up msg"));
+    assert!(reason(&mut c, "[1, 2]").contains("bad mint msg"));
+    assert!(reason(&mut c, "{\"merchant_id\": \"shop.near\"}").contains("bad mint msg: missing field"));
+    let log = reason(&mut c, "{\"merchant_id\": \"shop.near\", \"order_ref\": \"x\"}");
+    assert!(log.contains("\"merchant_id\":\"shop.near\"") && log.contains("\"order_ref\":\"x\""));
+}
+
+// ------------------------------------------------------- withdraw_unassigned
+
+/// Starts `withdraw_unassigned` and runs its balance callback with `balance`.
+/// Returns true if the transfer was started (it is then in flight).
+fn withdraw(c: &mut Contract, amount: u128, balance: u128, now: u64) -> bool {
+    ctx("owner.near", now);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(amount));
+    assert!(c.get_config().mint_lock);
+    let settled = U128(c.settled_total);
+    withdraw_callback(c, amount, settled, Ok(U128(balance)), now)
+}
+
+fn withdraw_callback(
+    c: &mut Contract,
+    amount: u128,
+    settled_at_init: U128,
+    balance: Result<U128, PromiseError>,
+    now: u64,
+) -> bool {
+    let before = c.get_config().in_flight_total.0;
+    ctx("receipts.near", now);
+    let _ = c.on_withdraw_balance(acc("treasury.near"), U128(amount), settled_at_init, balance);
+    assert!(!c.get_config().mint_lock, "mint_lock must always be released");
+    let after = c.get_config().in_flight_total.0;
+    assert!(after == before || after == before + amount);
+    after == before + amount
+}
+
+fn withdraw_resolved(c: &mut Contract, amount: u128, ok: bool) -> bool {
+    ctx("receipts.near", T0);
+    let res = if ok { Ok(()) } else { Err(PromiseError::Failed) };
+    c.on_withdraw_resolved(acc("treasury.near"), U128(amount), res)
+}
+
+#[test]
+fn withdraw_unassigned_takes_only_genuine_surplus() {
+    let mut c = setup();
+    paid(&mut c, one_time("o1"), 10 * USDC, T0);
+    // 10 USDC belong to receipt 1, 3 USDC are surplus
+    let balance = 13 * USDC;
+    assert!(!withdraw(&mut c, 3 * USDC + 1, balance, T0));
+    assert_eq!(c.get_config().in_flight_total.0, 0);
+    assert!(withdraw(&mut c, 3 * USDC, balance, T0));
+    assert_eq!(c.get_config().in_flight_total.0, 3 * USDC);
+    // while it is in flight, the same surplus cannot be taken twice
+    assert!(!withdraw(&mut c, 1, balance, T0));
+
+    assert!(withdraw_resolved(&mut c, 3 * USDC, true));
+    assert!(has_event("unassigned_withdrawn"));
+    let cfg = c.get_config();
+    assert_eq!((cfg.allocated.0, cfg.in_flight_total.0), (10 * USDC, 0));
+    // the balance is now 10; nothing more to take, and the receipt is untouched
+    assert!(!withdraw(&mut c, 1, 10 * USDC, T0));
+    assert_eq!(c.get_receipt(1).unwrap().amount.0, 10 * USDC);
+}
+
+#[test]
+fn withdraw_unassigned_never_touches_in_flight_money() {
+    let mut c = setup();
+    paid(&mut c, one_time("o1"), 10 * USDC, T0);
+    let now = T0 + WINDOW * SEC;
+    ctx("anyone.near", now);
+    let _ = c.release(1);
+    // allocated 0, in flight 10: the token contract still reports those 10 USDC
+    assert_eq!(c.get_config().allocated.0, 0);
+    assert!(!withdraw(&mut c, 1, 10 * USDC, now));
+    assert!(!withdraw(&mut c, 2 * USDC + 1, 12 * USDC, now));
+    assert!(withdraw(&mut c, 2 * USDC, 12 * USDC, now));
+    assert_eq!(c.get_config().in_flight_total.0, 12 * USDC);
+}
+
+#[test]
+fn withdraw_unassigned_counts_usdc_that_left_after_the_balance_read() {
+    let mut c = setup();
+    paid(&mut c, one_time("o1"), 10 * USDC, T0);
+    let now = T0 + WINDOW * SEC;
+    // the balance (10) is read while receipt 1 is still held ...
+    ctx("owner.near", now);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(10 * USDC));
+    let settled_at_init = U128(c.settled_total);
+    // ... the release settles before the callback runs
+    assert!(release(&mut c, 1, now, true));
+    assert_eq!(c.get_config().allocated.0, 0);
+    assert!(!withdraw_callback(&mut c, 10 * USDC, settled_at_init, Ok(U128(10 * USDC)), now));
+}
+
+#[test]
+fn withdraw_unassigned_counts_a_direct_payment_returned_after_the_balance_read() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(5 * USDC));
+    let settled_at_init = U128(c.settled_total);
+    // a rejected direct payment: the token contract credited 5 USDC, then takes them back
+    let mut msg = one_time("o1");
+    msg["merchant_id"] = json!("nobody.near");
+    assert_eq!(pay(&mut c, msg, 5 * USDC, T0), 5 * USDC);
+    assert!(!withdraw_callback(&mut c, 5 * USDC, settled_at_init, Ok(U128(5 * USDC)), T0));
+}
+
+#[test]
+fn failed_withdraw_transfer_changes_nothing() {
+    let mut c = setup();
+    paid(&mut c, one_time("o1"), 10 * USDC, T0);
+    let before = c.get_config();
+    let settled_before = c.settled_total;
+    assert!(withdraw(&mut c, 4 * USDC, 14 * USDC, T0));
+    assert!(!withdraw_resolved(&mut c, 4 * USDC, false));
+    assert!(has_event("transfer_failed"));
+    assert!(get_logs().iter().any(|l| l.contains("\"action\":\"withdraw\"")));
+    let after = c.get_config();
+    assert_eq!((after.allocated, after.in_flight_total), (before.allocated, before.in_flight_total));
+    assert_eq!(c.settled_total, settled_before);
+    assert!(!after.mint_lock);
+    // the surplus can be withdrawn again
+    assert!(withdraw(&mut c, 4 * USDC, 14 * USDC, T0));
+}
+
+#[test]
+fn withdraw_unassigned_releases_the_lock_when_the_balance_call_fails() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(1));
+    assert!(!withdraw_callback(&mut c, 1, U128(0), Err(PromiseError::Failed), T0));
+}
+
+#[test]
+#[should_panic(expected = "owner only")]
+fn withdraw_unassigned_is_owner_only() {
+    let mut c = setup();
+    ctx("executor.near", T0);
+    let _ = c.withdraw_unassigned(acc("executor.near"), U128(1));
+}
+
+#[test]
+#[should_panic(expected = "another mint or withdrawal is in flight")]
+fn withdraw_unassigned_needs_the_mint_lock() {
+    let mut c = setup();
+    let mut args = one_time("o1");
+    args["amount"] = json!("5");
+    ctx("executor.near", T0);
+    let _ = c.mint_receipt(near_sdk::serde_json::from_value(args).unwrap());
+    ctx("owner.near", T0);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(1));
+}
+
+#[test]
+#[should_panic(expected = "another mint is in flight")]
+fn mint_waits_for_a_withdrawal() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(1));
+    let mut args = one_time("o1");
+    args["amount"] = json!("5");
+    ctx("executor.near", T0);
+    let _ = c.mint_receipt(near_sdk::serde_json::from_value(args).unwrap());
+}
+
+#[test]
+#[should_panic(expected = "amount must be positive")]
+fn withdraw_unassigned_needs_a_positive_amount() {
+    let mut c = setup();
+    ctx("owner.near", T0);
+    let _ = c.withdraw_unassigned(acc("treasury.near"), U128(0));
 }

@@ -43,6 +43,19 @@ pub enum RequestState {
 }
 
 impl RequestState {
+    /// The JSON / panic-message name.
+    pub fn name(self) -> &'static str {
+        match self {
+            RequestState::Open => "Open",
+            RequestState::AiApproved => "AiApproved",
+            RequestState::AiDenied => "AiDenied",
+            RequestState::Escalated => "Escalated",
+            RequestState::Approved => "Approved",
+            RequestState::Rejected => "Rejected",
+            RequestState::Executed => "Executed",
+        }
+    }
+
     /// Active requests block `release` and block a new request.
     pub fn is_active(self) -> bool {
         matches!(
@@ -109,6 +122,19 @@ pub struct TopUpArgs {
     pub at: Option<U64>,
 }
 
+/// The few `ft_on_transfer` msg fields needed to pick the message type and to describe a
+/// rejected payment. Unknown fields are ignored.
+#[derive(near_sdk::serde::Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub(crate) struct MsgHead {
+    #[serde(default)]
+    pub topup_of: Option<u64>,
+    #[serde(default)]
+    pub merchant_id: Option<String>,
+    #[serde(default)]
+    pub order_ref: Option<String>,
+}
+
 #[near(serializers = [borsh])]
 #[derive(Clone, Debug)]
 pub struct Merchant {
@@ -127,6 +153,9 @@ pub struct Merchant {
     pub refund_day: u64,
     pub refunded_today: u128,
     pub receipt_count: u64,
+    /// True once the merchant account registered itself (`register_merchant`). The operator
+    /// (`register_merchant_for`) can no longer change such an entry.
+    pub self_managed: bool,
 }
 
 #[near(serializers = [json])]
@@ -144,6 +173,7 @@ pub struct MerchantView {
     pub storage_balance: U128,
     pub refunded_today: U128,
     pub receipt_count: u64,
+    pub self_managed: bool,
 }
 
 #[near(serializers = [borsh])]
@@ -279,7 +309,10 @@ pub struct ConfigView {
     pub mint_lock: bool,
     pub paused: bool,
     pub receipt_count: u64,
+    /// yoctoNEAR charged to the merchant's `storage_balance` per minted receipt.
     pub receipt_storage_cost: U128,
+    /// Largest receipt total (USDC minor units) accepted on any payment path.
+    pub max_receipt_amount: U128,
 }
 
 /// Which kind of outgoing transfer a callback resolves.

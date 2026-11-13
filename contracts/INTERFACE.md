@@ -74,11 +74,13 @@ ReceiptView = {
 MerchantView = {
   payout, approver, guard_threshold: U128, default_window_secs: u64, response_secs: u64,
   daily_refund_cap: U128, ai_triage: bool, auto_approve_max: U128, veto_secs: u64,
-  storage_balance: U128 (yoctoNEAR), refunded_today: U128, receipt_count: u64
+  storage_balance: U128 (yoctoNEAR), refunded_today: U128, receipt_count: u64,
+  self_managed: bool            // true once the merchant registered itself (register_merchant)
 }
 
 ConfigView = { usdc, executor, owner, allocated: U128, in_flight_total: U128,
-               mint_lock: bool, paused: bool, receipt_count: u64, receipt_storage_cost: U128 }
+               mint_lock: bool, paused: bool, receipt_count: u64,
+               receipt_storage_cost: U128 (yoctoNEAR), max_receipt_amount: U128 (USDC) }
 ```
 
 ## Methods
@@ -87,6 +89,7 @@ ConfigView = { usdc, executor, owner, allocated: U128, in_flight_total: U128,
 |---|---|---|
 | `new(usdc, executor, owner)` | deploy | init |
 | `register_merchant(payout, approver, guard_threshold, default_window_secs, response_secs, daily_refund_cap, ai_triage, auto_approve_max, veto_secs)` **payable** | the merchant (predecessor = merchant id) | Create or update. Attached NEAR is added to `storage_balance`. |
+| `register_merchant_for(merchant_id, payout, approver, guard_threshold, default_window_secs, response_secs, daily_refund_cap, ai_triage, auto_approve_max, veto_secs)` **payable** | owner or executor | Same as `register_merchant`, for `merchant_id` (the seller never signs). Attached NEAR (may be 0) is added to that merchant's `storage_balance`. Refuses a merchant whose entry is `self_managed`. |
 | `fund_storage(merchant_id)` **payable** | anyone | Adds to the merchant's `storage_balance`. |
 | `mint_receipt(args: MintArgs)` | executor | Primary path. Panics if paused, `mint_lock` held, merchant unknown, `order_ref` used, or `storage_balance < receipt_storage_cost`. Takes `mint_lock`, calls `usdc.ft_balance_of(self)`; the callback re-checks with **current** state: `balance ≥ allocated + in_flight_total + amount`, then stores the receipt, `allocated += amount`, charges storage, mints the NFT to the contract account; **always** clears `mint_lock`. Returns the id. |
 | `ft_on_transfer(sender_id, amount, msg)` | the USDC contract only | `msg` = JSON `MintArgs` without `amount`, or `{ "topup_of": id, "at"?: U64 }`. Mint: same checks, synchronous, returns `"0"`. Top-up (Subscription/Schedule only): appends a `Pending` tranche (`at` default = max(now, last tranche `at`)), `amount`/`allocated` grow, returns `"0"`. On any failed check (bad msg, paused, unknown merchant, duplicate order_ref, no storage balance) **return the full amount** so the token contract refunds the sender — do not panic. Emits `payment_rejected` with a reason. |
@@ -107,6 +110,10 @@ ConfigView = { usdc, executor, owner, allocated: U128, in_flight_total: U128,
 | `nft_transfer` / `nft_transfer_call` | NFT owner (standard) | Panics unless `transferable`. |
 | `pause()` / `unpause()` | owner | Paused blocks `mint_receipt`, `ft_on_transfer` mints (amount returned) and `release`. Refund requests, decisions and `execute_refund` keep working. |
 | `set_executor(executor)` | owner | — |
+| `set_owner(owner)` | owner | Hands the contract to another owner. |
+| `set_receipt_storage_cost(amount: U128)` | owner | yoctoNEAR charged per mint from the merchant's `storage_balance`. |
+| `set_max_receipt_amount(amount: U128)` | owner | Largest receipt total accepted (mint, direct payment, top-up). |
+| `withdraw_unassigned(to, amount: U128)` | owner | Sends USDC that no receipt owns to `to`. Same `mint_lock` + balance check as `mint_receipt`; can never take allocated or in-flight USDC. |
 
 Views: `get_receipt(id) -> ReceiptView | null`, `get_receipt_by_order_ref(order_ref)`,
 `receipts_for_merchant(merchant_id, from_index, limit)`, `receipts_for_owner(account_id, from_index, limit)`,
@@ -118,11 +125,12 @@ Views: `get_receipt(id) -> ReceiptView | null`, `get_receipt_by_order_ref(order_
 `ai_decided`, `vetoed`, `appealed`, `refund_approved`, `refund_rejected`, `request_finalized`,
 `refund_executed` (includes `quote_id`, `deposit_account`), `transfer_failed`, `confirmed`,
 `claimed`, `refund_target_changed`, `paused`, `unpaused`. Each carries `receipt_id`,
-`merchant_id` and the amounts relevant to it.
+`merchant_id` and the amounts relevant to it. Contract-level events (no receipt):
+`merchant_registered`, `config_changed`, `unassigned_withdrawn`.
 
 ## Deliberate simplifications (record in README)
 
-- Storage: a fixed `receipt_storage_cost` (0.01 NEAR) is charged per mint from the merchant's prepaid `storage_balance`.
+- Storage: `receipt_storage_cost` (default 0.014 NEAR, owner-settable) is charged per mint from the merchant's prepaid `storage_balance`.
 - USDC storage registration of payout and refund deposit accounts is done by the backend before the transfer; a transfer to an unregistered account rolls back cleanly.
 - `customer_reply_secs`, `min_order_usd`, refund-address rate limits and blocklists are enforced off-chain by the backend.
 
@@ -137,13 +145,15 @@ The rest of this section pins down details the tables leave open.
   receive USDC. Without it every `ft_transfer_call` / plain transfer to it fails in the token contract.
   (mock-usdc's `mint` faucet registers the target automatically.)
 - Payout accounts and refund deposit accounts must be registered with USDC by the backend.
-- A merchant needs `storage_balance >= receipt_storage_cost` (0.01 NEAR) per mint.
+- A merchant needs `storage_balance >= receipt_storage_cost` (default 0.014 NEAR) per mint.
+- Mainnet checklist (USDC registration, storage funding, cap, ownership): see `contracts/README.md`.
 
 ### Return values
 | Method | Returns |
 |---|---|
 | `mint_receipt` | receipt id (number). If the balance check or a re-validation fails in the callback, the **transaction fails** with the reason as panic message (e.g. `insufficient unassigned USDC: …`, `order_ref already used`) and `mint_lock` is cleared. |
 | `release`, `execute_refund` | `true` if the USDC transfer succeeded; `false` if it failed and was rolled back. **The transaction itself succeeds in both cases** — check the value (or look for `transfer_failed`). |
+| `withdraw_unassigned` | `true` if the USDC transfer succeeded; `false` if it failed (nothing changed). If the surplus is too small the **transaction fails** with `insufficient unassigned USDC: …` and `mint_lock` is cleared. |
 | `ft_on_transfer` | `"0"` accepted, or the full amount on rejection (so `ft_transfer_call` returns the used amount: the full amount when accepted, `"0"` when rejected). |
 | everything else | nothing |
 
@@ -153,7 +163,8 @@ The rest of this section pins down details the tables leave open.
 | `mint_receipt` | 100 Tgas (minimum ≈ 50) | 0 |
 | `usdc.ft_transfer_call` → `ft_on_transfer` | 100 Tgas | 1 yocto (to USDC) |
 | `release`, `execute_refund` | 100 Tgas (minimum ≈ 60) | 0 (the contract pays the 1 yocto) |
-| `register_merchant`, `fund_storage` | 30 Tgas | NEAR to add to `storage_balance` (may be 0 on updates) |
+| `register_merchant`, `register_merchant_for`, `fund_storage` | 30 Tgas | NEAR to add to `storage_balance` (may be 0) |
+| `withdraw_unassigned` | 100 Tgas (it reserves 60 Tgas for its promises; the sandbox tests use 100) | 0 (the contract pays the 1 yocto) |
 | `nft_transfer` | 30 Tgas | 1 yocto |
 | `nft_transfer_call` | 100 Tgas | 1 yocto |
 | all other change methods | 30 Tgas | 0 |
@@ -173,6 +184,34 @@ The rest of this section pins down details the tables leave open.
 12. **Detail — NFT.** `nft_transfer`/`nft_transfer_call` also refuse the contract account as receiver. The approval extension (NEP-178) is not enabled. Storage for a new owner is paid by the contract.
 13. **Detail — claimed receipts:** `sig` is ignored; the receipt key is deleted at claim and `nonce` stops moving.
 14. **Detail — no new request after `Rejected` or `AiDenied`** (only after `Executed`), exactly as the table says; `merchant_refund` is still possible and replaces the closed request.
+15. **Addition — operator registration.** `register_merchant_for` creates or updates an entry exactly like `register_merchant` (config replaced; `storage_balance` grows by the deposit; `receipt_count`, `refunded_today` kept). Callers: owner or executor (`owner or executor only`). An entry created by `register_merchant` has `self_managed: true` and is refused (`merchant manages its own registration`), so the operator cannot redirect the payout of a merchant that registered itself. If the merchant account later calls `register_merchant` itself, its entry becomes `self_managed` (the seller takes over). `merchant_id` does not need to exist as an account.
+16. **Addition — `max_receipt_amount`** (default `1000000000` = 1,000 USDC). Checked against the receipt total: `amount` in `mint_receipt` (panics `amount above max_receipt_amount`), the transferred amount in an `ft_on_transfer` mint, and `amount + top-up` for a top-up (both: full amount returned, `payment_rejected` with reason `amount above max_receipt_amount`). Tranches already released still count toward the total.
+17. **Addition — `withdraw_unassigned(to, amount)`** (owner). Panics if `amount` is 0 or `mint_lock` is held (`another mint or withdrawal is in flight`; while a withdrawal holds the lock `mint_receipt` panics with `another mint is in flight`). Takes `mint_lock`, reads `ft_balance_of(self)`; the callback `on_withdraw_balance` clears the lock and requires `balance ≥ allocated + in_flight_total + (USDC that left since the call) + amount` (same check as `mint_receipt`), then adds `amount` to `in_flight_total` and sends `ft_transfer` (1 yocto, memo `unassigned:withdraw`) to `to`. `on_withdraw_resolved` removes it from `in_flight_total`; success emits `unassigned_withdrawn`, failure emits `transfer_failed` with `action: "withdraw"` and changes nothing else. Both callbacks are private. Limit: a direct payment whose `ft_on_transfer` has not run yet (the first block or two after the token contract credited it) looks like surplus at the instant of the balance read. Only withdraw an amount you have already seen as surplus (`ft_balance_of − allocated − in_flight_total`).
+18. **Detail — rejected direct payments count as outgoing USDC.** When `ft_on_transfer` returns an amount, the token contract takes it back afterwards; the contract now counts it with the transfers that left (the "USDC that left since the call" term in deviation 2), so neither `mint_receipt` nor `withdraw_unassigned` can assign it in that window. This can only cause a spurious `insufficient unassigned USDC` (retry).
+19. **Addition — owner settings.** `set_owner`, `set_executor`, `set_receipt_storage_cost`, `set_max_receipt_amount` are owner only (`owner only`) and emit `config_changed`. Ownership changes in one step: the new owner does not have to accept, so double-check the account id.
+20. **Detail — `ft_on_transfer` reasons.** Invalid JSON → `msg is not valid JSON`; otherwise `bad top-up msg: …` / `bad mint msg: …` with serde's message. In `payment_rejected`, `receipt_id`, `merchant_id` and `order_ref` are filled from the msg when those fields have the right types (`null` otherwise).
+
+### Storage (measured in the sandbox, `storage_cost_per_receipt_is_measured`)
+Bytes added to the contract's state, measured from the account's `storage_usage` before and
+after each payment. Strings: a 64-hex `order_ref`, refund target `polygon` /
+`nep141:pol-0xc2132d05d31c914a87c6611c10748aeb04b58e8f.omdep.near` / a 42-character address,
+receipt key present. Includes the receipt, NFT owner entry and metadata, the owner index
+entry, `order_ref` and merchant index.
+
+| Receipt | merchant id 12 chars | merchant id 64 chars |
+|---|---|---|
+| OneTime | 1,060 bytes | 1,216 bytes |
+| Subscription, 3 tranches | 1,135 bytes | 1,291 bytes |
+| first receipt ever (creates the contract's owner index) | 1,205 bytes (OneTime) | — |
+
+Default `receipt_storage_cost` = **0.014 NEAR** = 1,400 bytes at 1e19 yoctoNEAR/byte: the
+3-tranche receipt (12-char id) plus 23%, and still above the 64-char case (+8%). The previous
+fixed 0.01 NEAR (1,000 bytes) did not cover a receipt.
+
+Growth after the mint, paid from the contract's own NEAR balance (not from `storage_balance`):
+a refund request +106 bytes; `claim` to an account with no receipts yet +115; each top-up
+tranche +25; a new merchant entry +319 (64-char id). Mainnet account ids differ in length
+from the sandbox's (`receipts.sandbox`), so expect ±20 bytes.
 
 ### Input limits (a violation panics)
 - `order_ref`: 1..=64 characters.
@@ -182,6 +221,7 @@ The rest of this section pins down details the tables leave open.
 - `note`: ≤ 256 characters; `quote_id`: ≤ 128 characters.
 - `ai_decide.amount` is required in every call (send `"0"` for `escalate` / `deny`).
 - `from_index`, `limit` in list views: JSON numbers; `limit` default 50, max 100.
+- Receipt total ≤ `max_receipt_amount` (mint panics; direct payments and top-ups are returned).
 
 ### Signature preimage examples
 For contract `receipts.testnet`, receipt `7`, nonce `0`:
@@ -212,12 +252,17 @@ refund_approved       { receipt_id, merchant_id, order_ref, amount, by_merchant,
 refund_rejected       { receipt_id, merchant_id, order_ref, amount, note }
 request_finalized     { receipt_id, merchant_id, order_ref, amount, from_state, state: "Approved", refund_target }
 refund_executed       { receipt_id, merchant_id, order_ref, amount, deposit_account, quote_id, refund_target, refunded_total, status }
-transfer_failed       { receipt_id, merchant_id, order_ref, amount, action: "release"|"refund", to, quote_id|null }
+transfer_failed       { receipt_id|null, merchant_id|null, order_ref|null, amount, action: "release"|"refund"|"withdraw", to, quote_id|null }
 confirmed             { receipt_id, merchant_id, order_ref, amount }
 claimed               { receipt_id, merchant_id, order_ref, amount, owner_id }
 refund_target_changed { receipt_id, merchant_id, order_ref, refund_target }
 paused / unpaused     { by }
+merchant_registered   { merchant_id, payout, approver, by }      // register_merchant and register_merchant_for
+config_changed        { key: "owner"|"executor"|"receipt_storage_cost"|"max_receipt_amount", value: string, by }
+unassigned_withdrawn  { to, amount, by }
 ```
+Field order inside `data` is as listed; consumers should not rely on it.
+`transfer_failed` for `action: "withdraw"` has `receipt_id`, `merchant_id`, `order_ref` = `null`.
 `ai_decided.decision` is what the executor asked for; `state` is what the contract did
 (an `approve` above `auto_approve_max` or `guard_threshold` yields `state: "Escalated"`).
 The standard NEP-171 `nft_mint` / `nft_transfer` events are emitted as well.
