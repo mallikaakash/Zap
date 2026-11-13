@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CONTRACT_FILE, EXCERPTS } from "./contract";
 import { useApp } from "./context";
 import { Bolt, Check, Cross } from "./icons";
 import { evaluate, INITIAL_PROTECTIONS, nudge, REQUEST, type ProtectionIdx, type Tone } from "./protections";
 
 const ACCENT = "#FF2D87";
+const GITHUB_BLOB = "https://github.com/mallikaakash/near-hackathon/blob/main";
 
-function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; children: React.ReactNode; lead?: React.ReactNode; xl?: boolean; center?: boolean }) {
+export function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; children: React.ReactNode; lead?: React.ReactNode; xl?: boolean; center?: boolean }) {
   return (
     <div className="z-head" style={center ? { justifyContent: "center", textAlign: "center" } : undefined}>
       <div className="z-title" style={center ? { alignItems: "center" } : undefined}>
@@ -18,44 +20,52 @@ function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; childr
     </div>
   );
 }
-export { Head };
+
+/* ---------------- problem ---------------- */
 
 export function Problem() {
-  const bad = ["Bridge to our chain first", "Hold the one token we accept", "Paid means final. No refunds."];
-  const good = ["Pay in whatever you already hold", "The seller always gets USDC", "Refunds go back to the original chain"];
-  const line = { fontFamily: "var(--z-display)", fontSize: "clamp(19px, 2.2vw, 24px)", fontWeight: 600, letterSpacing: "-0.02em" } as const;
+  const line = { fontFamily: "var(--z-display)", fontSize: "clamp(18px, 2vw, 22px)", fontWeight: 600, letterSpacing: "-0.02em" } as const;
+  const big = { fontFamily: "var(--z-display)", fontWeight: 700, fontSize: "clamp(64px, 8vw, 120px)", lineHeight: 0.9, letterSpacing: "-0.06em" } as const;
   return (
     <section className="z-wrap z-sec">
       <Head eyebrow="THE PROBLEM">
         Crypto checkout makes the shopper do the <span className="z-acc">work.</span>
       </Head>
       <div className="z-grid" style={{ ["--min" as string]: "320px" }}>
-        <div className="z-card soft" style={{ borderRadius: 28, gap: 22 }}>
+        <div className="z-card soft" style={{ borderRadius: 28, gap: 26 }}>
           <span className="z-eyebrow" style={{ letterSpacing: 0 }}>
             THE USUAL CRYPTO CHECKOUT
           </span>
-          <ul className="z-col" style={{ gap: 22 }}>
-            {bad.map((b) => (
-              <li key={b} style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 999, border: "1.5px solid #8A8A8A", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-                  <Cross />
+          <div className="z-col" style={{ gap: 6 }}>
+            <span style={{ ...big, color: "var(--z-muted)" }}>0</span>
+            <span style={{ ...line, color: "var(--z-muted)" }}>refunds, once it&apos;s paid</span>
+          </div>
+          <ul className="z-col" style={{ gap: 16 }}>
+            {["Bridge to our chain first", "Hold the one token we accept", "Paid means final"].map((b) => (
+              <li key={b} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 999, border: "1.5px solid var(--z-muted)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                  <Cross size={12} color="currentColor" />
                 </span>
-                <span style={{ ...line, color: "#6B6B6B", textDecoration: "line-through", textDecorationThickness: 2 }}>{b}</span>
+                <span style={{ ...line, fontSize: 18, color: "var(--z-muted)", textDecoration: "line-through", textDecorationThickness: 2 }}>{b}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="z-card ink" style={{ borderRadius: 28, gap: 22 }}>
+        <div className="z-card ink" style={{ borderRadius: 28, gap: 26 }}>
           <span className="z-mono z-acc" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}>
             <Bolt size={14} /> ZAP
           </span>
-          <ul className="z-col" style={{ gap: 22 }}>
-            {good.map((g) => (
-              <li key={g} style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 999, background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-                  <Check size={16} color="#111111" width={3} />
+          <div className="z-col" style={{ gap: 6 }}>
+            <span style={big}>Any chain</span>
+            <span style={line}>refunds go back where they came from</span>
+          </div>
+          <ul className="z-col" style={{ gap: 16 }}>
+            {["Pay in whatever you already hold", "The seller always gets USDC", "A refund button that works"].map((g) => (
+              <li key={g} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 999, background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                  <Check size={14} color="#111111" width={3} />
                 </span>
-                <span style={line}>{g}</span>
+                <span style={{ ...line, fontSize: 18 }}>{g}</span>
               </li>
             ))}
           </ul>
@@ -64,6 +74,8 @@ export function Problem() {
     </section>
   );
 }
+
+/* ---------------- drop-in ---------------- */
 
 const COLORS = {
   ink: { name: "Ink", bg: "#111111", fg: "#FFFFFF", bolt: ACCENT },
@@ -75,7 +87,7 @@ const RADII = { square: ["Square", "6px"], rounded: ["Rounded", "14px"], pill: [
 const LABELS = ["Pay with Zap", "Pay with crypto", "Checkout"];
 
 export function DropIn() {
-  const { host, merchant } = useApp();
+  const { host, merchant, stats } = useApp();
   const [color, setColor] = useState<keyof typeof COLORS>("ink");
   const [radius, setRadius] = useState<keyof typeof RADII>("pill");
   const [label, setLabel] = useState(0);
@@ -85,6 +97,7 @@ export function DropIn() {
   const attrs: string[] = [`merchant="${shop}"`, `amount="24"`, `product="Pour-over kit"`, `color="${col.bg}"`];
   if (radius !== "rounded") attrs.push(`radius="${RADII[radius][1]}"`);
   if (label !== 0) attrs.push(`label="${LABELS[label]}"`);
+  const kb = stats?.payJsGzipBytes ? `${(stats.payJsGzipBytes / 1000).toFixed(1)} kB gzipped` : "Small, gzipped";
 
   return (
     <section id="start" className="z-wrap z-sec" style={{ paddingTop: 32 }}>
@@ -128,12 +141,14 @@ export function DropIn() {
         </div>
         <div className="z-card" style={{ gap: 22 }}>
           <div style={{ flex: 1, minHeight: 210, borderRadius: 18, background: "var(--z-soft)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}>
-            <span style={{ fontSize: 14, color: "var(--z-muted)" }}>Pour-over kit · $24.00</span>
+            <span className="z-muted" style={{ fontSize: 14 }}>
+              Pour-over kit · $24.00
+            </span>
             <span aria-label={`Button preview: ${LABELS[label]}`} style={{ minHeight: 54, padding: "0 26px", borderRadius: RADII[radius][1], background: col.bg, color: col.fg, border: "1.5px solid #111111", fontWeight: 700, fontSize: 16, display: "inline-flex", alignItems: "center", gap: 9, transition: "all .25s ease" }}>
               <Bolt color={col.bolt} />
               {LABELS[label]}
             </span>
-            <span className="z-mono" style={{ fontSize: 11, color: "#6B6B6B", textAlign: "center" }}>
+            <span className="z-mono z-muted" style={{ fontSize: 11, textAlign: "center" }}>
               PREVIEW · SHADOW DOM, SO YOUR CSS STAYS YOURS
             </span>
           </div>
@@ -141,7 +156,7 @@ export function DropIn() {
             <div className="z-row" role="group" aria-label="Colour" style={{ gap: 10 }}>
               <span style={{ width: 70, fontSize: 13, fontWeight: 600 }}>Colour</span>
               {(Object.keys(COLORS) as Array<keyof typeof COLORS>).map((k) => (
-                <button key={k} type="button" aria-pressed={color === k} aria-label={COLORS[k].name} onClick={() => setColor(k)} style={{ width: 44, height: 44, borderRadius: 999, border: `2px solid ${color === k ? "#111111" : "#E4E4E0"}`, padding: 4, background: "#FFFFFF" }}>
+                <button key={k} type="button" className="z-swatch" aria-pressed={color === k} aria-label={COLORS[k].name} onClick={() => setColor(k)}>
                   <span style={{ display: "block", width: "100%", height: "100%", borderRadius: 999, background: COLORS[k].bg, border: "1px solid #D6D6D1" }} />
                 </button>
               ))}
@@ -166,7 +181,7 @@ export function DropIn() {
         </div>
       </div>
       <div className="z-row" style={{ gap: 10 }}>
-        {["8.6 KB gzipped", "No dependencies", "Shadow DOM", "Themable", "uc:paid + uc:closed events", "Links and QR codes too"].map((s) => (
+        {[kb, "No dependencies", "Shadow DOM", "Themable", "uc:paid + uc:closed events", "Links and QR codes too"].map((s) => (
           <span key={s} className="z-chip">
             {s}
           </span>
@@ -175,6 +190,8 @@ export function DropIn() {
     </section>
   );
 }
+
+/* ---------------- any coin ---------------- */
 
 const ASSETS: Array<[string, string, string]> = [
   ["BTC", "Bitcoin", "#FFB23F"],
@@ -200,12 +217,14 @@ function Marquee({ items, reverse }: { items: Array<[string, string, string]>; r
   return (
     <div className={`z-mq${reverse ? " r" : ""}`}>
       {doubled.map(([t, n, c], i) => (
-        <span key={i} className="z-asset" aria-hidden={i >= items.length ? true : undefined}>
+        <span key={i} className="z-asset">
           <span className="z-coin" style={{ background: c }} />
           <span className="z-mono" style={{ fontSize: 15, fontWeight: 700 }}>
             {t}
           </span>
-          <span style={{ fontSize: 14, color: "var(--z-muted)" }}>{n}</span>
+          <span className="z-muted" style={{ fontSize: 14 }}>
+            {n}
+          </span>
         </span>
       ))}
     </div>
@@ -219,7 +238,7 @@ export function AnyCoin() {
     <section className="z-rule" style={{ paddingTop: 96, paddingBottom: 96, display: "flex", flexDirection: "column", gap: 44, overflow: "hidden" }}>
       <div className="z-wrap" style={{ width: "100%" }}>
         <Head eyebrow="ANY COIN" lead="NEAR Intents 1Click quotes an exact USDC output, so you always receive the amount you priced, delivered straight into the receipt contract.">
-          ~230 assets in. <span className="z-acc">One</span> currency out.
+          Hundreds of assets in. <span className="z-acc">One</span> currency out.
         </Head>
       </div>
       <div className="z-col" style={{ gap: 10 }} role="img" aria-label="Example assets: Bitcoin, Ethereum, Solana, USDC, USDT, Arbitrum, Dogecoin, XRP, Zcash, BNB, NEAR, Polygon, TON, Sui">
@@ -228,39 +247,35 @@ export function AnyCoin() {
       </div>
       <div className="z-wrap z-col" style={{ width: "100%", gap: 14 }}>
         <div className="z-grid" style={{ ["--min" as string]: "280px", gap: 16 }}>
-          <div className="z-card" style={{ borderRadius: 22, gap: 10, padding: 26 }}>
-            <span className="z-eyebrow" style={{ fontSize: 12, letterSpacing: 0 }}>
-              EVM CHAINS
-            </span>
-            <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
-              Pay with MetaMask
-            </span>
-            <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>Connect, approve, done. The quote is already locked.</span>
-          </div>
-          <div className="z-card" style={{ borderRadius: 22, gap: 10, padding: 26 }}>
-            <span className="z-eyebrow" style={{ fontSize: 12, letterSpacing: 0 }}>
-              EVERY OTHER CHAIN
-            </span>
-            <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
-              Deposit address + QR
-            </span>
-            <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>Send from any wallet or exchange. 1Click handles the swap.</span>
-          </div>
-          <div className="z-card ink" style={{ borderRadius: 22, gap: 10, padding: 26 }}>
-            <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 600 }}>
-              ALREADY USDC ON NEAR
-            </span>
-            <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
-              Send it directly
-            </span>
-            <span style={{ fontSize: 15, lineHeight: 1.55, color: "#D4D4D4" }}>No swap at all. It goes straight into escrow.</span>
-          </div>
+          {(
+            [
+              ["EVM CHAINS", "Pay with MetaMask", "Connect, approve, done. The quote is already locked.", false],
+              ["EVERY OTHER CHAIN", "Deposit address + QR", "Send from any wallet or exchange. 1Click handles the swap.", false],
+              ["ALREADY USDC ON NEAR", "Send it directly", "No swap at all. It goes straight into escrow.", true],
+            ] as const
+          ).map(([k, t, d, ink]) => (
+            <div key={k} className={`z-card${ink ? " ink" : ""}`} style={{ borderRadius: 22, gap: 10, padding: 26 }}>
+              <span className={`z-mono ${ink ? "z-acc" : "z-muted"}`} style={{ fontSize: 12, fontWeight: 600 }}>
+                {k}
+              </span>
+              <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
+                {t}
+              </span>
+              <span className={ink ? "z-pm" : undefined} style={{ fontSize: 15, lineHeight: 1.55, color: ink ? undefined : "var(--z-body2)" }}>
+                {d}
+              </span>
+            </div>
+          ))}
         </div>
-        <span style={{ fontSize: 13, color: "#6B6B6B" }}>Assets shown are examples. The live list comes from NEAR Intents.</span>
+        <span className="z-muted" style={{ fontSize: 13 }}>
+          Assets shown are examples. The live list comes from NEAR Intents.
+        </span>
       </div>
     </section>
   );
 }
+
+/* ---------------- refunds: two beats ---------------- */
 
 type Msg = [who: string, text: string, shopper: boolean, photo: boolean];
 const SCENARIOS = {
@@ -287,10 +302,10 @@ const SCENARIOS = {
   },
   deny: {
     name: "Deny",
-    dot: "#6B6B6B",
+    dot: "#8A8A8A",
     verdict: "DENIED · 1 APPEAL",
-    vBg: "#111111",
-    vFg: "#FFFFFF",
+    vBg: "var(--z-btn)",
+    vFg: "var(--z-btn-fg)",
     chat: [
       ["Shopper", "I changed my mind. Can I get a refund?", true, false],
       ["Refund assistant", "Was anything wrong with the item, or did it arrive late?", false, false],
@@ -330,9 +345,19 @@ const SCENARIOS = {
 };
 type ScenKey = keyof typeof SCENARIOS;
 
+function BeatRail({ n, last }: { n: string; last?: boolean }) {
+  return (
+    <div className="z-col" style={{ alignItems: "center" }}>
+      <span className="z-beat-n">{n}</span>
+      {last ? null : <span className="z-beat-line" />}
+    </div>
+  );
+}
+
 export function Refunds() {
   const [scen, setScen] = useState<ScenKey>("approve");
   const sc = SCENARIOS[scen];
+  const stagger = (i: number) => ({ animationDelay: `${i * 0.35}s` });
   return (
     <section id="refunds" className="z-band">
       <div className="z-wrap z-sec">
@@ -347,71 +372,95 @@ export function Refunds() {
             </button>
           ))}
         </div>
-        <div id="z-refund-panel" role="tabpanel" aria-labelledby={`z-tab-${scen}`} className="z-grid" style={{ alignItems: "stretch" }}>
-          <div className="z-col" style={{ borderRadius: 28, background: "#FFFFFF", border: "1.5px solid #111111", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
-              <div className="z-col" style={{ gap: 2, minWidth: 0 }}>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #1042</span>
-                <span style={{ fontSize: 13, color: "var(--z-muted)" }}>Kettle &amp; Co. · Pour-over kit · 24.00 USDC in escrow</span>
-              </div>
-              <span className="z-tag" style={{ background: sc.vBg, color: sc.vFg }}>
-                {sc.verdict}
-              </span>
-            </div>
-            <div className="z-col" style={{ padding: 22, gap: 12, flex: 1 }}>
-              {sc.chat.map(([who, text, shopper, photo], i) => (
-                <div key={`${scen}-${i}`} className="z-col" style={{ gap: 4, alignSelf: shopper ? "flex-end" : "flex-start", maxWidth: "86%" }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#6B6B6B", alignSelf: shopper ? "flex-end" : "flex-start" }}>{who}</span>
-                  <div style={{ padding: "12px 16px", borderRadius: shopper ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: shopper ? "#111111" : "var(--z-soft)", color: shopper ? "#FFFFFF" : "#111111", fontSize: 15, lineHeight: 1.5 }}>{text}</div>
-                  {photo ? (
-                    <div aria-label="Attached photo" role="img" style={{ alignSelf: "flex-end", width: 150, height: 96, borderRadius: 14, border: "1.5px solid #111111", background: "var(--z-soft)", position: "relative", overflow: "hidden" }}>
-                      <div style={{ position: "absolute", left: 34, top: 22, width: 80, height: 54, borderRadius: "0 0 40px 40px", background: "#FFFFFF", border: "1.5px solid #111111" }} />
-                      <div style={{ position: "absolute", left: 70, top: 30, width: 2, height: 40, background: "#111111", transform: "rotate(18deg)" }} />
-                      <span className="z-mono" style={{ position: "absolute", left: 8, bottom: 6, fontSize: 10, fontWeight: 600 }}>
-                        PHOTO.JPG
-                      </span>
-                    </div>
-                  ) : null}
+
+        <div id="z-refund-panel" role="tabpanel" aria-labelledby={`z-tab-${scen}`} className="z-col" style={{ gap: 0 }}>
+          {/* beat 1: the shopper's view */}
+          <div className="z-beat">
+            <BeatRail n="01" />
+            <div className="z-col" style={{ gap: 14, paddingBottom: 36, minWidth: 0 }}>
+              <span className="z-eyebrow">THE SHOPPER ASKS · ON THEIR RECEIPT PAGE</span>
+              <div className="z-col" style={{ maxWidth: 760, borderRadius: 28, background: "var(--z-bg)", border: "1.5px solid var(--z-edge)", overflow: "hidden" }}>
+                <div className="z-col" style={{ gap: 2, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #1042</span>
+                  <span className="z-muted" style={{ fontSize: 13 }}>
+                    Kettle &amp; Co. · Pour-over kit · 24.00 USDC in escrow
+                  </span>
                 </div>
-              ))}
+                <div key={scen} className="z-col" style={{ padding: 22, gap: 12 }}>
+                  {sc.chat.map(([who, text, shopper, photo], i) => (
+                    <div key={i} className="z-col z-msg" style={{ ...stagger(i), gap: 4, alignSelf: shopper ? "flex-end" : "flex-start", maxWidth: "86%" }}>
+                      <span className="z-muted" style={{ fontSize: 12, fontWeight: 600, alignSelf: shopper ? "flex-end" : "flex-start" }}>
+                        {who}
+                      </span>
+                      <div style={{ padding: "12px 16px", borderRadius: shopper ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: shopper ? "var(--z-btn)" : "var(--z-soft)", color: shopper ? "var(--z-btn-fg)" : "var(--z-fg)", fontSize: 15, lineHeight: 1.5 }}>{text}</div>
+                      {photo ? (
+                        <div aria-label="Attached photo" role="img" style={{ alignSelf: "flex-end", width: 150, height: 96, borderRadius: 14, border: "1.5px solid #111111", background: "#F4F4F1", position: "relative", overflow: "hidden" }}>
+                          <div style={{ position: "absolute", left: 34, top: 22, width: 80, height: 54, borderRadius: "0 0 40px 40px", background: "#FFFFFF", border: "1.5px solid #111111" }} />
+                          <div style={{ position: "absolute", left: 70, top: 30, width: 2, height: 40, background: "#111111", transform: "rotate(18deg)" }} />
+                          <span className="z-mono" style={{ position: "absolute", left: 8, bottom: 6, fontSize: 10, fontWeight: 600, color: "#111111" }}>
+                            PHOTO.JPG
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-          <div className="z-col" style={{ gap: 16 }}>
-            <div className="z-card ink" style={{ borderRadius: 28, gap: 20 }}>
-              <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
-                WHERE THE MONEY GOES
-              </span>
-              <ol className="z-col">
-                {sc.route.map(([title, sub, on], i) => {
-                  const next = sc.route[i + 1];
-                  const last = i === sc.route.length - 1;
-                  return (
-                    <li key={title} style={{ display: "flex", gap: 14 }}>
-                      <div className="z-col" style={{ alignItems: "center" }}>
-                        <span style={{ width: 14, height: 14, borderRadius: 999, background: on ? ACCENT : "#111111", border: `2px solid ${on ? ACCENT : "#5A5A5A"}`, marginTop: 4, flex: "none" }} />
-                        <span style={{ flex: 1, width: 2, minHeight: 22, background: last ? "transparent" : on && next?.[2] ? ACCENT : "#3A3A3A" }} />
-                      </div>
-                      <div className="z-col" style={{ gap: 2, paddingBottom: 16 }}>
-                        <span className="z-display" style={{ fontSize: 19, fontWeight: 600 }}>
-                          {title}
-                        </span>
-                        <span style={{ fontSize: 14, color: "#BDBDBD" }}>{sub}</span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-            <div className="z-card" style={{ borderRadius: 22, gap: 8, padding: "22px 24px" }}>
-              <span style={{ fontWeight: 700, fontSize: 16 }}>{sc.outTitle}</span>
-              <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>{sc.outBody}</span>
-            </div>
-            <div className="z-row" style={{ gap: 8 }}>
-              {["NEAR AI Cloud", "or a deterministic rule engine", "≤ 3 clarifying questions", "asks for a photo"].map((c) => (
-                <span key={c} className="z-chip sm">
-                  {c}
-                </span>
-              ))}
+
+          {/* beat 2: the verdict, inside the seller's rules */}
+          <div className="z-beat">
+            <BeatRail n="02" last />
+            <div key={scen} className="z-col z-msg" style={{ ...stagger(sc.chat.length), gap: 14, minWidth: 0 }}>
+              <span className="z-eyebrow">THE VERDICT · INSIDE THE SELLER&apos;S RULES</span>
+              <div className="z-grid" style={{ alignItems: "stretch" }}>
+                <div className="z-col" style={{ gap: 16 }}>
+                  <div className="z-card" style={{ borderRadius: 22, gap: 12 }}>
+                    <span className="z-tag" style={{ alignSelf: "flex-start", background: sc.vBg, color: sc.vFg, fontSize: 12 }}>
+                      {sc.verdict}
+                    </span>
+                    <span className="z-display" style={{ fontSize: 24, letterSpacing: "-0.02em" }}>
+                      {sc.outTitle}
+                    </span>
+                    <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>{sc.outBody}</span>
+                  </div>
+                  <div className="z-row" style={{ gap: 8 }}>
+                    {["NEAR AI Cloud", "or a deterministic rule engine", "≤ 3 clarifying questions", "asks for a photo"].map((c) => (
+                      <span key={c} className="z-chip sm">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="z-card ink" style={{ borderRadius: 28, gap: 20 }}>
+                  <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
+                    WHERE THE MONEY GOES
+                  </span>
+                  <ol className="z-col">
+                    {sc.route.map(([title, sub, on], i) => {
+                      const next = sc.route[i + 1];
+                      const last = i === sc.route.length - 1;
+                      return (
+                        <li key={title} style={{ display: "flex", gap: 14 }}>
+                          <div className="z-col" style={{ alignItems: "center" }}>
+                            <span style={{ width: 14, height: 14, borderRadius: 999, background: on ? ACCENT : "transparent", border: `2px solid ${on ? ACCENT : "#5A5A5A"}`, marginTop: 4, flex: "none" }} />
+                            <span style={{ flex: 1, width: 2, minHeight: 22, background: last ? "transparent" : on && next?.[2] ? ACCENT : "#3A3A3A" }} />
+                          </div>
+                          <div className="z-col" style={{ gap: 2, paddingBottom: 16 }}>
+                            <span className="z-display" style={{ fontSize: 19, fontWeight: 600 }}>
+                              {title}
+                            </span>
+                            <span className="z-pm" style={{ fontSize: 14 }}>
+                              {sub}
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -419,6 +468,8 @@ export function Refunds() {
     </section>
   );
 }
+
+/* ---------------- seller protections + the contract ---------------- */
 
 const TONE: Record<Tone, string> = { ok: "#3FE0A5", attention: ACCENT, neutral: "#6B6B6B", plain: "#FFFFFF" };
 
@@ -443,7 +494,9 @@ export function Protections() {
             <div key={c.key} style={{ borderRadius: 20, border: "1.5px solid var(--z-line)", padding: "18px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
               <div className="z-col" style={{ gap: 3, flex: "1 1 200px" }}>
                 <span style={{ fontWeight: 700, fontSize: 16 }}>{c.name}</span>
-                <span style={{ fontSize: 14, color: "var(--z-muted)", lineHeight: 1.45 }}>{c.help}</span>
+                <span className="z-muted" style={{ fontSize: 14, lineHeight: 1.45 }}>
+                  {c.help}
+                </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button type="button" className="z-step" aria-label={c.less} onClick={() => setIdx((x) => nudge(x, c.key, -1))}>
@@ -462,7 +515,7 @@ export function Protections() {
         <div className="z-card ink" style={{ borderRadius: 28, padding: 30, gap: 22 }} aria-live="polite">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
             <div className="z-col" style={{ gap: 4 }}>
-              <span className="z-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", color: "#BDBDBD" }}>
+              <span className="z-mono z-pm" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
                 INCOMING REQUEST
               </span>
               <span className="z-display" style={{ fontSize: 28, letterSpacing: "-0.02em" }}>
@@ -474,15 +527,49 @@ export function Protections() {
             </span>
           </div>
           {r.evals.map((e, i) => (
-            <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", paddingTop: 16, borderTop: "1px solid #2A2A2A" }}>
+            <div key={i} style={{ display: "flex", gap: 14, alignItems: "flex-start", paddingTop: 16, borderTop: "1px solid var(--z-panel-line)" }}>
               <span className="z-mono" style={{ width: 26, height: 26, borderRadius: 999, background: TONE[e.tone], flex: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: e.tone === "neutral" ? "#FFFFFF" : "#111111" }}>
                 {i + 1}
               </span>
               <div className="z-col" style={{ gap: 3 }}>
                 <span style={{ fontWeight: 600, fontSize: 16 }}>{e.title}</span>
-                <span style={{ fontSize: 14, color: "#BDBDBD", lineHeight: 1.5 }}>{e.body}</span>
+                <span className="z-pm" style={{ fontSize: 14, lineHeight: 1.5 }}>
+                  {e.body}
+                </span>
               </div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="z-col" style={{ gap: 14 }}>
+        <div className="z-row" style={{ justifyContent: "space-between", gap: 12 }}>
+          <span className="z-eyebrow">THE SAME RULES, IN THE CONTRACT</span>
+          <a className="z-mono z-muted" style={{ fontSize: 13 }} href={`${GITHUB_BLOB}/${CONTRACT_FILE}`}>
+            {CONTRACT_FILE} ↗
+          </a>
+        </div>
+        <div className="z-grid" style={{ ["--min" as string]: "460px", gap: 14 }}>
+          {EXCERPTS.map((ex) => (
+            <figure key={ex.fn} className="z-code" style={{ display: "flex", flexDirection: "column" }}>
+              <figcaption className="z-code-bar" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                <span>
+                  fn <span className="c-at">{ex.fn}</span>
+                </span>
+                <span>line {ex.line}</span>
+              </figcaption>
+              <pre className="tight" style={{ padding: "16px 0", flex: 1 }}>
+                {ex.code.map((l, i) => (
+                  <span key={i} className={i === ex.hl ? "c-hl" : undefined} style={{ display: "block", padding: "0 18px" }}>
+                    <span className="c-cm" style={{ display: "inline-block", width: 34, userSelect: "none" }}>
+                      {ex.line + i}
+                    </span>
+                    {l}
+                  </span>
+                ))}
+              </pre>
+              <p style={{ padding: "12px 18px 16px", borderTop: "1px solid #262626", fontSize: 14, lineHeight: 1.5, color: "#D4D4D4" }}>{ex.rule}</p>
+            </figure>
           ))}
         </div>
       </div>
@@ -490,26 +577,74 @@ export function Protections() {
   );
 }
 
+/* ---------------- verify: a real receipt ---------------- */
+
+interface VerifyData {
+  receipt: { id: string; merchantId: string; amount: string; released: string; refunded: string; status: string; kind: string; refundTarget: { chain: string; asset: string; address: string } };
+  contract: string;
+  networkId: string;
+  mode: string;
+  attribution: { matches: boolean; amountMatches: boolean; direct: boolean } | null;
+  contractTotals: { allocated: string; usdcBalance: string; paused: boolean };
+}
+
+/** USDC minor units (6 dp) → "24.00". */
+function usdc(minor: string): string {
+  const n = BigInt(minor);
+  const cents = (n + 5_000n) / 10_000n;
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, "0")}`;
+}
+const short = (a: string) => (a.length > 18 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
+const STATUS: Record<string, string> = { Held: "in escrow", PartiallyReleased: "partly paid out", Released: "paid out to the seller", PartiallyRefunded: "partly refunded", Refunded: "refunded" };
+
+function useLatestReceipt() {
+  const { href } = useApp();
+  const [data, setData] = useState<VerifyData | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    const get = <T,>(p: string) => fetch(href(p)).then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(String(r.status)))));
+    get<{ id: string | null }>("/api/receipts/latest")
+      .then((r) => (r.id ? get<VerifyData>(`/api/verify/${encodeURIComponent(r.id)}`) : null))
+      .then((d) => live && setData(d))
+      .catch(() => live && setData(null));
+    return () => {
+      live = false;
+    };
+  }, [href]);
+  return data;
+}
+
 export function Verify() {
   const { href, host } = useApp();
   const [id, setId] = useState("");
+  const data = useLatestReceipt();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const clean = id.trim().replace(/^#/, "");
     if (clean) window.location.href = href(`/verify/${encodeURIComponent(clean)}`);
   };
   const shownHost = host ? host.replace(/^https?:\/\//, "") : "[YOUR-ZAP-HOST]";
-  const checks = [
-    ["Attribution", "Payment attributed to kettleandco.near"],
-    ["Refund destination", "ETH · Ethereum · 0x8f3a…c21a"],
-    ["Solvency", "Contract USDC covers every open receipt"],
-  ];
   const facts = [
     ["01", "Public contract, not a company", "Escrow lives in a NEAR contract anyone can read.", true],
     ["02", "Refunds are bounded", "Only approved requests, never more than the unreleased amount, always within the daily cap.", false],
     ["03", "Refunds survive a pause", "Pausing stops new payments and releases. Refunds keep working.", false],
     ["04", "Sellers can take over", "Call register_merchant from your own account to own your registration.", false],
   ] as const;
+
+  const real = data ?? null;
+  const rid = real?.receipt.id ?? "1042";
+  const checks: Array<[string, string, boolean]> = real
+    ? [
+        ["Attribution", real.attribution ? `Paid to ${real.receipt.merchantId}${real.attribution.matches && real.attribution.amountMatches ? ", order and amount match" : ""}` : `Paid to ${real.receipt.merchantId}`, real.attribution ? real.attribution.matches && real.attribution.amountMatches : true],
+        ["Refund destination", `Back to ${short(real.receipt.refundTarget.address)} on the ${real.receipt.refundTarget.chain.toUpperCase()} chain`, true],
+        ["Solvency", `Contract holds ${usdc(real.contractTotals.usdcBalance)} USDC for ${usdc(real.contractTotals.allocated)} owed`, BigInt(real.contractTotals.usdcBalance) >= BigInt(real.contractTotals.allocated)],
+      ]
+    : [
+        ["Attribution", "Payment attributed to kettleandco.near", true],
+        ["Refund destination", "ETH · Ethereum · 0x8f3a…c21a", true],
+        ["Solvency", "Contract USDC covers every open receipt", true],
+      ];
+
   return (
     <section id="verify" className="z-rule">
       <div className="z-wrap z-sec" style={{ paddingBottom: 112 }}>
@@ -525,58 +660,94 @@ export function Verify() {
             <label htmlFor="z-verify-id" className="z-sr">
               Receipt number
             </label>
-            <input id="z-verify-id" className="z-input" inputMode="numeric" autoComplete="off" placeholder="Receipt number, e.g. 12" value={id} onChange={(e) => setId(e.target.value)} />
+            <input id="z-verify-id" className="z-input" inputMode="numeric" autoComplete="off" placeholder={real ? `Receipt number, e.g. ${rid}` : "Receipt number"} value={id} onChange={(e) => setId(e.target.value)} />
             <button type="submit" className="z-btn ink" disabled={!id.trim()}>
               Verify
             </button>
           </form>
         </div>
         <div className="z-grid">
-          <div className="z-col" style={{ borderRadius: 24, border: "1.5px solid #111111", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "var(--z-soft)", borderBottom: "1.5px solid #111111" }}>
+          <div className="z-col" style={{ borderRadius: 24, border: "1.5px solid var(--z-edge)", overflow: "hidden", background: "var(--z-bg)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "var(--z-soft)", borderBottom: "1.5px solid var(--z-edge)" }}>
               <span className="z-dots" aria-hidden="true">
-                <i style={{ background: "#D0D0CA" }} />
-                <i style={{ background: "#D0D0CA" }} />
-                <i style={{ background: "#D0D0CA" }} />
+                <i style={{ background: "#B0B0AA" }} />
+                <i style={{ background: "#B0B0AA" }} />
+                <i style={{ background: "#B0B0AA" }} />
               </span>
-              <span className="z-mono" style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, background: "#FFFFFF", display: "flex", alignItems: "center", padding: "0 12px", fontSize: 13, color: "var(--z-body)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                {shownHost}/verify/1042
+              <span className="z-mono" style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, background: "var(--z-bg)", display: "flex", alignItems: "center", padding: "0 12px", fontSize: 13, color: "var(--z-body)", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                {shownHost}/verify/{rid}
               </span>
+              {real ? (
+                <span className="z-tag" style={{ background: "var(--z-good)", color: "#FFFFFF" }}>
+                  REAL · {real.networkId.toUpperCase()}
+                </span>
+              ) : data === undefined ? null : (
+                <span className="z-tag" style={{ background: "var(--z-hair)", color: "var(--z-fg)" }}>
+                  EXAMPLE
+                </span>
+              )}
             </div>
             <div className="z-col" style={{ padding: 28, gap: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
-                  Receipt #1042
-                </span>
-                <span className="z-mono" style={{ fontSize: 13, color: "var(--z-muted)" }}>
-                  24.00 USDC · in escrow
-                </span>
-              </div>
-              {checks.map(([t, b]) => (
-                <div key={t} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 16, borderRadius: 16, background: "#F3FBF6" }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 999, background: "var(--z-good)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-                    <Check />
-                  </span>
-                  <div className="z-col" style={{ gap: 3, minWidth: 0 }}>
-                    <span style={{ fontWeight: 700, fontSize: 16 }}>{t}</span>
-                    <span className="z-mono" style={{ fontSize: 13, color: "var(--z-body)", overflowWrap: "anywhere" }}>
-                      {b}
+              {data === undefined ? (
+                <>
+                  <span className="z-skel" style={{ height: 30, width: "60%" }} />
+                  <span className="z-skel" style={{ height: 64 }} />
+                  <span className="z-skel" style={{ height: 64 }} />
+                  <span className="z-skel" style={{ height: 64 }} />
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                    <span className="z-display" style={{ fontSize: 26, letterSpacing: "-0.02em" }}>
+                      Receipt #{rid}
+                    </span>
+                    <span className="z-mono z-muted" style={{ fontSize: 13 }}>
+                      {real ? `${usdc(real.receipt.amount)} USDC · ${STATUS[real.receipt.status] ?? real.receipt.status}` : "24.00 USDC · in escrow"}
                     </span>
                   </div>
-                </div>
-              ))}
+                  {checks.map(([t, b, ok]) => (
+                    <div key={t} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: 16, borderRadius: 16, background: ok ? "var(--z-good-bg)" : "var(--z-soft)" }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 999, background: ok ? "var(--z-good)" : "#B45309", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                        {ok ? <Check /> : <Cross size={12} color="#FFFFFF" />}
+                      </span>
+                      <div className="z-col" style={{ gap: 3, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, fontSize: 16 }}>{t}</span>
+                        <span className="z-mono" style={{ fontSize: 13, color: "var(--z-body)", overflowWrap: "anywhere" }}>
+                          {b}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {real ? (
+                    <div className="z-row" style={{ gap: 10, justifyContent: "space-between" }}>
+                      <span className="z-mono z-muted" style={{ fontSize: 12 }}>
+                        Read just now from {real.contract}
+                      </span>
+                      <a className="z-btn sm ink" href={href(`/verify/${encodeURIComponent(rid)}`)}>
+                        Open the full check
+                      </a>
+                    </div>
+                  ) : (
+                    <span className="z-muted" style={{ fontSize: 13 }}>
+                      No receipts on this server yet, so this one is an example. Once someone pays, the newest real receipt shows here.
+                    </span>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <div className="z-grid" style={{ ["--min" as string]: "200px", gap: 16 }}>
             {facts.map(([n, title, body, ink]) => (
               <div key={n} className={`z-card ${ink ? "ink" : "soft"}`} style={{ borderRadius: 22, padding: 24, gap: 10 }}>
-                <span className="z-mono" style={{ fontSize: 12, fontWeight: 700, color: ink ? ACCENT : "var(--z-muted)" }}>
+                <span className={`z-mono ${ink ? "z-acc" : "z-muted"}`} style={{ fontSize: 12, fontWeight: 700 }}>
                   {n}
                 </span>
                 <span className="z-display" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
                   {title}
                 </span>
-                <span style={{ fontSize: 14, lineHeight: 1.55, color: ink ? "#D4D4D4" : "var(--z-body2)" }}>{body}</span>
+                <span className={ink ? "z-pm" : undefined} style={{ fontSize: 14, lineHeight: 1.55, color: ink ? undefined : "var(--z-body2)" }}>
+                  {body}
+                </span>
               </div>
             ))}
           </div>

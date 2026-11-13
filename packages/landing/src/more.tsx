@@ -31,7 +31,7 @@ export function Gasless() {
       body: "The private half never leaves the browser. Actions are signed right there.",
       ink: false,
       icon: (
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="11" width="18" height="10" rx="2" />
           <path d="M7 11V8a5 5 0 0 1 10 0v3" />
         </svg>
@@ -60,7 +60,7 @@ export function Gasless() {
         {items.map((it) => (
           <div key={it.n} className={`z-card${it.ink ? " ink" : ""}`}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ width: 56, height: 56, borderRadius: 16, background: it.iconBg, border: it.n === "02" ? "1.5px solid #111111" : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}>{it.icon}</span>
+              <span style={{ width: 56, height: 56, borderRadius: 16, background: it.iconBg, border: it.n === "02" ? "1.5px solid var(--z-edge)" : it.n === "01" ? "1px solid #333333" : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}>{it.icon}</span>
               <span className="z-mono" style={{ fontSize: 13, fontWeight: 700, color: "#8A8A8A" }}>
                 {it.n}
               </span>
@@ -68,7 +68,7 @@ export function Gasless() {
             <h3 className="z-display" style={{ fontSize: 24, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
               {it.title}
             </h3>
-            <p style={{ fontSize: 15, lineHeight: 1.55, color: it.ink ? "#D4D4D4" : "var(--z-body2)" }}>{it.body}</p>
+            <p className={it.ink ? "z-pm" : undefined} style={{ fontSize: 15, lineHeight: 1.55, color: it.ink ? undefined : "var(--z-body2)" }}>{it.body}</p>
           </div>
         ))}
       </div>
@@ -106,18 +106,18 @@ export function Passes() {
               <span className="z-display" style={{ fontSize: 34, letterSpacing: "-0.03em" }}>
                 Coffee Club
               </span>
-              <span style={{ fontSize: 15, color: "#D4D4D4" }}>Kettle &amp; Co. · 6 months · 8 USDC a month</span>
+              <span className="z-pm" style={{ fontSize: 15 }}>Kettle &amp; Co. · 6 months · 8 USDC a month</span>
             </div>
-            <dl className="z-col" style={{ gap: 6, paddingTop: 18, borderTop: "1px solid #2E2E2E", fontSize: 14, margin: 0 }} aria-live="polite">
+            <dl className="z-col" style={{ gap: 6, paddingTop: 18, borderTop: "1px solid var(--z-panel-line)", fontSize: 14, margin: 0 }} aria-live="polite">
               {(
                 [
-                  ["Released to shop", usdc2(t.released), "#FFFFFF"],
-                  ["Still in escrow", usdc2(t.escrow), "#FFFFFF"],
+                  ["Released to shop", usdc2(t.released), "inherit"],
+                  ["Still in escrow", usdc2(t.escrow), "inherit"],
                   ["Returned to you", usdc2(t.returned), ACCENT],
                 ] as const
               ).map(([k, val, c]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between" }}>
-                  <dt style={{ color: "#BDBDBD" }}>{k}</dt>
+                  <dt className="z-pm">{k}</dt>
                   <dd className="z-mono" style={{ margin: 0, fontWeight: 700, color: c }}>
                     {val} USDC
                   </dd>
@@ -129,10 +129,10 @@ export function Passes() {
             <ol style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 8 }}>
               {MONTHS.map((m, i) => {
                 let state: string, bg: string, fg: string, border: string;
-                if (i < p) [state, bg, fg, border] = ["Released to shop", "#111111", "#FFFFFF", "#111111"];
+                if (i < p) [state, bg, fg, border] = ["Released to shop", "var(--z-btn)", "var(--z-btn-fg)", "var(--z-btn)"];
                 else if (i === p && p < PASS_PERIODS) [state, bg, fg, border] = [cancelled ? "Finishing, then released" : "In progress", ACCENT, "#111111", "#111111"];
-                else if (cancelled) [state, bg, fg, border] = ["Returned to you", "var(--z-soft)", "#5C5C5C", "#D6D6D1"];
-                else [state, bg, fg, border] = ["Upcoming, in escrow", "#FFFFFF", "#111111", "#D6D6D1"];
+                else if (cancelled) [state, bg, fg, border] = ["Returned to you", "var(--z-soft)", "var(--z-muted)", "var(--z-line)"];
+                else [state, bg, fg, border] = ["Upcoming, in escrow", "var(--z-bg)", "var(--z-fg)", "var(--z-line)"];
                 return (
                   <li key={m} className="z-cell" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 18, minHeight: 120, padding: "12px 8px", borderRadius: 16, border: `1.5px solid ${border}`, background: bg, color: fg, minWidth: 0 }}>
                     <span className="z-mono" style={{ fontSize: 12, fontWeight: 700 }}>
@@ -164,7 +164,7 @@ export function Passes() {
                 Reset
               </button>
             </div>
-            <span style={{ fontSize: 13, color: "#6B6B6B" }}>Passes are transferable NFTs. One-time receipts aren&apos;t.</span>
+            <span className="z-muted" style={{ fontSize: 13 }}>Passes are transferable NFTs. One-time receipts aren&apos;t.</span>
           </div>
         </div>
       </div>
@@ -200,7 +200,7 @@ export function Dashboard() {
       <figure className="z-lap">
         <div className="z-lap-in">
           <div style={{ background: "#FFFFFF", borderRadius: "12px 12px 0 0", overflow: "hidden", display: "flex", flexWrap: "wrap", minHeight: 470 }}>
-            <div className="z-lap-side" style={{ flex: "0 0 210px", background: "#F7F7F5", borderRight: "1px solid var(--z-hair)", padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="z-lap-side" style={{ flex: "0 0 210px", background: "#F7F7F5", borderRight: "1px solid #EDEDEA", padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
               <span className="z-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, padding: "0 8px 14px" }}>
                 <Mark size={24} radius={7} /> Kettle &amp; Co.
               </span>
@@ -222,8 +222,8 @@ export function Dashboard() {
                     ["Needs you", "1 approval", true],
                   ] as const
                 ).map(([k, val, hot]) => (
-                  <div key={k} className="z-col" style={{ borderRadius: 14, border: `1px solid ${hot ? ACCENT : "var(--z-hair)"}`, background: hot ? "var(--z-tint)" : "#FFFFFF", padding: 14, gap: 4 }}>
-                    <span style={{ fontSize: 12, color: "var(--z-muted)" }}>{k}</span>
+                  <div key={k} className="z-col" style={{ borderRadius: 14, border: `1px solid ${hot ? ACCENT : "#EDEDEA"}`, background: hot ? "#FFF3F8" : "#FFFFFF", padding: 14, gap: 4 }}>
+                    <span style={{ fontSize: 12, color: "#5C5C5C" }}>{k}</span>
                     <span className="z-display" style={{ fontSize: 22 }}>
                       {val}
                     </span>
@@ -233,7 +233,7 @@ export function Dashboard() {
               <div style={{ borderRadius: 14, border: "1.5px solid #111111", padding: "14px 16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div className="z-col" style={{ gap: 3 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>Refund #1042 · AI approved · 24.00 USDC</span>
-                  <span style={{ fontSize: 13, color: "var(--z-muted)" }}>“Dripper arrived cracked” · veto window closes in 5h 12m</span>
+                  <span style={{ fontSize: 13, color: "#5C5C5C" }}>“Dripper arrived cracked” · veto window closes in 5h 12m</span>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <span style={{ padding: "8px 14px", borderRadius: 999, border: "1.5px solid #111111", fontSize: 13, fontWeight: 600 }}>Veto</span>
@@ -242,7 +242,7 @@ export function Dashboard() {
               </div>
               <div style={{ overflowX: "auto" }}>
                 <div style={{ minWidth: 520, display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: cols, gap: 10, padding: "0 6px 10px", fontSize: 12, color: "var(--z-muted)", fontWeight: 600, borderBottom: "1px solid var(--z-hair)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: cols, gap: 10, padding: "0 6px 10px", fontSize: 12, color: "#5C5C5C", fontWeight: 600, borderBottom: "1px solid #EDEDEA" }}>
                     <span>Order</span>
                     <span>Product</span>
                     <span>Amount</span>
@@ -379,9 +379,9 @@ export function Roadmap() {
         </div>
         <ul style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
           {items.map(([t, d]) => (
-            <li key={t} className="z-col" style={{ borderRadius: 18, border: "1.5px dashed #BDBDB7", background: "#FFFFFF", padding: 18, gap: 6 }}>
+            <li key={t} className="z-col" style={{ borderRadius: 18, border: "1.5px dashed var(--z-line)", background: "var(--z-bg)", padding: 18, gap: 6 }}>
               <span style={{ fontWeight: 700, fontSize: 16 }}>{t}</span>
-              <span style={{ fontSize: 14, color: "var(--z-muted)", lineHeight: 1.45 }}>{d}</span>
+              <span className="z-muted" style={{ fontSize: 14, lineHeight: 1.45 }}>{d}</span>
             </li>
           ))}
         </ul>
@@ -394,7 +394,7 @@ export function Cta() {
   const { merchant, mode, href } = useApp();
   return (
     <section className="z-wrap" style={{ paddingTop: 120, paddingBottom: 96, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 28 }}>
-      <h2 className="z-h1" style={{ maxWidth: 980, fontSize: "clamp(46px, 7vw, 104px)" }}>
+      <h2 className="z-h1" style={{ maxWidth: 980, fontSize: "clamp(40px, 6vw, 88px)" }}>
         Add the button.
         <br />
         Get paid in <span className="z-acc">USDC.</span>
@@ -414,7 +414,7 @@ export function Cta() {
         </a>
       </div>
       {merchant ? (
-        <div className="z-col" style={{ alignItems: "center", gap: 10, marginTop: 8, padding: "20px 24px", borderRadius: 20, border: "1.5px solid var(--z-line)", maxWidth: 520 }}>
+        <div className="z-col" style={{ alignItems: "center", gap: 10, marginTop: 8, padding: "20px 24px", borderRadius: 20, border: "1.5px solid var(--z-line)", maxWidth: 520, background: "var(--z-bg)" }}>
           <RealPayButton merchant={merchant} amount="1" product="Test purchase" label="Try it: pay $1" color="#111111" radius="999px" />
           <span style={{ fontSize: 13, lineHeight: 1.5, color: "var(--z-muted)" }}>
             {mode === "live"
@@ -429,7 +429,7 @@ export function Cta() {
 
 export function Footer() {
   return (
-    <footer style={{ borderTop: "1.5px solid #111111" }}>
+    <footer style={{ borderTop: "1.5px solid var(--z-edge)" }}>
       <div className="z-wrap" style={{ paddingTop: 36, paddingBottom: 44, display: "flex", flexDirection: "column", gap: 24 }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
           <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>

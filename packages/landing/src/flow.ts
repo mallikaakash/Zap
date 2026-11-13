@@ -1,12 +1,17 @@
 /**
- * The hero's payment/refund walkthrough as pure data: a step machine plus the
- * isometric projection used to place the moving coin, pins and receipt card.
- * Kept free of React so it can be unit-tested.
+ * The hero's payment/refund walkthrough as pure data: a step machine, per-step
+ * dwell times, scrub targets and the isometric projection that places the coin,
+ * pins and receipt card. Kept free of React so it can be unit-tested.
+ *
+ * The phone is the shopper's wallet: the coin is born on its Pay button, crosses
+ * the bridge (NEAR Intents), lands in the safe (receipt contract) and finally
+ * reaches the shop. The camera looks so that the path rises to the right.
  */
 
 export type CoinKey = "ETH" | "SOL" | "BTC" | "USDT";
 export type Actor = "button" | "wallet" | "bridge" | "worker" | "vault" | "shop" | "asst";
-type Waypoint = "wallet" | "bs" | "be" | "vault" | "stack";
+/** "phone" is resolved by the caller (it is measured from the DOM). */
+export type Waypoint = "phone" | "bs" | "be" | "vault" | "stack";
 
 export interface Coin {
   label: string;
@@ -32,11 +37,9 @@ export interface FlowState {
   /** Completed loops. Odd loops branch into the refund story at step 8. */
   run: number;
   paused: boolean;
-  /** Ticks spent resting on the first/last frame. */
-  hold: number;
 }
 
-export const INITIAL_FLOW: FlowState = { step: 0, mode: "pay", coin: "ETH", run: 0, paused: false, hold: 0 };
+export const INITIAL_FLOW: FlowState = { step: 0, mode: "pay", coin: "ETH", run: 0, paused: false };
 
 export interface Step {
   wp: Waypoint;
@@ -46,52 +49,81 @@ export interface Step {
   nft?: boolean;
   win?: boolean;
   cap: string;
+  /** Milliseconds to stay on this step before advancing. */
+  ms: number;
 }
 
 export function sequence(mode: FlowState["mode"], coinKey: CoinKey): Step[] {
   const coin = COINS[coinKey];
   const dep =
     coin.how === "MetaMask"
-      ? `They pay ${coin.label} from MetaMask on ${coin.chain}.`
-      : `They send ${coin.label} to a one-time deposit address on ${coin.chain}.`;
+      ? `Tap. They pay ${coin.label} from MetaMask on ${coin.chain}.`
+      : `Tap. They send ${coin.label} to a one-time deposit address on ${coin.chain}.`;
   const pay: Step[] = [
-    { wp: "wallet", vis: false, act: "button", cap: "A shopper hits the Zap pay button on any site." },
-    { wp: "wallet", vis: false, act: "button", cap: "The hosted checkout opens. They pick any coin and leave a refund address." },
-    { wp: "wallet", vis: true, act: "wallet", cap: dep },
-    { wp: "bs", vis: true, act: "bridge", cap: "NEAR Intents 1Click quotes an exact USDC output." },
-    { wp: "be", vis: true, usdc: true, act: "bridge", cap: "Swapped. The USDC is delivered straight to the receipt contract." },
-    { wp: "vault", vis: true, usdc: true, act: "worker", cap: "The settlement worker sees it land and calls mint_receipt." },
-    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, cap: "A receipt NFT is minted. The USDC is held inside it, in escrow." },
-    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, win: true, cap: "The refund window is open. Funds sit in a public contract, not with a company." },
-    { wp: "stack", vis: true, usdc: true, act: "shop", cap: "Window closed. Anyone can trigger the release, and USDC goes to the seller." },
-    { wp: "stack", vis: false, usdc: true, act: "shop", cap: "Settled in USDC, whatever the shopper paid with." },
+    { wp: "phone", vis: false, act: "button", ms: 3200, cap: "A shopper hits the Zap pay button on any site." },
+    { wp: "phone", vis: false, act: "button", ms: 3400, cap: `The hosted checkout opens. They pick ${coin.label} on ${coin.chain} and leave a refund address.` },
+    { wp: "phone", vis: true, act: "wallet", ms: 2600, cap: dep },
+    { wp: "bs", vis: true, act: "bridge", ms: 2400, cap: `NEAR Intents 1Click quotes an exact USDC output for their ${coin.label}.` },
+    { wp: "be", vis: true, usdc: true, act: "bridge", ms: 2400, cap: "Swapped. The USDC is delivered straight to the receipt contract." },
+    { wp: "vault", vis: true, usdc: true, act: "worker", ms: 2400, cap: "The settlement worker sees it land and calls mint_receipt." },
+    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, ms: 2600, cap: "A receipt NFT is minted. The USDC is held inside it, in escrow." },
+    // The held breath: the whole product is this pause.
+    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, win: true, ms: 5200, cap: "The refund window is open. Funds sit in a public contract, not with a company." },
+    { wp: "stack", vis: true, usdc: true, act: "shop", ms: 2800, cap: "Window closed. Anyone can trigger the release, and USDC goes to the seller." },
+    { wp: "stack", vis: false, usdc: true, act: "shop", ms: 3600, cap: `Settled in USDC, though the shopper paid in ${coin.label}.` },
   ];
   if (mode === "pay") return pay;
   return pay.slice(0, 8).concat([
-    { wp: "vault", vis: true, usdc: true, act: "asst", nft: true, win: true, cap: "Refund requested. The assistant checks the policy and fulfilment status." },
-    { wp: "vault", vis: true, usdc: true, act: "worker", nft: true, cap: "Within the seller’s caps and veto window, the worker executes the refund." },
-    { wp: "be", vis: true, usdc: true, act: "bridge", cap: "Back through 1Click. The quote ID is logged on chain." },
-    { wp: "bs", vis: true, act: "bridge", cap: `Converted back to ${coin.label}.` },
-    { wp: "wallet", vis: true, act: "wallet", cap: `Refunded in ${coin.label} on ${coin.chain}, to the refund address.` },
+    { wp: "vault", vis: true, usdc: true, act: "asst", nft: true, win: true, ms: 3000, cap: "Refund requested. The assistant checks the policy and fulfilment status." },
+    { wp: "vault", vis: true, usdc: true, act: "worker", nft: true, ms: 2600, cap: "Within the seller’s caps and veto window, the worker executes the refund." },
+    { wp: "be", vis: true, usdc: true, act: "bridge", ms: 2400, cap: "Back through 1Click. The quote ID is logged on chain." },
+    { wp: "bs", vis: true, act: "bridge", ms: 2400, cap: `Converted back to ${coin.label}.` },
+    { wp: "phone", vis: true, act: "wallet", ms: 3800, cap: `Refunded in ${coin.label} on ${coin.chain}, to the refund address.` },
   ]);
 }
 
-/** One timer tick. First and last frames rest for an extra tick; every other loop tells the refund story. */
+/** How long the current step is shown. */
+export function dwell(s: FlowState): number {
+  const seq = sequence(s.mode, s.coin);
+  return seq[Math.min(s.step, seq.length - 1)]!.ms;
+}
+
+/** One timer tick. Every other loop tells the refund story. */
 export function advance(s: FlowState): FlowState {
   if (s.paused) return s;
   const last = sequence(s.mode, s.coin).length - 1;
-  if ((s.step === 0 || s.step === last) && s.hold < 1) return { ...s, hold: s.hold + 1 };
-  if (s.mode === "pay" && s.step === 7 && s.run % 2 === 1) return { ...s, mode: "refund", step: 8, hold: 0 };
-  if (s.step >= last) return { ...s, step: 0, mode: "pay", run: s.run + 1, hold: 0 };
-  return { ...s, step: s.step + 1, hold: 0 };
+  if (s.mode === "pay" && s.step === 7 && s.run % 2 === 1) return { ...s, mode: "refund", step: 8 };
+  if (s.step >= last) return { ...s, step: 0, mode: "pay", run: s.run + 1 };
+  return { ...s, step: s.step + 1 };
 }
 
-/** Isometric projection matching the scene's rotateX(-30deg) rotateY(-45deg). */
+/** Jump the story to where an actor first does its work (legend scrubber). Pauses playback. */
+export function scrubTo(s: FlowState, actor: Actor): FlowState {
+  if (actor === "asst") return { ...s, mode: "refund", step: 8, run: 1, paused: true };
+  const i = sequence("pay", s.coin).findIndex((st) => st.act === actor);
+  return { ...s, mode: "pay", step: Math.max(0, i), run: 0, paused: true };
+}
+
+/**
+ * Isometric projection matching the scene's rotateX(-30deg) rotateY(45deg):
+ * +x runs up and to the right, +z comes towards the viewer and down to the right.
+ */
 export function proj(x: number, y: number, z: number): [number, number] {
-  return [0.7071 * (x - z), 0.866 * y + 0.3536 * (x + z)];
+  return [0.7071 * (x + z), 0.866 * y + 0.3536 * (z - x)];
 }
 
-const pts = (arr: Array<[number, number]>) => arr.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+export type Pt = [number, number];
+const pts = (arr: Pt[]) => arr.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+
+/** World positions of the scene's objects (x along the route). */
+export const PLACES = {
+  bridge: { x: -310, z: 0, k: 1 },
+  worker: { x: -208, z: 180, k: 0.95 },
+  vault: { x: 140, z: 0, k: 0.92 },
+  asst: { x: 154, z: 200, k: 0.9 },
+  shop: { x: 520, z: 0, k: 0.84 },
+  stack: { x: 470, z: 120, k: 0.84 },
+} as const;
 
 export interface Disc {
   y: number;
@@ -100,12 +132,27 @@ export interface Disc {
 }
 export interface Pin {
   n: string;
-  x: string;
-  y: string;
+  label: string;
+  x: number;
+  y: number;
   on: boolean;
 }
 
-/** Everything the scene needs for the current frame. */
+/** Scene-space (projected, origin = scene origin) position of a non-phone waypoint. */
+export function sceneWaypoint(wp: Exclude<Waypoint, "phone">, usdcCount: number): Pt {
+  switch (wp) {
+    case "bs":
+      return proj(PLACES.bridge.x - 140, -72, 0);
+    case "be":
+      return proj(PLACES.bridge.x + 140, -72, 0);
+    case "vault":
+      return proj(PLACES.vault.x, -126 * PLACES.vault.k, 0);
+    case "stack":
+      return proj(PLACES.stack.x, (-usdcCount * 9 - 6) * PLACES.stack.k, PLACES.stack.z);
+  }
+}
+
+/** Everything the scene needs for the current frame, in scene space. */
 export function flowView(s: FlowState) {
   const coin = COINS[s.coin];
   const isRefund = s.mode === "refund";
@@ -114,36 +161,19 @@ export function flowView(s: FlowState) {
   const cur = seq[step]!;
   const active = (id: Actor) => cur.act === id;
   const L = (id: Actor) => (active(id) && step > 1 ? -12 : 0);
-  const lift = (id: Actor) => L(id) * 0.866;
 
   const usdcCount = 2 + (!isRefund && step >= 9 ? 1 : 0);
-  const walletDiscs: Disc[] = [];
-  for (let i = 0; i < 4; i++) {
-    const y = -48 - i * 9;
-    walletDiscs.push({ y, c: `color-mix(in srgb, ${coin.color} 70%, #111111)`, t: "" });
-    walletDiscs.push({ y: y - 5, c: coin.color, t: i === 3 ? coin.label : "" });
-  }
   const usdcDiscs: Disc[] = [];
   for (let i = 0; i < usdcCount; i++) {
     usdcDiscs.push({ y: -i * 9 - 1, c: "#1D5BD0", t: "" });
     usdcDiscs.push({ y: -i * 9 - 6, c: USDC_COLOR, t: i === usdcCount - 1 ? "USDC" : "" });
   }
 
-  const W: Record<Waypoint, [number, number]> = {
-    wallet: proj(-526, -86, -4),
-    bs: proj(-370, -72, 0),
-    be: proj(-154, -72, 0),
-    vault: proj(120, -126, 0),
-    stack: proj(330, -usdcCount * 9 - 6, 130),
-  };
-  const liftFor: Record<Waypoint, Actor> = { wallet: "wallet", bs: "bridge", be: "bridge", vault: "vault", stack: "shop" };
-  const pin = (n: string, id: Actor, x: number, y: number, z: number): Pin => {
+  const pin = (n: string, label: string, id: Actor, x: number, y: number, z: number): Pin => {
     const p = proj(x, y, z);
-    return { n, x: p[0].toFixed(1), y: (p[1] + lift(id)).toFixed(1), on: active(id) && step > 1 };
+    return { n, label, x: p[0], y: p[1] + L(id) * 0.866, on: active(id) && step > 1 };
   };
-  const nftAnchor = proj(160, -126, -40);
-  const pk = W[cur.wp];
-  const pkUsdc = !!cur.usdc;
+  const nftAnchor = proj(PLACES.vault.x + 10, -126, -60);
 
   const refundProg = isRefund && step >= 8 && step <= 11;
   const payProg = step >= 2 && step <= 5;
@@ -165,6 +195,7 @@ export function flowView(s: FlowState) {
         at: step === 2 ? 0 : step <= 4 ? 1 : 2,
       };
 
+  const bridgeStart = sceneWaypoint("bs", usdcCount);
   return {
     coin,
     isRefund,
@@ -172,33 +203,38 @@ export function flowView(s: FlowState) {
     total: seq.length,
     cur,
     active,
-    lf: { wallet: L("wallet"), bridge: L("bridge"), worker: L("worker"), vault: L("vault"), asst: L("asst"), shop: L("shop") },
-    walletDiscs,
+    lf: { bridge: L("bridge"), worker: L("worker"), vault: L("vault"), asst: L("asst"), shop: L("shop") },
+    usdcCount,
     usdcDiscs,
-    route: pts([W.wallet, W.bs, W.be, W.vault, proj(330, -20, 130)]),
-    branch: pts([proj(120, -40, 50), proj(130, -60, 160)]),
+    bridgeStart,
+    /** Route after the bridge: bridge → safe → shop → off the right edge. */
+    route: pts([bridgeStart, sceneWaypoint("be", usdcCount), proj(PLACES.vault.x, -60, 0), proj(PLACES.stack.x, -20, PLACES.stack.z), proj(PLACES.shop.x, -30, 0), proj(1300, -30, 0)]),
+    branch: pts([proj(PLACES.vault.x, -40, 50), proj(PLACES.asst.x, -50, PLACES.asst.z - 30)]),
     branchOn: isRefund && step >= 8,
-    reverse: isRefund && step >= 9,
-    nft: { x: (nftAnchor[0] + 24).toFixed(1), y: (nftAnchor[1] - 40 + lift("vault")).toFixed(1), on: !!cur.nft },
+    nft: { x: nftAnchor[0] + 24, y: nftAnchor[1] - 40 + L("vault") * 0.866, on: !!cur.nft },
     nftState: isRefund && step >= 8 ? "Refund in review" : "In escrow · refund window open",
     windowPct: cur.win ? "62%" : cur.nft ? "8%" : "0%",
     pins: [
-      pin("02", "wallet", -520, -150, 0),
-      pin("03", "bridge", -262, -170, 0),
-      pin("04", "worker", -30, -150, 200),
-      pin("05", "vault", 70, -150, 60),
-      pin("R", "asst", 130, -140, 210),
-      pin("06", "shop", 470, -150, 0),
+      pin("03", "NEAR Intents", "bridge", PLACES.bridge.x, -175, 0),
+      pin("04", "Settlement worker", "worker", PLACES.worker.x, -150, PLACES.worker.z),
+      pin("05", "Receipt contract", "vault", PLACES.vault.x - 150, -40, 30),
+      pin("R", "Refund assistant", "asst", PLACES.asst.x, -130, PLACES.asst.z),
+      pin("06", "Seller payout", "shop", PLACES.shop.x, -150, 0),
     ],
     puck: {
-      x: pk[0].toFixed(1),
-      y: (pk[1] + lift(liftFor[cur.wp]) - 16).toFixed(1),
+      wp: cur.wp,
       on: cur.vis,
-      color: pkUsdc ? USDC_COLOR : coin.color,
-      fg: pkUsdc ? "#FFFFFF" : "#111111",
-      text: pkUsdc ? "USDC" : coin.label,
-      tag: pkUsdc ? "24.00 USDC" : `$24 in ${coin.label}`,
+      usdc: !!cur.usdc,
+      color: cur.usdc ? USDC_COLOR : coin.color,
+      fg: cur.usdc ? "#FFFFFF" : "#111111",
+      text: cur.usdc ? "USDC" : coin.label,
+      tag: cur.usdc ? "24.00 USDC" : `$24 in ${coin.label}`,
+      lift: (({ bs: "bridge", be: "bridge", vault: "vault", stack: "shop", phone: "wallet" }) as const)[cur.wp],
     },
+    /** The tap: the coin is born on the Pay button. */
+    tapped: !isRefund && step === 2,
+    landed: step === 5,
+    minted: step === 6,
     screen: (step === 0
       ? "shop"
       : step === 1

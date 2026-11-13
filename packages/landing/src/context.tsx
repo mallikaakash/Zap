@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type CSSProperties } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type CSSProperties } from "react";
 
 export interface AppInfo {
   /** Origin of the checkout app ("" = this origin). pay.js, /dashboard, /verify live there. */
@@ -11,17 +11,25 @@ export interface AppInfo {
   mode?: string;
   /** First registered shop, for the real "pay $1" button. */
   merchant?: string | null;
+  /** Numbers measured at build/render time by the host app. */
+  stats?: LandingStats;
   href: (path: string) => string;
+}
+
+export interface LandingStats {
+  /** gzip size of the pay.js this host serves. */
+  payJsGzipBytes?: number;
 }
 
 const Ctx = createContext<AppInfo>({ appUrl: "", host: "", href: (p) => p });
 export const useApp = () => useContext(Ctx);
 
-export function AppProvider({ appUrl, demoMerchant, children }: { appUrl: string; demoMerchant?: string; children: React.ReactNode }) {
+export function AppProvider({ appUrl, demoMerchant, stats, children }: { appUrl: string; demoMerchant?: string; stats?: LandingStats; children: React.ReactNode }) {
   const base = appUrl.replace(/\/+$/, "");
   const [host, setHost] = useState(base);
   const [mode, setMode] = useState<string>();
   const [merchant, setMerchant] = useState<string | null | undefined>(demoMerchant);
+  const href = useCallback((p: string) => `${base}${p}`, [base]);
   useEffect(() => {
     if (!base) setHost(window.location.origin);
     const get = <T,>(p: string) => fetch(`${base}${p}`, { headers: { accept: "application/json" } }).then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(String(r.status)))));
@@ -33,7 +41,7 @@ export function AppProvider({ appUrl, demoMerchant, children }: { appUrl: string
         .then((r) => setMerchant(r.merchants[0]?.id ?? null))
         .catch(() => setMerchant(null));
   }, [base, demoMerchant]);
-  return <Ctx.Provider value={{ appUrl: base, host, mode, merchant, href: (p) => `${base}${p}` }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ appUrl: base, host, mode, merchant, stats, href }}>{children}</Ctx.Provider>;
 }
 
 /** Inline style with CSS custom properties. */
