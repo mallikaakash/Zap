@@ -53,3 +53,11 @@ Choices made while building that are not spelled out in `SPEC.md`, or that devia
 - **Rejected direct payments** count as USDC that left the contract (`settled_total`) in the balance checks for `mint_receipt` and `withdraw_unassigned`. The worst case is a spurious "insufficient" error, followed by a retry.
 - **No upgrade in place:** the state layout changed, so contracts from older builds cannot be upgraded; deploy to a fresh account.
 - **Per-payment cap:** `max_receipt_amount` defaults to $1,000; the deploy script sets $50.
+
+## Landing page (2026-11-13)
+- **Design source:** the Claude Design canvas "Zap Payments — Hero" (three artboards). The landing page uses the Zap name and look: ink #111111, one pink accent #FF2D87, Inter / Space Grotesk / JetBrains Mono. The other app pages keep their current style for now.
+- **One component, two hosts:** `packages/landing` is rendered at `/` by `apps/web` (so the VM, Cloud Run and `pnpm demo` all serve it) and by `apps/site`, a static export for Vercel. The Vercel copy loads the real `pay.js` from the checkout app, so it is also a live "works on any site" example. The app's API already sends `Access-Control-Allow-Origin: *`.
+- **Self-hosted fonts** (`@fontsource-variable/*`) instead of Google Fonts or `next/font/google`, so builds and the demo work offline.
+- **Copy kept honest against the code:** the events are `uc:paid` / `uc:closed`; the refund assistant asks for a photo but does not analyse it (photo analysis stays under "What's next"); the dashboard, receipt and refund numbers on the page are labelled examples. The real "Try it: pay $1" button appears only once a shop exists, with a note saying whether it is real money (live) or simulated.
+- **Interactive demos are pure functions** (`flow.ts`, `protections.ts`) with tests; the protections demo mirrors the contract rules (guard threshold escalates, veto window, daily cap, silence-means-approval deadline).
+

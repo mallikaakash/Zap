@@ -92,7 +92,9 @@ Real quotes from 1Click, November 2026: paying $1 with Polygon USDT costs 1.0156
 | `packages/chain` | NEAR client and receipt-key signing (isomorphic) |
 | `packages/core` | Sessions, sellers, receipts, refund assistant, settlement logic, webhooks, email |
 | `packages/db` | Prisma schema (SQLite) |
-| `apps/web` | Checkout, receipt, verify, shop, dashboard, API |
+| `packages/landing` | The Zap landing page (React). Served at `/` by `apps/web` and by `apps/site` |
+| `apps/web` | Landing page, checkout, receipt, verify, shop, dashboard, API |
+| `apps/site` | The same landing page as a static site (for Vercel). Loads `pay.js` and live data from `NEXT_PUBLIC_APP_URL` |
 | `services/settlement` | The worker: the only process with the executor key |
 | `examples/seller-site` | A plain HTML shop that uses only the two lines |
 

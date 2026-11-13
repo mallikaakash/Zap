@@ -15,6 +15,7 @@
     "@uc/core": "workspace:*",
     "@uc/db": "workspace:*",
     "@uc/intents-adapter": "workspace:*",
+    "@uc/landing": "workspace:*",
     "@uc/sdk": "workspace:*",
     "next": "16.4.6",
     "qrcode": "^1.5.4",

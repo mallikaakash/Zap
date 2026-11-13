@@ -1,0 +1,23 @@
+{
+  "name": "@uc/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static Zap landing page (for Vercel). Loads pay.js and live data from NEXT_PUBLIC_APP_URL.",
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@uc/landing": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

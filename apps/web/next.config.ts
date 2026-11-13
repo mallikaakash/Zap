@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source.
-  transpilePackages: ["@uc/chain", "@uc/core", "@uc/db", "@uc/intents-adapter", "@uc/sdk"],
+  transpilePackages: ["@uc/chain", "@uc/core", "@uc/db", "@uc/intents-adapter", "@uc/landing", "@uc/sdk"],
   serverExternalPackages: ["@prisma/client", "near-kit"],
   turbopack: {
     root: path.join(__dirname, "../.."),
