@@ -1,10 +1,12 @@
-import { setFulfilment } from "@uc/core";
-import { body, handle, type Ctx } from "@/lib/api";
+import { authMerchant, setFulfilment } from "@uc/core";
+import { body, handle, tokenOf, type Ctx } from "@/lib/api";
 
-/** Body: `{ orderRef, status: "none"|"shipped"|"delivered"|"digital_accessed", trackingUrl? }`. The refund agent reads this. */
+/** Body: `{ orderRef, status: "none"|"shipped"|"delivered"|"digital_accessed", trackingUrl? }`. The refund assistant reads this. */
 export function POST(req: Request, { params }: Ctx) {
   return handle(async () => {
+    const id = (await params).id;
+    await authMerchant(id, tokenOf(req));
     const b = await body(req);
-    return setFulfilment((await params).id, String(b.orderRef ?? ""), String(b.status ?? ""), typeof b.trackingUrl === "string" ? b.trackingUrl : undefined);
+    return setFulfilment(id, String(b.orderRef ?? ""), String(b.status ?? ""), typeof b.trackingUrl === "string" ? b.trackingUrl : undefined);
   });
 }

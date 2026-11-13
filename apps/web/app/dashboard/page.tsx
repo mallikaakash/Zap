@@ -62,6 +62,7 @@ function Page({ children, right }: { children: ReactNode; right?: ReactNode }) {
 function Onboard() {
   const [merchants, setMerchants] = useState<Array<{ id: string; name: string }> | null>(null);
   const [name, setName] = useState("");
+  const [payoutAccount, setPayoutAccount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -72,7 +73,9 @@ function Onboard() {
       <div className="mx-auto max-w-md space-y-4">
         <div className="card p-6">
           <h1 className="text-lg font-semibold">Create your shop</h1>
-          <p className="mt-1 text-sm text-muted">Registers the shop on the receipt contract with sensible defaults. You can change everything afterwards.</p>
+          <p className="mt-1 text-sm text-muted">
+            Give a display name and the NEAR account that should receive USDC. We register the shop on chain for you — no wallet popups. Refund decisions stay in this dashboard until email login ships.
+          </p>
           <form
             className="mt-4 space-y-3"
             onSubmit={async (e) => {
@@ -80,7 +83,9 @@ function Onboard() {
               setBusy(true);
               setError(null);
               try {
-                const m = await api<Merchant>("/api/merchants", { body: { name } });
+                const m = await api<Merchant>("/api/merchants", {
+                  body: { name, payoutAccount: payoutAccount.trim() },
+                });
                 window.location.href = `/dashboard?m=${m.id}`;
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Could not create the shop");
@@ -88,8 +93,24 @@ function Onboard() {
               }
             }}
           >
-            <Field label="Shop name" hint="In this demo the app creates and holds a throwaway NEAR account for the shop. On a hosted deployment you connect your own wallet instead.">
+            <Field label="Shop name" hint="Shown to customers on checkout and receipts.">
               <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Coffee" minLength={2} maxLength={60} required />
+            </Field>
+            <Field
+              label="Payout NEAR account"
+              hint="USDC releases here after each refund window. Must already exist on this network (e.g. your testnet wallet from the faucet)."
+            >
+              <input
+                className="input mono text-sm"
+                value={payoutAccount}
+                onChange={(e) => setPayoutAccount(e.target.value)}
+                placeholder="you.testnet"
+                minLength={2}
+                maxLength={64}
+                required
+                autoComplete="off"
+                spellCheck={false}
+              />
             </Field>
             {error ? <Notice tone="bad">{error}</Notice> : null}
             <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Registering on chain…</> : "Create shop"}</button>

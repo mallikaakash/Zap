@@ -1,6 +1,10 @@
-import { merchantReceipts } from "@uc/core";
-import { handle, type Ctx } from "@/lib/api";
+import { authMerchant, merchantReceipts } from "@uc/core";
+import { handle, tokenOf, type Ctx } from "@/lib/api";
 
-export function GET(_req: Request, { params }: Ctx) {
-  return handle(async () => merchantReceipts((await params).id));
+export function GET(req: Request, { params }: Ctx) {
+  return handle(async () => {
+    const id = (await params).id;
+    await authMerchant(id, tokenOf(req));
+    return merchantReceipts(id);
+  });
 }

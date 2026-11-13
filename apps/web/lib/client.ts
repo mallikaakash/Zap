@@ -8,12 +8,21 @@ export class ApiError extends Error {
   }
 }
 
+let sellerToken: string | null = null;
+/** The dashboard sets this from its private link; it is then sent with every API call from that page. */
+export function setSellerToken(t: string | null): void {
+  sellerToken = t;
+}
+
 export async function api<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
   let res: Response;
+  const headers: Record<string, string> = {};
+  if (init?.body !== undefined) headers["content-type"] = "application/json";
+  if (sellerToken) headers["x-uc-token"] = sellerToken;
   try {
     res = await fetch(path, {
       method: init?.method ?? (init?.body !== undefined ? "POST" : "GET"),
-      headers: init?.body !== undefined ? { "content-type": "application/json" } : undefined,
+      headers,
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
     });

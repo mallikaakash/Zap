@@ -5,7 +5,7 @@ import { UserError } from "@uc/core";
 export const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-  "Access-Control-Allow-Headers": "content-type",
+  "Access-Control-Allow-Headers": "content-type, x-uc-token",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -39,3 +39,8 @@ export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> 
 }
 
 export type Ctx<K extends string = "id"> = { params: Promise<Record<K, string>> };
+
+/** The seller's secret dashboard token, sent as `x-uc-token` (or `?t=` on GET). */
+export function tokenOf(req: Request): string | null {
+  return req.headers.get("x-uc-token") ?? new URL(req.url).searchParams.get("t");
+}

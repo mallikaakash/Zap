@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { newReceiptKey, receiptPublicKey } from "@uc/chain/receipt-key";
 import { api, chainName, short, usd } from "@/lib/client";
+import { EVM_CHAINS, hasWallet, isEvmChain, payWithWallet, txUrl } from "@/lib/evm";
 import { CopyButton, Field, Logo, Notice, QR, SimBadge, Spinner, usePoll } from "@/components/ui";
 
 interface Session {
@@ -20,7 +21,10 @@ interface Session {
   payTo: { contract: string; token: string } | null;
   depositAddress: string | null;
   depositMemo: string | null;
+  amountIn: string | null;
   amountInFormatted: string | null;
+  originAsset: string | null;
+  depositTx: string | null;
   quoteDeadline: string | null;
   receiptId: string | null;
   error: string | null;
@@ -34,6 +38,8 @@ interface Token {
   symbol: string;
   chain: string;
   priceUsd: string;
+  decimals: number;
+  contractAddress?: string;
 }
 
 const KEY = (id: string) => `uc:receipt-key:${id}`;
@@ -61,13 +67,19 @@ function Steps({ status }: { status: string }) {
 }
 
 export default function Checkout({ sessionId }: { sessionId: string }) {
-  const embed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
+  // Read on the client only, so the server and first client render match.
+  const [embed, setEmbed] = useState(false);
+  useEffect(() => setEmbed(new URLSearchParams(window.location.search).get("embed") === "1"), []);
   const { data: s, error: loadError, refresh } = usePoll(() => api<Session>(`/api/sessions/${sessionId}`), 1500, [sessionId]);
   const [tokens, setTokens] = useState<Token[] | null>(null);
   const [tokensDown, setTokensDown] = useState(false);
   const [query, setQuery] = useState("");
   const [asset, setAsset] = useState<string | null>(null);
   const [refund, setRefund] = useState("");
+  const [email, setEmail] = useState("");
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletOk, setWalletOk] = useState(false);
+  useEffect(() => setWalletOk(hasWallet()), []);
   const [busy, setBusy] = useState<"quote" | "pay" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -134,13 +146,39 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
         localStorage.setItem(KEY(sessionId), key);
       }
       setPrivateKey(key);
-      await api(`/api/sessions/${sessionId}/quote`, { body: { originAsset: asset, refundAddress: refund.trim(), receiptKey: await receiptPublicKey(key) } });
+      await api(`/api/sessions/${sessionId}/quote`, { body: { originAsset: asset, refundAddress: refund.trim(), receiptKey: await receiptPublicKey(key), email: email.trim() || undefined } });
       setEditing(false);
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not get a quote.");
     } finally {
       setBusy(null);
+    }
+  }
+
+  /** Fill the refund address from the connected wallet (it is the address the coins come from). */
+  async function useWalletAddress() {
+    try {
+      const accounts = (await window.ethereum!.request({ method: "eth_requestAccounts" })) as string[];
+      if (accounts[0]) setRefund(accounts[0]);
+    } catch {
+      setError("Could not read an address from your wallet.");
+    }
+  }
+
+  async function payFromWallet() {
+    if (!s?.depositAddress || !s.amountIn || !s.originChain) return;
+    const token = (tokens ?? []).find((t) => t.assetId === s.originAsset);
+    setWalletBusy(true);
+    setError(null);
+    try {
+      const txHash = await payWithWallet({ chain: s.originChain, tokenContract: token?.contractAddress, to: s.depositAddress, amount: s.amountIn });
+      await api(`/api/sessions/${sessionId}/deposit`, { body: { txHash } }).catch(() => undefined);
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The wallet payment did not go through.");
+    } finally {
+      setWalletBusy(false);
     }
   }
 
@@ -196,8 +234,9 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
             <Notice tone="warn">
               <strong>Keep the receipt link.</strong> It contains the key to this receipt: anyone with the link can request a refund to your original address or claim the receipt. It is not stored on our servers.
               {privateKey ? (
-                <span className="mt-2 block">
+                <span className="mt-2 block space-y-2">
                   <CopyButton text={`${window.location.origin}${receiptHref}`} label="Copy receipt link" />
+                  <EmailLink receiptId={s.receiptId!} link={`${window.location.origin}${receiptHref}`} />
                 </span>
               ) : (
                 <span className="mt-2 block">This browser does not have the key for this receipt. Open the link on the device you paid from.</span>
@@ -259,7 +298,15 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
               label={picked ? `Your ${chainName(picked.chain)} address for refunds` : "Refund address"}
               hint="If you ask for a refund, it is sent here in the same coin. Use your own wallet, not an exchange deposit address: exchanges may not credit it."
             >
-              <input className="input mono" value={refund} onChange={(e) => setRefund(e.target.value)} placeholder={picked ? (PLACEHOLDER[picked.chain] ?? "0x…") : "Pick a coin first"} autoComplete="off" spellCheck={false} />
+              <span className="flex gap-2">
+                <input className="input mono" value={refund} onChange={(e) => setRefund(e.target.value)} placeholder={picked ? (PLACEHOLDER[picked.chain] ?? "0x…") : "Pick a coin first"} autoComplete="off" spellCheck={false} />
+                {walletOk && picked && isEvmChain(picked.chain) ? (
+                  <button type="button" className="btn-ghost shrink-0" onClick={useWalletAddress}>Use MetaMask</button>
+                ) : null}
+              </span>
+            </Field>
+            <Field label="Email (optional)" hint="For payment and refund updates from the shop.">
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
             </Field>
             <button className="btn-primary w-full" onClick={getQuote} disabled={busy !== null}>
               {busy === "quote" ? <><Spinner /> Getting quote…</> : "Continue"}
@@ -288,6 +335,11 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
                   <QR value={s.depositAddress ?? ""} size={132} />
                   <div className="min-w-0 flex-1 space-y-2">
+                    {isEvmChain(s.originChain) && !s.canSimulate ? (
+                      <button className="btn-primary w-full" onClick={payFromWallet} disabled={walletBusy || !walletOk}>
+                        {walletBusy ? <><Spinner /> Confirm in MetaMask…</> : walletOk ? `Pay ${s.amountInFormatted} ${s.originSymbol} with MetaMask` : "MetaMask not found — send manually below"}
+                      </button>
+                    ) : null}
                     <p className="label">Deposit address</p>
                     <p className="mono rounded-xl border border-line p-3 text-xs break-all">{s.depositAddress}</p>
                     {s.depositMemo ? <p className="text-xs text-warn">Memo required: <span className="mono">{s.depositMemo}</span></p> : null}
@@ -299,6 +351,14 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
                   </div>
                 </div>
               )
+            ) : null}
+            {s.depositTx && s.originChain && EVM_CHAINS[s.originChain] ? (
+              <p className="text-xs text-muted">
+                Your transaction:{" "}
+                <a className="mono font-semibold text-accent hover:underline" href={txUrl(s.originChain, s.depositTx)} target="_blank" rel="noreferrer">
+                  {short(s.depositTx, 10, 8)}
+                </a>
+              </p>
             ) : null}
             <Steps status={s.status} />
             {s.status === "quoted" && s.canSimulate ? (
@@ -344,5 +404,31 @@ function Shell({ embed, children, innerRef }: { embed: boolean; children: React.
       </div>
       <p className="mt-4 text-center text-xs text-muted">Funds are held by a public NEAR contract, not by a company. Hackathon prototype, unaudited.</p>
     </main>
+  );
+}
+
+/** Email the receipt link (it contains the key, so only on the customer's request). */
+function EmailLink({ receiptId, link }: { receiptId: string; link: string }) {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "sent" | string>("idle");
+  if (state === "sent") return <span className="block text-sm font-medium text-good">Sent. Check your inbox.</span>;
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setState("busy");
+        try {
+          await api(`/api/receipts/${receiptId}/email`, { body: { email, link } });
+          setState("sent");
+        } catch (err) {
+          setState(err instanceof Error ? err.message : "Could not send");
+        }
+      }}
+    >
+      <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email me this link" aria-label="Your email" />
+      <button className="btn-ghost shrink-0" disabled={state === "busy"}>{state === "busy" ? <Spinner /> : "Send"}</button>
+      {state !== "idle" && state !== "busy" ? <span className="text-xs text-bad">{state}</span> : null}
+    </form>
   );
 }
