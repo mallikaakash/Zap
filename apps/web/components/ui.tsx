@@ -4,20 +4,24 @@ import { useEffect, useState, type ReactNode } from "react";
 import QRCode from "qrcode";
 import { copy } from "@/lib/client";
 
+/** The Zap mark: an ink tile with a pink bolt (same as the landing page). */
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2 font-semibold tracking-tight ${className}`}>
-      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-        <rect width="24" height="24" rx="7" fill="var(--accent)" />
-        <path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      Universal Checkout
+    <span className={`inline-flex items-center gap-2.5 tracking-tight ${className}`}>
+      <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-ink">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--pink)" aria-hidden="true">
+          <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+        </svg>
+      </span>
+      <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+        Zap
+      </span>
     </span>
   );
 }
 
 const TONES = {
-  neutral: "bg-slate-100 text-slate-700",
+  neutral: "bg-accent-soft text-ink",
   accent: "bg-accent-soft text-accent",
   good: "bg-emerald-50 text-emerald-700",
   warn: "bg-amber-50 text-amber-800",
@@ -41,7 +45,7 @@ export function SimBadge({ mode }: { mode?: string }) {
 }
 
 export function Notice({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
-  const ring = { neutral: "border-line bg-canvas text-slate-700", accent: "border-indigo-200 bg-accent-soft text-indigo-900", good: "border-emerald-200 bg-emerald-50 text-emerald-900", warn: "border-amber-200 bg-amber-50 text-amber-900", bad: "border-red-200 bg-red-50 text-red-800" }[tone];
+  const ring = { neutral: "border-line bg-canvas text-ink", accent: "border-line bg-accent-soft text-ink", good: "border-emerald-200 bg-emerald-50 text-emerald-900", warn: "border-amber-200 bg-amber-50 text-amber-900", bad: "border-red-200 bg-red-50 text-red-800" }[tone];
   return (
     <div role={tone === "bad" ? "alert" : undefined} className={`rise rounded-xl border px-3.5 py-3 text-sm leading-relaxed ${ring}`}>
       {children}
@@ -75,7 +79,7 @@ export function QR({ value, size = 168 }: { value: string; size?: number }) {
   const [svg, setSvg] = useState("");
   useEffect(() => {
     let live = true;
-    QRCode.toString(value, { type: "svg", margin: 1, width: size, color: { dark: "#0f172a", light: "#ffffff" } })
+    QRCode.toString(value, { type: "svg", margin: 1, width: size, color: { dark: "#111111", light: "#ffffff" } })
       .then((s) => live && setSvg(s))
       .catch(() => live && setSvg(""));
     return () => {

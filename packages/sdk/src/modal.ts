@@ -84,10 +84,10 @@ const CSS = `
 .x svg{width:16px;height:16px}
 .x:hover{background:rgba(15,23,42,.07);color:#0f172a}
 .x:active{transform:scale(.92)}
-.x:focus-visible{outline:2px solid var(--a,#4F46E5);outline-offset:1px}
+.x:focus-visible{outline:2px solid var(--a,#111111);outline-offset:1px}
 .f{position:relative;flex:1;min-height:0}
 iframe{position:absolute;inset:0;width:100%;height:100%;border:0;opacity:0;transition:opacity .25s ease}
-.l{position:absolute;inset:0;display:grid;place-items:center;color:var(--a,#4F46E5)}
+.l{position:absolute;inset:0;display:grid;place-items:center;color:var(--a,#111111)}
 .l svg{width:28px;height:28px;animation:uc-spin .8s linear infinite}
 .ok iframe{opacity:1}
 .ok .l{display:none}

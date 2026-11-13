@@ -307,7 +307,7 @@ function OrdersTab({ id }: { id: string }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold tracking-wide text-muted uppercase">Fulfilment</span>
                         {["none", "shipped", "delivered", "digital_accessed"].map((s) => (
-                          <button key={s} disabled={busy !== null} onClick={() => act(`f${r.id}`, `/api/merchants/${id}/fulfilment`, { orderRef: r.orderRef, status: s }, "Fulfilment status updated. The refund assistant takes it into account.")} className={`pill ring-1 ${r.fulfilment === s ? "bg-accent text-white ring-accent" : "bg-white text-slate-600 ring-line hover:bg-canvas"}`}>
+                          <button key={s} disabled={busy !== null} onClick={() => act(`f${r.id}`, `/api/merchants/${id}/fulfilment`, { orderRef: r.orderRef, status: s }, "Fulfilment status updated. The refund assistant takes it into account.")} className={`pill ring-1 ${r.fulfilment === s ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line hover:bg-canvas"}`}>
                             {s.replace("_", " ")}
                           </button>
                         ))}
@@ -389,7 +389,7 @@ function ButtonTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         </div>
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3"><h2 className="font-semibold">Paste this into your site</h2><CopyButton text={snippet} label="Copy snippet" /></div>
-          <pre className="mono overflow-x-auto bg-slate-950 p-4 text-[12.5px] leading-relaxed text-slate-100">{snippet}</pre>
+          <pre className="mono overflow-x-auto bg-[#0e0e0e] p-4 text-[12.5px] leading-relaxed text-[#ededed]">{snippet}</pre>
           <p className="px-5 py-3 text-xs leading-relaxed text-muted">Two lines, no backend needed to take the payment. Mark orders as paid only after verifying our signed webhook on your server (see the Webhooks tab).</p>
         </div>
         <div className="card flex flex-wrap items-center gap-5 p-6">
@@ -472,9 +472,9 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         </div>
         <fieldset disabled={!f.ai} className="space-y-2">
           <legend className="label">Reasons it may approve on its own</legend>
-          <div className="flex flex-wrap gap-2">{CATEGORIES.map((c) => <button type="button" key={c} onClick={() => toggle("cats", c)} aria-pressed={f.cats.includes(c)} className={`pill ring-1 ${f.cats.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-slate-600 ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{CATEGORIES.map((c) => <button type="button" key={c} onClick={() => toggle("cats", c)} aria-pressed={f.cats.includes(c)} className={`pill ring-1 ${f.cats.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
           <legend className="label pt-2">Needs a photo first</legend>
-          <div className="flex flex-wrap gap-2">{CATEGORIES.slice(0, 3).map((c) => <button type="button" key={c} onClick={() => toggle("photo", c)} aria-pressed={f.photo.includes(c)} className={`pill ring-1 ${f.photo.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-slate-600 ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{CATEGORIES.slice(0, 3).map((c) => <button type="button" key={c} onClick={() => toggle("photo", c)} aria-pressed={f.photo.includes(c)} className={`pill ring-1 ${f.photo.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
         </fieldset>
         <label className="flex items-center gap-3 text-sm"><input type="checkbox" className="accent-[var(--accent)]" checked={f.escalateAlways} onChange={(e) => setF({ ...f, escalateAlways: e.target.checked })} disabled={!f.ai} /> Never decide for me; only gather facts and summarise</label>
         <p className="text-xs leading-relaxed text-muted">These limits are enforced in code and by the contract, not by the AI model's instructions, so a customer cannot talk the assistant past them.</p>
@@ -511,7 +511,7 @@ if (!fresh || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
         <h2 className="font-semibold">Signing secret</h2>
         <p className="text-sm text-muted">Each event is signed over <span className="mono">timestamp.body</span>. The button on your page is never proof of payment: fulfil an order only after this check passes on your server.</p>
         <div className="flex items-center gap-2"><code className="mono min-w-0 flex-1 truncate rounded-xl border border-line px-3 py-2.5 text-xs">{m.webhookSecret}</code><CopyButton text={m.webhookSecret} /></div>
-        <pre className="mono overflow-x-auto rounded-xl bg-slate-950 p-4 text-[12px] leading-relaxed text-slate-100">{sample}</pre>
+        <pre className="mono overflow-x-auto rounded-xl bg-[#0e0e0e] p-4 text-[12px] leading-relaxed text-[#ededed]">{sample}</pre>
       </div>
       <div className="card p-6 lg:col-span-2">
         <h2 className="font-semibold">Emails to {m.email ?? "you"}</h2>
@@ -562,7 +562,7 @@ function ProductSnippet({ m, p }: { m: Merchant; p: Product }) {
   return (
     <div className="rise mt-2 grid gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_auto]">
       <div className="min-w-0 space-y-2">
-        <pre className="mono overflow-x-auto rounded-lg bg-slate-950 p-3 text-[12px] leading-relaxed text-slate-100">{snippet}</pre>
+        <pre className="mono overflow-x-auto rounded-lg bg-[#0e0e0e] p-3 text-[12px] leading-relaxed text-[#ededed]">{snippet}</pre>
         <div className="flex flex-wrap gap-2"><CopyButton text={snippet} label="Copy snippet" /><CopyButton text={link} label="Copy pay link" /></div>
       </div>
       {origin ? <QR value={link} size={104} /> : null}
@@ -603,7 +603,7 @@ function ProductsTab({ m }: { m: Merchant }) {
         <h2 className="font-semibold">Add a product</h2>
         <div className="flex gap-2" role="radiogroup">
           {[["OneTime", "One-time"], ["Subscription", "Prepaid pass"]].map(([k, label]) => (
-            <button type="button" key={k} role="radio" aria-checked={f.kind === k} onClick={() => setF({ ...f, kind: k! })} className={`pill ring-1 ${f.kind === k ? "bg-accent text-white ring-accent" : "bg-white text-slate-600 ring-line"}`}>{label}</button>
+            <button type="button" key={k} role="radio" aria-checked={f.kind === k} onClick={() => setF({ ...f, kind: k! })} className={`pill ring-1 ${f.kind === k ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{label}</button>
           ))}
         </div>
         <div className="grid grid-cols-[4rem_1fr] gap-3">
@@ -630,7 +630,7 @@ function ProductsTab({ m }: { m: Merchant }) {
         <button className="btn-primary" disabled={busy || !f.name.trim()}>{busy ? <Spinner /> : null} Add product</button>
       </form>
       <div className="card p-6">
-        <div className="flex items-center justify-between"><h2 className="font-semibold">Your products</h2><a className="text-sm font-semibold text-accent hover:underline" href={`/shop?m=${encodeURIComponent(m.id)}`}>Open shop page</a></div>
+        <div className="flex items-center justify-between"><h2 className="font-semibold">Your products</h2><a className="text-sm link" href={`/shop?m=${encodeURIComponent(m.id)}`}>Open shop page</a></div>
         {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.products.length === 0 ? <p className="mt-3 text-sm text-muted">No products yet. You can also skip products and set the price on the button itself.</p> : (
           <ul className="mt-3 divide-y divide-line">
             {data.products.map((p) => (
@@ -644,7 +644,7 @@ function ProductsTab({ m }: { m: Merchant }) {
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="font-semibold tabular-nums">{usd(p.amount)}</span>
-                  <button className="text-xs font-semibold text-accent hover:underline" onClick={() => setShown(shown === p.id ? null : p.id)}>{shown === p.id ? "Hide" : "Embed"}</button>
+                  <button className="text-xs link" onClick={() => setShown(shown === p.id ? null : p.id)}>{shown === p.id ? "Hide" : "Embed"}</button>
                   <button className="text-xs font-semibold text-bad hover:underline" onClick={async () => { await api(`/api/merchants/${m.id}/products`, { method: "DELETE", body: { productId: p.id } }); refresh(); }}>Remove</button>
                 </span>
                 </div>

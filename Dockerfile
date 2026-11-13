@@ -19,8 +19,13 @@ RUN pnpm --filter @uc/web build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=8080
+# Litestream keeps the SQLite database across deploys (see scripts/cloudrun-entrypoint.sh, docs/gcp-cloud-run.md).
+ARG LITESTREAM_VERSION=0.3.13
+ARG TARGETARCH=amd64
+ADD https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-v${LITESTREAM_VERSION}-linux-${TARGETARCH}.tar.gz /tmp/litestream.tgz
+RUN tar -C /usr/local/bin -xzf /tmp/litestream.tgz litestream && rm /tmp/litestream.tgz && litestream version
 WORKDIR /app
 COPY --from=build /app /app
 RUN mkdir -p .uc
 EXPOSE 8080
-CMD ["pnpm", "start", "--", "--no-build"]
+CMD ["sh", "/app/scripts/cloudrun-entrypoint.sh"]

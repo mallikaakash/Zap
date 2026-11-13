@@ -91,7 +91,7 @@ export default function ReceiptPage({ id }: { id: string }) {
           ))}
         </dl>
 
-        <div className="mt-4 text-sm leading-relaxed text-slate-700">
+        <div className="mt-4 text-sm leading-relaxed text-ink">
           {r.kind === "OneTime" ? (
             held === 0n ? null : r.confirmed ? (
               <p>You confirmed the order arrived, so the shop can be paid now.</p>
@@ -225,7 +225,7 @@ export default function ReceiptPage({ id }: { id: string }) {
         </ol>
         <p className="mt-4 border-t border-line pt-3 text-xs text-muted">
           Contract <span className="mono">{v.contract}</span> on {v.networkId} · order reference is stored on chain only as a hash ·{" "}
-          <a className="font-semibold text-accent hover:underline" href={`/verify/${r.id}`}>
+          <a className="link" href={`/verify/${r.id}`}>
             Verify this receipt
           </a>
         </p>
@@ -354,7 +354,7 @@ function Chat({ c, v, canAct, busy, onSend, onAppeal }: { c: CaseView; v: Receip
           </li>
         ))}
       </ol>
-      {state ? <p className="mt-3 text-sm font-medium text-slate-700">{state}</p> : null}
+      {state ? <p className="mt-3 text-sm font-medium text-ink">{state}</p> : null}
       {c.error && c.payoutState === "none" && q?.state === "Approved" ? <p className="mt-1 text-xs text-muted">Still trying to send it: {c.error}</p> : null}
       {canAct && asking ? (
         <form

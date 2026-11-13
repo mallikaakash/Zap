@@ -41,7 +41,8 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --port=8080 \
   --min-instances=1 \
-  --max-instances=3 \
+  --max-instances=1 \
+  --no-cpu-throttling \
   --memory=1Gi \
   --cpu=1 \
   --timeout=300 \

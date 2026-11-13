@@ -1,0 +1,7 @@
+# Used by scripts/cloudrun-entrypoint.sh. Values come from the environment.
+#   LITESTREAM_REPLICA_URL  e.g. gcs://my-bucket/zap/live.db  (Cloud Run service account needs object read/write)
+#   UC_DB_PATH              set by the entrypoint (default /app/.uc/live.db)
+dbs:
+  - path: ${UC_DB_PATH}
+    replicas:
+      - url: ${LITESTREAM_REPLICA_URL}

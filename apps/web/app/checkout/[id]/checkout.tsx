@@ -55,7 +55,7 @@ function Steps({ status }: { status: string }) {
         const active = !done && (i === at || (at === 1 && i === 2));
         return (
           <li key={label} className="flex items-center gap-3 text-sm">
-            <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors ${done ? "bg-good text-white" : active ? "bg-accent-soft text-accent" : "bg-slate-100 text-slate-400"}`}>
+            <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors ${done ? "bg-good text-white" : active ? "bg-accent-soft text-accent" : "bg-accent-soft text-[#8a8a8a]"}`}>
               {done ? "✓" : active ? <Spinner /> : i + 1}
             </span>
             <span className={done || active ? "font-medium text-ink" : "text-muted"}>{label}</span>
@@ -355,7 +355,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
             {s.depositTx && s.originChain && EVM_CHAINS[s.originChain] ? (
               <p className="text-xs text-muted">
                 Your transaction:{" "}
-                <a className="mono font-semibold text-accent hover:underline" href={txUrl(s.originChain, s.depositTx)} target="_blank" rel="noreferrer">
+                <a className="mono link" href={txUrl(s.originChain, s.depositTx)} target="_blank" rel="noreferrer">
                   {short(s.depositTx, 10, 8)}
                 </a>
               </p>
@@ -369,7 +369,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
             {s.status === "quoted" ? (
               <div className="flex items-center justify-between text-xs text-muted">
                 <span>Refunds go to {short(s.refundAddress)}</span>
-                <button type="button" className="font-semibold text-accent hover:underline" onClick={() => { setEditing(true); setAsset(null); }}>
+                <button type="button" className="link" onClick={() => { setEditing(true); setAsset(null); }}>
                   Change coin
                 </button>
               </div>

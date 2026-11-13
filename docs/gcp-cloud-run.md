@@ -1,6 +1,6 @@
 # Cloud Run (`*.a.run.app`)
 
-Managed HTTPS URL (no Caddy/sslip.io). Same app as the VM: `pnpm start` runs Next.js on `PORT` (8080) and the settlement worker.
+Managed HTTPS URL (no Caddy/sslip.io). Same app as the VM: `pnpm start` runs Next.js on `PORT` (8080) and the settlement worker. The container starts through [`scripts/cloudrun-entrypoint.sh`](../scripts/cloudrun-entrypoint.sh).
 
 ## Deploy
 
@@ -14,9 +14,53 @@ Every **push to `main`** runs [`.github/workflows/deploy-zap.yml`](../.github/wo
 bash scripts/gcp-cloudrun-deploy.sh   # copies .env from VM, full env refresh
 ```
 
+## Keep the database across deploys (do this once)
+
+The app stores the off-chain half of every order in SQLite (`.uc/live.db`): seller sign-ups and dashboard links, products, refund chats, emails, webhook logs. Inside a container that file is lost on every new revision. [Litestream](https://litestream.io) fixes this: on start it restores the database from a Cloud Storage bucket, and while running it streams every change back. It is switched on by one env var; without it the app runs as before.
+
+```bash
+PROJECT=project-bf77a013-c0b3-413c-a75
+REGION=us-central1
+BUCKET=zap-db-$PROJECT            # any globally unique name
+
+# 1. a private bucket for the replica
+gcloud storage buckets create gs://$BUCKET --project=$PROJECT --location=$REGION --uniform-bucket-level-access
+
+# 2. let the service's runtime account read and write it
+SA=$(gcloud run services describe zap --project=$PROJECT --region=$REGION --format='value(spec.template.spec.serviceAccountName)')
+SA=${SA:-$(gcloud projects describe $PROJECT --format='value(projectNumber)')-compute@developer.gserviceaccount.com}
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET --member=serviceAccount:$SA --role=roles/storage.objectAdmin
+
+# 3. point the service at it (the next revision restores from it; the first one starts empty and seeds it)
+gcloud run services update zap --project=$PROJECT --region=$REGION \
+  --update-env-vars=LITESTREAM_REPLICA_URL=gcs://$BUCKET/zap/live.db \
+  --max-instances=1 --no-cpu-throttling
+```
+
+Check: `curl -s https://<service>/api/health` returns `"database":"ok"`, and after the next deploy your sellers and products are still there.
+
+**Why one instance, CPU always on:** SQLite has a single writer and Litestream a single replicator, so more than one instance would mean several separate databases. Cloud Run otherwise pauses the CPU between requests, which would stall both the settlement worker (minting receipts, running refunds) and replication. The workflow and `gcp-cloudrun-deploy.sh` set `--max-instances=1 --no-cpu-throttling`. The cost is one always-on small instance.
+
+**A database you already have** (for example the VM's `.uc/live.db`) can seed the bucket: `litestream replicate .uc/live.db gcs://$BUCKET/zap/live.db` on that machine for a minute, then deploy.
+
+## Optional features (env vars on the service)
+
+Both are optional; without them the app still works.
+
+| Feature | Env vars | Without it |
+|---|---|---|
+| Emails to shoppers and sellers (receipt links, refund updates) | `RESEND_API_KEY` (or `RESEND`), `EMAIL_FROM` | Emails are stored in the database only. Without a verified domain, Resend delivers only to your own account's address. |
+| Refund assistant on NEAR AI Cloud | `NEARAI_API_KEY`, optional `NEARAI_BASE_URL`, `NEARAI_MODEL` | A deterministic rule engine with the same output shape answers instead. |
+
+Set them with `gcloud run services update zap --update-env-vars=KEY=value` (or Secret Manager for keys). See `.env.example` for details.
+
+## Health
+
+`GET /api/health` → `{ ok, mode, networkId, database, ms, time }`, 200 when the database answers, 503 otherwise. It does not call the chain, so it is cheap enough for uptime checks.
+
 ## Notes
 
-- **SQLite** (`DATABASE_URL=file:./.uc/live.db`): use `--min-instances 1` so one instance holds the DB; new revisions start a fresh DB unless you migrate to Postgres or copy `live.db` into the image (not recommended).
+- **A fresh deploy without Litestream** has no sellers: `/shop` says so and links to the dashboard, and the landing page hides "Try the demo shop". Sign up again in `/dashboard` (docs/GO-LIVE.md §6).
 - **Secrets**: passed as Cloud Run env vars (prefer Secret Manager for production).
 - **VM vs Run**: you can keep the VM for backup or retire it after Run is verified.
 

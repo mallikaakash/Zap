@@ -55,6 +55,7 @@ Then:
 | **Seller dashboard** | Orders with escrow state, approve/decline/object, refund what is in escrow, collect payout, fulfilment status, products (one-time with refund window, or pass with interval), button styler with copy-paste snippet, settings, webhook and email log. |
 | **Notifications** | Signed webhooks (`X-UC-Signature: sha256=HMAC(secret, "timestamp.body")`, 5-minute tolerance, event ids, retries) and emails through Resend. |
 | **Public verification** | `/verify/:id` shows a receipt's attribution, where each refund was sent compared with the on-chain refund target, and whether the contract's USDC covers every open receipt. |
+| **Health check** | `GET /api/health` answers `{ ok, mode, networkId, database }`: 200 when the database answers, 503 otherwise. No chain calls, so it is cheap for uptime checks. |
 
 ## What is simulated, and where
 
@@ -68,6 +69,8 @@ NEAR Intents has no testnet, so there is no in-between mode. Every page outside 
 ## Running it for real (mainnet)
 
 [docs/GO-LIVE.md](docs/GO-LIVE.md) is the operator's step-by-step guide: fund the operator account, import its key, run `pnpm deploy:mainnet` (it shows a plan and cost first and acts only with `--yes`), set up HTTPS, then `pnpm start`. The total is about **5.5 NEAR**, of which ~3.8 NEAR is storage for the contract code (locked, not spent), plus a few dollars for test purchases.
+
+On **Cloud Run**, [docs/gcp-cloud-run.md](docs/gcp-cloud-run.md) covers deploys and how to keep the SQLite database across them with Litestream and a Cloud Storage bucket (one instance, CPU always on). Until a bucket is configured, each new revision starts with an empty database.
 
 Real quotes from 1Click, November 2026: paying $1 with Polygon USDT costs 1.0156 USDT (including a 1% slippage buffer that is returned if unused); refunding $1 returns 0.9904 USDT.
 
