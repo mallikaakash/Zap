@@ -1,88 +1,115 @@
-# NEAR hackathon starter
+# Universal Checkout
 
-A **ready-to-build** NEAR Web3 workspace: Rust smart contract, Vite + React frontend with wallet connect, **official NEAR Agent Skills**, and **Cursor MCP** integrations for docs and (optional) on-chain operations.
+**One button for every way money moves.** A seller adds two lines to any website. Customers pay with any coin on any chain through [NEAR Intents](https://docs.near-intents.org), and the seller receives USDC. Every payment becomes a **receipt NFT that holds the money** until the refund period ends. Refunds go back to the customer's original chain and coin, and a refund assistant answers first, within limits the seller sets and the contract enforces.
 
-## What's inside
-
-- **`contract/`** — Basic auction Rust contract (from `create-near-app`), sandbox integration tests, `cargo-near` build output under `target/near/`.
-- **`frontend/`** — Vite + React app with `@hot-labs/near-connect`, `near-api-js`, and example routes.
-- **`.agents/skills/`** — All skills from [near/agent-skills](https://github.com/near/agent-skills) (CLI, dApp, contracts, Intents, audit, AI Cloud, near-kit).
-- **`.cursor/mcp.json`** — [NEAR Docs MCP](https://docs.near.org/mcp) + optional [@nearai/near-mcp](https://github.com/nearai/near-mcp).
-
-AI contributors should read **[AGENTS.md](./AGENTS.md)** first.
-
-## Prerequisites
-
-| Tool | Purpose |
-| ---- | ------- |
-| [Node.js](https://nodejs.org/) 22.22+, 24.15+, or **26+** | Frontend (`nvm use` reads `.nvmrc`) |
-| [Rust](https://rustup.rs/) | Smart contracts |
-| [cargo-near](https://github.com/near/cargo-near) | Build/deploy WASM |
-| [near-cli-rs](https://near.cli.rs) | Accounts, tokens, contract calls |
-
-One-shot setup script:
-
-```bash
-./scripts/setup.sh
+```html
+<script src="https://YOUR-HOST/pay.js" defer></script>
+<pay-button merchant="seller.near" amount="49" product="Ebook"></pay-button>
 ```
 
-## Quickstart
+Built at NEAR HACKATHON 2026. Hackathon prototype, unaudited, not a licensed money service. Funds are held by a public contract, not by a company.
+
+---
+
+## Try it in 60 seconds (no keys, no wallet, no money)
 
 ```bash
-nvm use                    # or install Node 26+
-npm install                # root helper scripts
-npm run dev                # frontend → http://localhost:5173
-
-npm run build:contract     # WASM in contract/target/near/
-npm run test:contract      # sandbox tests (can take ~2 min)
+pnpm install
+pnpm demo
 ```
 
-### Testnet account
+Needs Node 22+ and pnpm. `pnpm demo` does the following:
+1. starts a **local NEAR sandbox** (the first run downloads a ~60 MB binary);
+2. deploys the prebuilt contracts from `contracts/artifacts/`, so **no Rust is needed**;
+3. creates a demo shop with three products;
+4. starts the web app and the settlement worker, then prints the links.
 
-1. Create an account with NEAR CLI or the [faucet](https://near-faucet.io/).
-2. Copy `.env.example` → `.env` and fill in account IDs (do not commit `.env`).
-3. Deploy: follow [contract/README.md](./contract/README.md).
-4. Point the UI at your contract in `frontend/src/config.ts`.
+Then:
 
-## AI & agent features (NEAR official)
+1. Open **/shop**, click a button, pick any coin, enter a refund address, and press **Simulate payment**.
+2. Open the receipt. It shows how much is held, the refund window, and every on-chain event.
+3. Press **Request refund** and say the item arrived broken. The assistant asks for a photo; attach one and it approves.
+4. In the seller dashboard (the link printed by `pnpm demo`), use **+1 min** on the sandbox clock and watch the refund go back.
+5. Buy the **pass**: periods release to the shop over time. Claim it to an account, transfer it, cancel it, and the periods not yet started come back.
+6. Emails the app would send appear at **/dev/inbox**.
 
-| Feature | Link |
-| ------- | ---- |
-| Tools for AI agents | https://docs.near.org/getting-started/tools-for-ai |
-| Agent Skills repo | https://github.com/near/agent-skills |
-| Docs MCP | https://docs.near.org/mcp |
-| llms.txt doc index | https://docs.near.org/llms.txt |
-| NEAR MCP (local keys) | https://github.com/nearai/near-mcp |
+`pnpm test` runs the TypeScript tests. `cd contracts && cargo test` runs the contract unit and sandbox tests (needs Rust).
 
-Update project skills:
+---
 
-```bash
-npm run skills:update
+## What works
+
+| | |
+|---|---|
+| **Drop-in button** | `<pay-button>` web component: 8.6 KB gzipped, no dependencies, Shadow DOM, themable, accessible. Opens a hosted checkout in a modal and emits `uc:paid` / `uc:closed`. |
+| **Links and QR codes** | `/pay?merchant=…&product-id=…` creates a session and redirects; the dashboard makes the QR code. |
+| **Any coin in, USDC out** | NEAR Intents 1Click quotes `EXACT_OUTPUT` swaps that deliver USDC straight to the receipt contract. Any of the ~230 assets 1Click lists. Also **"Pay with USDC on NEAR"** with no swap (`ft_transfer_call`). |
+| **Pay with MetaMask** | For EVM coins the checkout connects MetaMask, switches network and sends the exact amount. Other chains get the deposit address and a QR code. |
+| **Receipt NFT that holds the money** | NEP-171 token per payment. The USDC stays in the contract until the refund window ends, then is released to the seller. Anyone can trigger a release that is due; the contract enforces the rules. |
+| **Refunds to the original chain** | Refunds are converted back through 1Click and sent to the customer's address on the chain and coin they paid with. |
+| **Refund assistant** | First responder on every request: asks up to 3 clarifying questions (for example a photo for damage), checks the seller's policy and fulfilment status, approves small clear cases, denies only objective violations (appeal once), and escalates the rest with a summary. Limits are enforced in code and on chain, not in the prompt. Uses NEAR AI Cloud when `NEARAI_API_KEY` is set; otherwise a deterministic rule engine with the same output. |
+| **Seller protections** | Guard threshold, a veto window on AI approvals, a daily refund cap, and a decision deadline where silence means approval (customer protection). |
+| **Prepaid passes and milestones** | Released period by period. Cancelling refunds the periods not yet started. Passes are transferable NFTs; one-time receipts are not. |
+| **No raw secrets on chain** | The customer's browser creates an ed25519 **receipt key**; only the public key goes on chain. Actions are signed in the browser over the exact parameters plus a nonce, and the server only relays them, paying the gas. |
+| **Seller onboarding** | Name, email and the NEAR account to be paid to. No wallet popups: the operator registers the shop on chain. A private dashboard link is the login. |
+| **Seller dashboard** | Orders with escrow state, approve/decline/object, refund what is in escrow, collect payout, fulfilment status, products (one-time with refund window, or pass with interval), button styler with copy-paste snippet, settings, webhook and email log. |
+| **Notifications** | Signed webhooks (`X-UC-Signature: sha256=HMAC(secret, "timestamp.body")`, 5-minute tolerance, event ids, retries) and emails through Resend. |
+| **Public verification** | `/verify/:id` shows a receipt's attribution, where each refund was sent compared with the on-chain refund target, and whether the contract's USDC covers every open receipt. |
+
+## What is simulated, and where
+
+| Mode | Chain | Swaps | Used for |
+|---|---|---|---|
+| `local` (default, `pnpm demo`) | NEAR sandbox on your machine | **Simulated**: a mock adapter mints mock USDC to the contract and marks refunds delivered. The contract logic is the real one. | Trying it, development, tests |
+| `live` (`pnpm deploy:mainnet` + `pnpm start`) | **NEAR mainnet**, real USDC | **Real NEAR Intents 1Click** | The real product |
+
+NEAR Intents has no testnet, so there is no in-between mode. Every page outside live mode shows a "Simulated" badge.
+
+## Running it for real (mainnet)
+
+[docs/GO-LIVE.md](docs/GO-LIVE.md) is the operator's step-by-step guide: fund the operator account, import its key, run `pnpm deploy:mainnet` (it shows a plan and cost first and acts only with `--yes`), set up HTTPS, then `pnpm start`. The total is about **5.5 NEAR**, of which ~3.8 NEAR is storage for the contract code (locked, not spent), plus a few dollars for test purchases.
+
+Real quotes from 1Click, November 2026: paying $1 with Polygon USDT costs 1.0156 USDT (including a 1% slippage buffer that is returned if unused); refunding $1 returns 0.9904 USDT.
+
+## How it fits together
+
+```
+ seller's site                  our web app (Next.js)              settlement worker               NEAR mainnet
+ ─────────────                  ─────────────────────              ─────────────────               ────────────
+ <pay-button> ──► checkout ──► sessions / quotes ──► 1Click ──► USDC delivered to ──► receipt contract
+ link / QR        receipt page   relays signed actions   (NEAR Intents)  checkout.<op>.near      (NEP-171 + escrow)
+                  dashboard      AI triage (NEAR AI)                         │                       │
+                                 webhooks + email      ◄── mint_receipt, ai_decide, release, ───┘    └─► seller payout (USDC)
+                                                            execute_refund → 1Click → customer's chain
 ```
 
-### Cursor tips
+| Path | What |
+|---|---|
+| `contracts/receipts` | Rust receipt contract: escrow, refund state machine, receipt-key signatures, pause, cap. Interface: [contracts/INTERFACE.md](contracts/INTERFACE.md). |
+| `contracts/mock-usdc` | NEP-141 faucet token for the sandbox |
+| `packages/sdk` | `<pay-button>` and the JS client, built to `pay.js` |
+| `packages/intents-adapter` | 1Click adapter (real), mock adapter (local) |
+| `packages/chain` | NEAR client and receipt-key signing (isomorphic) |
+| `packages/core` | Sessions, sellers, receipts, refund assistant, settlement logic, webhooks, email |
+| `packages/db` | Prisma schema (SQLite) |
+| `apps/web` | Checkout, receipt, verify, shop, dashboard, API |
+| `services/settlement` | The worker: the only process with the executor key |
+| `examples/seller-site` | A plain HTML shop that uses only the two lines |
 
-- Enable MCP servers from `.cursor/mcp.json` (reload window after edit).
-- Add **Docs** source: `https://docs.near.org/llms.txt` for inline doc context.
-- Project rules live in `.cursor/rules/`.
+Design decisions and deviations from the spec are recorded in [DECISIONS.md](DECISIONS.md).
 
-## Project scripts
+## Trust assumptions (stated plainly)
 
-| Script | Action |
-| ------ | ------ |
-| `npm run dev` | Start Vite frontend |
-| `npm run build:contract` | `cargo near build` |
-| `npm run test:contract` | Rust sandbox tests |
-| `npm run build:frontend` | Production frontend build |
-| `npm run setup` | Install global CLI tools (see script) |
-| `npm run skills:update` | Refresh `.agents/skills` |
+- **The executor attributes payments to orders.** 1Click delivers USDC with a plain transfer that carries no order id, so the executor calls `mint_receipt`. The contract only credits USDC it holds and has not assigned to another receipt. Attribution is shown publicly on `/verify`.
+- **The executor passes refund deposit addresses.** It can only refund requests that are already approved, never more than what is unreleased, and within the seller's daily cap. Each refund's 1Click quote id is logged on chain and checked on `/verify`.
+- **Operator-registered sellers trust the operator** for refund decisions made through the dashboard, which our relayer signs on their behalf. A seller can take over their own registration by calling `register_merchant` from their own account.
+- **Unaudited prototype.** Payments are capped per receipt (default $50 on mainnet). The owner can pause new payments and releases; refunds keep working while paused.
 
-## Learn more
+## Planned
 
-- [Web3 app quickstart](https://docs.near.org/web3-apps/quickstart)
-- [Basic auction tutorial](https://docs.near.org/tutorials/auction/basic-auction)
-- [NEAR awesome list](https://github.com/near/awesome-near)
-
-## License
-
-Contract and frontend scaffolding follow NEAR example templates; hackathon meta-docs are MIT-compatible — check per-package licenses in `frontend/package.json` and `contract/Cargo.toml`.
+- Sellers signing settings and decisions with their own wallet (wallet selector)
+- Image upload and analysis in the refund chat (today only the file name is recorded)
+- Payouts to the seller's preferred chain
+- Settlement worker inside a TEE (OutLayer) with attestations
+- Keeper-triggered releases
+- WooCommerce, Shopify and MCP integrations

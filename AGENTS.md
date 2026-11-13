@@ -29,10 +29,13 @@ Refresh skills: `npm run skills:update`
 ## Repo layout
 
 ```
-contract/     # Rust auction template + sandbox tests
-frontend/     # Vite + React + near-connect
+contracts/    # Rust receipt contract + mock USDC (prebuilt wasm in contracts/artifacts/)
+packages/     # sdk (pay button), chain, core, db, intents-adapter
+apps/web/     # Next.js: checkout, receipt, dashboard, API
+services/     # settlement worker
 .agents/      # NEAR agent skills (do not hand-edit; use skills CLI to update)
 ```
+Read CLAUDE.md, SPEC.md and DECISIONS.md first. `pnpm demo` runs everything locally.
 
 ## Typical agent workflows
 
