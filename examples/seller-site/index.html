@@ -84,8 +84,8 @@
         if (id) b.setAttribute("product-id", id);
         b.addEventListener("uc:paid", (e) => console.log("paid", e.detail));
       }
-      // This is line 1 of the integration; with fixed values it is simply
-      //   <script src="https://YOUR-HOST/pay.js" defer></script>
+      // This is line 1 of the integration. With fixed values it is simply a script tag
+      // pointing at https://YOUR-HOST/pay.js (with defer), placed anywhere on the page.
       const s = document.createElement("script");
       s.src = `${HOST}/pay.js`;
       s.defer = true;

@@ -2,13 +2,13 @@
 
 This takes Universal Checkout from the local demo to real payments: real NEAR Intents swaps, real USDC in the receipt contract, real refunds. **You** run every step that touches money or keys; nothing here sends a transaction without you typing `--yes`.
 
-Budget: about **6.5 NEAR** (~4 NEAR of it is code storage, locked rather than spent) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
+Budget: about **7 NEAR** (~3.8 NEAR of it is code storage, locked rather than spent; the deploy script prints the exact figure first) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
 
 ---
 
 ## 1. Fund the operator account
 
-Send about **6.5 NEAR** to `aakash7777.near`, for example from an exchange or another wallet.
+Send about **7 NEAR** to `aakash7777.near`, for example from an exchange or another wallet.
 
 ## 2. Give the deploy script your operator key (on your laptop)
 
@@ -78,7 +78,8 @@ Optional settings in `.env`:
 3. **Add products** in the Products tab:
    - "Pour-over set": one-time, **$1**, refund window **300** seconds.
    - "Coffee club pass": prepaid pass, **$1** per period, **3** periods, every **180** seconds.
-4. **Copy the snippet** from the Button tab into any website. For example, open `examples/seller-site/index.html` and set the host and merchant at the top.
+4. **Shorten the timers for filming.** In Settings, set "Your objection window" to **60** seconds and "Your time to answer" to **300** seconds. The defaults (12 h and 72 h) suit real sellers but are too slow for a video.
+5. **Copy the snippet** from the Products tab ("Embed" next to a product) or the Button tab into any website. For example, open `examples/seller-site/index.html` and set the host and merchant at the top.
 
 ## 7. Pay with MetaMask
 
