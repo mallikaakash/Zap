@@ -129,21 +129,21 @@ async function main() {
   const { db } = await import("@uc/db");
   // Same path a real merchant takes: sign up with a payout account; the worker registers it on chain.
   const shop = await registerMerchant({
-    name: "Acme Analytics",
-    email: "billing@acme.local",
+    name: "Tallyfox",
+    email: "billing@tallyfox.local",
     guardThreshold: "50000000", // $50: above this, refunds always go to the merchant
     autoApproveMax: "20000000", // $20: the refund assistant may approve up to this
     defaultWindowSecs: 300, // 5-minute refund window so the whole flow fits in a demo
     responseSecs: 300, // merchant has 5 minutes to answer; silence = approve
     vetoSecs: 30, // merchant may object to an AI approval for 30 seconds
     minOrder: "1000000",
-    webhookUrl: `${PUBLIC_URL}/api/dev/webhook-sink?merchant=acme-analytics.${root.id}`,
+    webhookUrl: `${PUBLIC_URL}/api/dev/webhook-sink?merchant=tallyfox.${root.id}`,
   });
   await tickMerchants(executor, (m) => info(m));
   await db.product.createMany({
     data: [
       { merchantId: shop.id, name: "Pro plan · 1 year", emoji: "📈", description: "Unlimited dashboards and exports for a year. Paid once, held in escrow for a 5-minute refund window.", amount: "18000000", kind: "OneTime", windowSecs: 300 },
-      { merchantId: shop.id, name: "Team plan · prepaid", emoji: "👥", description: "Prepaid plan: 3 billing periods, one released to Acme every 3 minutes. Cancel and the unused periods come back. The plan pass is transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * 180, amount: "12000000" }))) },
+      { merchantId: shop.id, name: "Team plan · prepaid", emoji: "👥", description: "Prepaid plan: 3 billing periods, one released to Tallyfox every 3 minutes. Cancel and the unused periods come back. The plan pass is transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * 180, amount: "12000000" }))) },
       { merchantId: shop.id, name: "Onboarding & integration", emoji: "🛠️", description: "A setup project paid in three milestones that release over time: kickoff, integration, launch.", amount: "120000000", kind: "Schedule", scheduleJson: JSON.stringify([{ afterSecs: 0, amount: "30000000" }, { afterSecs: 240, amount: "50000000" }, { afterSecs: 480, amount: "40000000" }]) },
     ],
   });

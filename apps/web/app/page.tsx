@@ -1,8 +1,6 @@
-import path from "node:path";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Landing } from "@uc/landing";
-import { payJsGzipBytes } from "@uc/landing/measure";
 
 /** Absolute origin of this request (works behind Cloud Run / Caddy), for share-card URLs. */
 async function origin(): Promise<string> {
@@ -27,6 +25,5 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Landing page. The design lives in packages/landing so apps/site can serve the same page statically. */
 export default function Home() {
-  const bytes = payJsGzipBytes([path.join(process.cwd(), "public/pay.js"), path.join(process.cwd(), "apps/web/public/pay.js")]);
-  return <Landing stats={{ payJsGzipBytes: bytes }} />;
+  return <Landing />;
 }

@@ -87,7 +87,7 @@ const RADII = { square: ["Square", "6px"], rounded: ["Rounded", "14px"], pill: [
 const LABELS = ["Pay with Zap", "Pay with crypto", "Checkout"];
 
 export function DropIn() {
-  const { host, merchant, stats } = useApp();
+  const { host, merchant, payJsGzip } = useApp();
   const [color, setColor] = useState<keyof typeof COLORS>("ink");
   const [radius, setRadius] = useState<keyof typeof RADII>("pill");
   const [label, setLabel] = useState(0);
@@ -97,7 +97,7 @@ export function DropIn() {
   const attrs: string[] = [`merchant="${shop}"`, `amount="24"`, `product="Pro plan"`, `color="${col.bg}"`];
   if (radius !== "rounded") attrs.push(`radius="${RADII[radius][1]}"`);
   if (label !== 0) attrs.push(`label="${LABELS[label]}"`);
-  const kb = stats?.payJsGzipBytes ? `${(stats.payJsGzipBytes / 1000).toFixed(1)} kB gzipped` : "Small, gzipped";
+  const kb = payJsGzip ? `${(payJsGzip / 1000).toFixed(1)} kB gzipped` : "Small, gzipped";
 
   return (
     <section id="start" className="z-wrap z-sec" style={{ paddingTop: 32 }}>
@@ -290,11 +290,11 @@ const SCENARIOS = {
       ["Customer", "Exports are not working since I upgraded to Pro.", true, false],
       ["Refund assistant", "Sorry about that. What exactly is broken or not working? Please add a screenshot that shows it.", false, false],
       ["Customer", "Every export fails with an error. Screenshot attached.", true, true],
-      ["Refund assistant", "Thanks. A feature that doesn’t work is covered by Acme’s refund policy, and this is within what I can approve. Approved: 24.00 USDC goes back to you as ETH.", false, false],
+      ["Refund assistant", "Thanks. A feature that doesn’t work is covered by Tallyfox’s refund policy, and this is within what I can approve. Approved: 24.00 USDC goes back to you as ETH.", false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Held by receipt NFT #1042", true],
-      ["Business veto window", "Acme can still step in", true],
+      ["Business veto window", "Tallyfox can still step in", true],
       ["1Click swap back", "Quote ID logged on chain", true],
       ["ETH on Ethereum", "To 0x8f3a…c21a, the refund address", true],
     ] as Array<[string, string, boolean]>,
@@ -309,7 +309,7 @@ const SCENARIOS = {
     vFg: "var(--z-btn-fg)",
     chat: [
       ["Customer", "We don’t need it anymore. Can I get a refund?", true, false],
-      ["Refund assistant", "Acme’s policy refunds something that is broken, never activated or not as described, but not a change of mind, so I can’t approve this. You can appeal once and Acme will review it.", false, false],
+      ["Refund assistant", "Tallyfox’s policy refunds something that is broken, never activated or not as described, but not a change of mind, so I can’t approve this. You can appeal once and Tallyfox will review it.", false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Nothing moves", true],
@@ -328,13 +328,13 @@ const SCENARIOS = {
     vFg: "#111111",
     chat: [
       ["Customer", "SSO is not working for our whole team since the update. Screenshot attached.", true, true],
-      ["Refund assistant", "That is covered by Acme’s policy, but the amount is above what I may approve on my own, so I’ve sent Acme a summary. If they don’t answer by the deadline, it’s approved.", false, false],
+      ["Refund assistant", "That is covered by Tallyfox’s policy, but the amount is above what I may approve on my own, so I’ve sent Tallyfox a summary. If they don’t answer by the deadline, it’s approved.", false, false],
     ] as Msg[],
     route: [
-      ["24.00 USDC in escrow", "Held while Acme decides", true],
-      ["Summary sent to Acme", "With the chat and the attachment", true],
+      ["24.00 USDC in escrow", "Held while Tallyfox decides", true],
+      ["Summary sent to Tallyfox", "With the chat and the attachment", true],
       ["Decision deadline", "No answer in time means approved", false],
-      ["Refund or release", "Whatever Acme decides", false],
+      ["Refund or release", "Whatever Tallyfox decides", false],
     ] as Array<[string, string, boolean]>,
     outTitle: "Escalate: above your limits, or needs judgement",
     outBody: "The business gets a short summary. If they don’t respond by the decision deadline, the request is approved, so customers are never left waiting forever.",
@@ -380,7 +380,7 @@ export function Refunds() {
                 <div className="z-col" style={{ gap: 2, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
                   <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #1042</span>
                   <span className="z-muted" style={{ fontSize: 13 }}>
-                    Acme Analytics · Pro plan · 24.00 USDC in escrow
+                    Tallyfox · Pro plan · 24.00 USDC in escrow
                   </span>
                 </div>
                 <div key={scen} className="z-col" style={{ padding: 22, gap: 12 }}>
@@ -641,7 +641,7 @@ export function Verify() {
         ["Solvency", `Contract holds ${usdc(real.contractTotals.usdcBalance)} USDC for ${usdc(real.contractTotals.allocated)} owed`, BigInt(real.contractTotals.usdcBalance) >= BigInt(real.contractTotals.allocated)],
       ]
     : [
-        ["Attribution", "Payment attributed to acme.near", true],
+        ["Attribution", "Payment attributed to your-business.near", true],
         ["Refund destination", "ETH · Ethereum · 0x8f3a…c21a", true],
         ["Solvency", "Contract USDC covers every open receipt", true],
       ];

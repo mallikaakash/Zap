@@ -11,37 +11,50 @@ export interface AppInfo {
   mode?: string;
   /** First registered shop, for the real "pay $1" button. */
   merchant?: string | null;
-  /** Numbers measured at build/render time by the host app. */
-  stats?: LandingStats;
+  /** gzip size of the pay.js this host serves, measured in the browser. */
+  payJsGzip?: number;
   href: (path: string) => string;
 }
 
-export interface LandingStats {
-  /** gzip size of the pay.js this host serves. */
-  payJsGzipBytes?: number;
+/** Fetch pay.js and gzip it with the browser's CompressionStream: the size of the file actually served. */
+async function measureGzip(url: string): Promise<number | undefined> {
+  if (typeof CompressionStream === "undefined") return undefined;
+  const res = await fetch(url);
+  if (!res.ok || !res.body) return undefined;
+  const reader = res.body.pipeThrough(new CompressionStream("gzip")).getReader();
+  let bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return bytes;
+    bytes += value.byteLength;
+  }
 }
 
 const Ctx = createContext<AppInfo>({ appUrl: "", host: "", href: (p) => p });
 export const useApp = () => useContext(Ctx);
 
-export function AppProvider({ appUrl, demoMerchant, stats, children }: { appUrl: string; demoMerchant?: string; stats?: LandingStats; children: React.ReactNode }) {
+export function AppProvider({ appUrl, demoMerchant, children }: { appUrl: string; demoMerchant?: string; children: React.ReactNode }) {
   const base = appUrl.replace(/\/+$/, "");
   const [host, setHost] = useState(base);
   const [mode, setMode] = useState<string>();
   const [merchant, setMerchant] = useState<string | null | undefined>(demoMerchant);
   const href = useCallback((p: string) => `${base}${p}`, [base]);
+  const [payJsGzip, setPayJsGzip] = useState<number>();
   useEffect(() => {
     if (!base) setHost(window.location.origin);
     const get = <T,>(p: string) => fetch(`${base}${p}`, { headers: { accept: "application/json" } }).then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(String(r.status)))));
     get<{ mode: string }>("/api/dev/state")
       .then((r) => setMode(r.mode))
       .catch(() => {});
+    measureGzip(`${base}/pay.js`)
+      .then(setPayJsGzip)
+      .catch(() => {});
     if (!demoMerchant)
       get<{ merchants: Array<{ id: string }> }>("/api/merchants")
         .then((r) => setMerchant(r.merchants[0]?.id ?? null))
         .catch(() => setMerchant(null));
   }, [base, demoMerchant]);
-  return <Ctx.Provider value={{ appUrl: base, host, mode, merchant, stats, href }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ appUrl: base, host, mode, merchant, payJsGzip, href }}>{children}</Ctx.Provider>;
 }
 
 /** Inline style with CSS custom properties. */

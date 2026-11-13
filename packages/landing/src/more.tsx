@@ -106,12 +106,12 @@ export function Passes() {
               <span className="z-display" style={{ fontSize: 34, letterSpacing: "-0.03em" }}>
                 Team plan
               </span>
-              <span className="z-pm" style={{ fontSize: 15 }}>Acme Analytics · 6 months · 8 USDC a month</span>
+              <span className="z-pm" style={{ fontSize: 15 }}>Tallyfox · 6 months · 8 USDC a month</span>
             </div>
             <dl className="z-col" style={{ gap: 6, paddingTop: 18, borderTop: "1px solid var(--z-panel-line)", fontSize: 14, margin: 0 }} aria-live="polite">
               {(
                 [
-                  ["Released to Acme", usdc2(t.released), "inherit"],
+                  ["Released to Tallyfox", usdc2(t.released), "inherit"],
                   ["Still in escrow", usdc2(t.escrow), "inherit"],
                   ["Returned to you", usdc2(t.returned), ACCENT],
                 ] as const
@@ -129,7 +129,7 @@ export function Passes() {
             <ol style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 8 }}>
               {MONTHS.map((m, i) => {
                 let state: string, bg: string, fg: string, border: string;
-                if (i < p) [state, bg, fg, border] = ["Released to Acme", "var(--z-btn)", "var(--z-btn-fg)", "var(--z-btn)"];
+                if (i < p) [state, bg, fg, border] = ["Released to Tallyfox", "var(--z-btn)", "var(--z-btn-fg)", "var(--z-btn)"];
                 else if (i === p && p < PASS_PERIODS) [state, bg, fg, border] = [cancelled ? "Finishing, then released" : "In progress", ACCENT, "#111111", "#111111"];
                 else if (cancelled) [state, bg, fg, border] = ["Returned to you", "var(--z-soft)", "var(--z-muted)", "var(--z-line)"];
                 else [state, bg, fg, border] = ["Upcoming, in escrow", "var(--z-bg)", "var(--z-fg)", "var(--z-line)"];
@@ -202,7 +202,7 @@ export function Dashboard() {
           <div style={{ background: "#FFFFFF", borderRadius: "12px 12px 0 0", overflow: "hidden", display: "flex", flexWrap: "wrap", minHeight: 470 }}>
             <div className="z-lap-side" style={{ flex: "0 0 210px", background: "#F7F7F5", borderRight: "1px solid #EDEDEA", padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
               <span className="z-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, padding: "0 8px 14px" }}>
-                <Mark size={24} radius={7} /> Acme Analytics
+                <Mark size={24} radius={7} /> Tallyfox
               </span>
               {nav.map(([t, b], i) => (
                 <span key={t} style={{ padding: "9px 10px", borderRadius: 9, fontSize: 14, fontWeight: i === 0 ? 600 : 500, background: i === 0 ? "#F0F0EC" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

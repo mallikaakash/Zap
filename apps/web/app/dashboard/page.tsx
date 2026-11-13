@@ -115,7 +115,7 @@ function Onboard() {
               }
             }}
           >
-            <Field label="Business name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Acme Analytics" minLength={2} maxLength={60} required /></Field>
+            <Field label="Business name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Tallyfox" minLength={2} maxLength={60} required /></Field>
             <Field label="Email" hint="Where we send your dashboard link and payment notices."><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" required={!local} /></Field>
             <Field label="Pay me to (NEAR account)" hint={local ? "Local demo: leave empty and we create a throwaway account for you." : "Your NEAR account, e.g. yourname.near. Any NEAR wallet (Meteor, HOT, MyNearWallet) creates one for free. Payouts arrive as USDC."}>
               <input className="input mono" value={f.payout} onChange={(e) => setF({ ...f, payout: e.target.value })} placeholder="yourname.near" required={!local} autoComplete="off" spellCheck={false} />

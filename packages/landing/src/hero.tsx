@@ -357,10 +357,10 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
   if (f.screen === "shop")
     return (
       <div className="z-scr">
-        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>acme.app/pricing</div>
+        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>tallyfox.example/pricing</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span className="z-display" style={{ fontSize: 19 }}>
-            Acme Analytics
+            Tallyfox
           </span>
           <span style={muted}>Upgrade</span>
         </div>
@@ -388,7 +388,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
         <PayCta onClick={() => go({ step: 1, mode: "pay" })}>
           <Bolt /> Pay with Zap
         </PayCta>
-        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · Acme gets USDC</span>
+        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · Tallyfox gets USDC</span>
       </div>
     );
 
@@ -403,7 +403,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             $24.00
           </span>
         </div>
-        <span style={{ ...muted, marginTop: -6 }}>Acme Analytics · Pro plan, 1 year</span>
+        <span style={{ ...muted, marginTop: -6 }}>Tallyfox · Pro plan, 1 year</span>
         <div className="z-col" style={{ gap: 8 }}>
           <span id="z-paywith" style={{ fontSize: 13, fontWeight: 600 }}>
             Pay with
@@ -493,9 +493,9 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
       <span className="z-display" style={{ fontSize: 23, letterSpacing: "-0.02em" }}>
         {f.isRefund ? `Refunded in ${coin.label}` : "Order confirmed"}
       </span>
-      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>{f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `Acme is paid in USDC once the refund window ends. You paid in ${coin.label}.`}</span>
+      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>{f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `Tallyfox is paid in USDC once the refund window ends. You paid in ${coin.label}.`}</span>
       <button type="button" onClick={() => go({ step: 0, mode: "pay" })} style={{ marginTop: 10, minHeight: 46, padding: "0 22px", borderRadius: 999, border: 0, background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: 14 }}>
-        Back to Acme
+        Back to Tallyfox
       </button>
     </div>
   );
@@ -679,7 +679,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
             style={box(118, 28, 6, "#111111", "#FFFFFF", "#E6E6E1", { "--y": "-102px", "--z": "20px" })}
             front={
               <div className="z-display" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, letterSpacing: "0.02em", color: "#111111" }}>
-                ACME
+                TALLYFOX
               </div>
             }
           />
@@ -740,7 +740,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
 
 /** Measured, not invented: the real token list and the real size of pay.js. */
 export function Stats() {
-  const { href, mode, stats } = useApp();
+  const { href, mode, payJsGzip } = useApp();
   const [tokens, setTokens] = useState<{ n: number; chains: number } | null | undefined>(undefined);
   useEffect(() => {
     let live = true;
@@ -752,7 +752,7 @@ export function Stats() {
       live = false;
     };
   }, [href]);
-  const kb = stats?.payJsGzipBytes ? `${(stats.payJsGzipBytes / 1000).toFixed(1)} kB` : null;
+  const kb = payJsGzip ? `${(payJsGzip / 1000).toFixed(1)} kB` : null;
   const items: Array<[React.ReactNode, string]> = [
     [
       tokens === undefined ? <span className="z-skel" style={{ display: "inline-block", width: 150, height: 30 }} /> : tokens ? `${tokens.n} assets` : "Any asset",
@@ -762,7 +762,7 @@ export function Stats() {
           : `on ${tokens.chains} chains in this sandbox's list (live mode reads NEAR Intents)`
         : "that NEAR Intents 1Click lists, plus MetaMask on EVM chains",
     ],
-    [kb ?? "Tiny", kb ? "pay.js, gzipped, measured from this build. No dependencies" : "web component, no dependencies"],
+    [kb ?? "Tiny", kb ? "pay.js, gzipped, measured just now from the file this server serves. No dependencies" : "web component, no dependencies"],
     ["Original chain", "refunds return in the coin the customer paid with"],
     ["Public /verify", "anyone can check a receipt and that escrow covers it"],
   ];

@@ -21,7 +21,7 @@ pnpm demo
 Needs Node 22+ and pnpm. `pnpm demo` does the following:
 1. starts a **local NEAR sandbox** (the first run downloads a ~60 MB binary);
 2. deploys the prebuilt contracts from `contracts/artifacts/`, so **no Rust is needed**;
-3. creates a demo merchant, Acme Analytics, with three products (a one-time plan, a prepaid plan and a milestone project);
+3. creates a demo merchant, Tallyfox, with three products (a one-time plan, a prepaid plan and a milestone project);
 4. starts the web app and the settlement worker, then prints the links.
 
 Then:
