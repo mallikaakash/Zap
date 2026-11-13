@@ -10,6 +10,7 @@
     "test:contracts": "cd contracts && cargo test",
     "build:contracts": "bash scripts/build-contracts.sh",
     "typecheck": "pnpm -r --if-present typecheck",
+    "setup": "bash scripts/setup.sh",
     "skills:update": "npx skills update -p -y",
     "dev": "tsx scripts/dev.ts",
     "test:e2e": "tsx scripts/e2e.ts",

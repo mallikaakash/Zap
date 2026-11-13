@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "==> NEAR hackathon dev setup"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+echo "==> Universal Checkout / NEAR dev setup"
 
 if command -v rustc >/dev/null; then
   echo "Rust: $(rustc --version)"
@@ -10,18 +13,23 @@ else
   exit 1
 fi
 
+if ! rustup target list --installed | grep -q wasm32-unknown-unknown; then
+  echo "Adding wasm32-unknown-unknown target..."
+  rustup target add wasm32-unknown-unknown
+fi
+
 if ! command -v cargo-near >/dev/null; then
-  echo "Installing cargo-near..."
-  cargo install cargo-near --version 0.21.1 --locked
+  echo "Installing cargo-near (see contracts README for expected version)..."
+  cargo install cargo-near --locked
 fi
 
 if ! command -v near >/dev/null; then
   echo "Installing near-cli-rs globally..."
-  npm install -g near-cli-rs@latest
+  npm install -g near-cli-rs@0.31.1
 fi
 
 if ! command -v node >/dev/null; then
-  echo "Install Node.js 22+, 24+, or 26+ (see .nvmrc)"
+  echo "Install Node.js 22+ (see .nvmrc)"
   exit 1
 fi
 
@@ -33,10 +41,16 @@ if [ -f .nvmrc ] && command -v nvm >/dev/null 2>&1; then
   nvm use 2>/dev/null || true
 fi
 
-npm install
-npm install --prefix frontend
+if ! command -v pnpm >/dev/null; then
+  echo "Install pnpm 10+ (corepack enable && corepack prepare pnpm@10.32.1 --activate)"
+  exit 1
+fi
+
+pnpm install
+pnpm --filter @uc/db generate
 
 echo ""
-echo "Optional: enable MCP servers in .cursor/mcp.json and reload Cursor."
+echo "MCP: see .cursor/mcp.json and docs/near/tooling-inventory.md — reload Cursor after changes."
 echo "Fund testnet NEAR: https://near-faucet.io/"
+echo "Quickstart: pnpm demo"
 echo "Done."

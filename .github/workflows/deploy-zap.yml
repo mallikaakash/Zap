@@ -1,0 +1,74 @@
+# Deploy Zap (Universal Checkout) to Cloud Run on every push to main.
+# Runtime env (NEAR keys) stays on the Cloud Run service — only the image updates here.
+# GCP: github-deploy SA + WIF pool must allow repository mallikaakash/Zap.
+
+name: Deploy Zap (Cloud Run)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: zap-cloud-run
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  SERVICE_NAME: zap
+  IMAGE_NAME: zap
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate GCP variables
+        run: |
+          set -euo pipefail
+          for v in GCP_PROJECT_ID GCP_REGION GCP_WIF_PROVIDER GCP_WIF_SERVICE_ACCOUNT GCP_ARTIFACT_REPO; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Missing Actions variable $v (repo Settings → Secrets and variables → Actions → Variables)."
+              exit 1
+            fi
+          done
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_WIF_SERVICE_ACCOUNT: ${{ vars.GCP_WIF_SERVICE_ACCOUNT }}
+          GCP_ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run (keep existing env/secrets)
+        run: |
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --region="${{ vars.GCP_REGION }}" \
+            --image="$IMAGE" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=1 \
+            --max-instances=3 \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300
