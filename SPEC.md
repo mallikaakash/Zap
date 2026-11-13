@@ -322,6 +322,8 @@ Approved ─execute_refund─► Executed   (rollback on failed transfer → App
 
 ## 12. Sprint checklist (order = priority; stop-and-demo after each block)
 
+**Direction update (2026-11-13):** the demo runs for real on NEAR mainnet with real NEAR Intents (see DECISIONS.md "Real-money pivot"); WooCommerce, MCP, Shopify and OutLayer are cut.
+
 **Cut line.** Blocks A–D are the MVP: a contract, a worker, a Next.js app and a web component is already a lot for three days. Block F (AI triage) is the strongest differentiator after the refund path itself, so build at least the rule-based triage with the chat UI even if the NEAR AI call slips. Blocks E and G are cut candidates, in this order of value: WooCommerce plugin (proves "embed anywhere") → MCP server → testnet hosting → mainnet proof → Tidepool → Shopify → OutLayer. Inside D, a minimal dashboard (settings + receipts table + styler) beats a polished one. If time is short, the subscription *transfer* demo can be dropped before the refund path is.
 
 ### A. Foundation

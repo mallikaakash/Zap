@@ -36,3 +36,13 @@ Choices made while building that are not spelled out in `SPEC.md`, or that devia
 - **Email:** Resend in hosted mode; a dev inbox page in local mode.
 - **Remaining scope:** WooCommerce plugin and the real NEAR AI model stay in. MCP server and Shopify are cut; everything else goes to polish.
 - **Video story:** pay with any coin → item arrives broken → the assistant asks for a photo → it approves → the money returns on the original chain → a pass changes hands → "works on any site".
+
+## Real-money pivot (agreed 2026-11-13; supersedes "Real money" and "Remaining scope" above)
+- **The demo is a real product on NEAR mainnet** with real NEAR Intents. A testnet contract cannot hold mainnet USDC, so the receipt contract, executor and payouts are all on mainnet. `local` mode stays for development and tests.
+- **Accounts:** operator `aakash7777.near`, contract `checkout.aakash7777.near`, executor and relayer as subaccounts. The human deploys and funds them; Claude never holds mainnet keys or sends transactions.
+- **Customer wallet for the demo:** MetaMask paying with Polygon USDT. Any 1Click-supported coin works at checkout; EVM coins get a one-click MetaMask button, others use the address/QR.
+- **HTTPS:** no domain, so `<ip>.sslip.io` with Caddy. HTTPS is required for in-browser receipt keys and MetaMask.
+- **Database:** SQLite file on the VM's disk in live mode (persistent, backed up). Postgres only if we move to multiple servers.
+- **Demo timing is real time:** products carry their own refund window and subscription interval (minutes for the demo).
+- **"Collect payout" button** in the dashboard: anyone may call `release`; the contract enforces the rules.
+- **Cut:** WooCommerce, MCP server, Shopify, CronCat. The trust extra (payout changes signed by the seller) is out of scope.
