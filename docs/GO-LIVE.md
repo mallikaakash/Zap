@@ -2,13 +2,13 @@
 
 This takes Universal Checkout from the local demo to real payments: real NEAR Intents swaps, real USDC in the receipt contract, real refunds. **You** run every step that touches money or keys; nothing here sends a transaction without you typing `--yes`.
 
-Budget: about **7 NEAR** (~3.8 NEAR of it is code storage, locked rather than spent; the deploy script prints the exact figure first) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
+Budget: about **5.5 NEAR** (~3.8 NEAR of it is code storage, locked rather than spent; the deploy script prints the exact figure first) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
 
 ---
 
 ## 1. Fund the operator account
 
-Send about **7 NEAR** to `aakash7777.near`, for example from an exchange or another wallet.
+Send about **5.5 NEAR** to `aakash7777.near`, for example from an exchange or another wallet.
 
 ## 2. Give the deploy script your operator key (on your laptop)
 

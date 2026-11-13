@@ -71,9 +71,9 @@ async function main() {
   // Storage staking: 1e19 yocto per byte. Code + state margin for the contract; working balances for the signers.
   const codeStake = BigInt(wasm.length) * 10n ** 19n;
   const plan = [
-    { account: contract, fund: codeStake + yocto(1.0), why: `contract code ${Math.round(wasm.length / 1024)} KB (${fmt(codeStake)} locked) + state` },
-    { account: executor, fund: yocto(1.5), why: "gas, USDC registrations, prepaid receipt storage for sellers (0.014 NEAR per receipt)" },
-    { account: relayer, fund: yocto(0.3), why: "gas for relayed customer actions" },
+    { account: contract, fund: codeStake + yocto(0.5), why: `contract code ${Math.round(wasm.length / 1024)} KB (${fmt(codeStake)} locked) + state` },
+    { account: executor, fund: yocto(0.8), why: "gas, USDC registrations, prepaid receipt storage for sellers (0.014 NEAR per receipt)" },
+    { account: relayer, fund: yocto(0.2), why: "gas for relayed customer actions" },
   ];
   const opBalance = BigInt((await near.rpc.getAccount(operator).catch(() => die(`${operator} does not exist on ${networkId}`))).amount);
   const exists = Object.fromEntries(await Promise.all(plan.map(async (p) => [p.account, await near.accountExists(p.account)] as const)));
