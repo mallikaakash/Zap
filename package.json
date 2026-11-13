@@ -12,7 +12,9 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "skills:update": "npx skills update -p -y",
     "dev": "tsx scripts/dev.ts",
-    "test:e2e": "tsx scripts/e2e.ts"
+    "test:e2e": "tsx scripts/e2e.ts",
+    "deploy:mainnet": "tsx scripts/deploy-mainnet.ts",
+    "start": "tsx scripts/start.ts"
   },
   "engines": {
     "node": ">=22"
