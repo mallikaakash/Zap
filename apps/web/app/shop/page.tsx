@@ -19,8 +19,8 @@ const plain = (minor: string) => fromMinor(minor, 6, 0).replace(/,/g, "");
 
 /** The attributes a merchant would write by hand for each kind of product. */
 function buttonAttrs(p: Product) {
-  if (p.kind === "Subscription") return { mode: "subscription" as const, months: String(p.schedule.length), monthly: plain(p.schedule[0]?.amount ?? "0") };
-  if (p.kind === "Schedule") return { mode: "schedule" as const, tranches: JSON.stringify(p.schedule.map((t) => ({ afterDays: t.afterSecs / 86400, amount: plain(t.amount) }))) };
+  // The real schedule (intervals, refund window) comes from the product id on the server; these attributes only describe the total.
+  if (p.kind !== "OneTime") return { mode: "schedule" as const, tranches: JSON.stringify(p.schedule.map((t, i) => ({ afterDays: i, amount: plain(t.amount) }))) };
   return { mode: "one-time" as const, amount: plain(p.amount) };
 }
 
@@ -60,7 +60,7 @@ export default function Shop() {
         <p className="mt-2 max-w-2xl text-stone-600">
           An ordinary shop page. Each button below is one <code className="mono text-sm">&lt;pay-button&gt;</code> tag. Pay with any coin on any chain; the shop receives USDC, and your money waits in a receipt you control until the refund period ends.
         </p>
-        {state && state.timeScale > 1 ? <p className="mt-2 text-sm text-amber-800">Demo clock: schedule time is compressed, so “one month” passes in about {Math.round((30 * 86400) / state.timeScale)} seconds.</p> : null}
+
 
         {error ? <div className="mt-6"><Notice tone="bad">{error}</Notice></div> : null}
         {paid ? (
@@ -84,7 +84,7 @@ export default function Shop() {
                 {p.kind === "Schedule" ? <span className="text-sm font-normal text-stone-500"> · {p.schedule.length} milestones</span> : null}
               </p>
               <div className="mt-4">
-                {merchant ? <PayButton merchant={merchant.id} product={p.name} label="Pay any way" {...buttonAttrs(p)} onPaid={(d) => setPaid({ name: p.name, receiptId: d.receiptId })} /> : null}
+                {merchant ? <PayButton merchant={merchant.id} product={p.name} label="Pay any way" metadata={JSON.stringify({ productId: p.id })} {...buttonAttrs(p)} onPaid={(d) => setPaid({ name: p.name, receiptId: d.receiptId })} /> : null}
               </div>
             </article>
           ))}

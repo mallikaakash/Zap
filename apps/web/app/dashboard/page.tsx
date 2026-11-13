@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, chainName, duration, fromMinor, short, toMinor, until, usd } from "@/lib/client";
+import { api, chainName, duration, fromMinor, setSellerToken, short, toMinor, until, usd } from "@/lib/client";
 import { receiptStatus } from "@/lib/labels";
 import type { DashReceipt } from "@/lib/types";
 import { PayButton } from "@/components/pay-button";
@@ -10,6 +10,10 @@ import { CopyButton, Field, Logo, Notice, Pill, QR, SimBadge, Spinner, usePoll }
 interface Merchant {
   id: string;
   name: string;
+  email: string | null;
+  chainState: "pending" | "active" | "failed";
+  chainError: string | null;
+  dashboardUrl: string;
   payoutAccount: string;
   guardThreshold: string;
   defaultWindowSecs: number;
@@ -36,13 +40,17 @@ interface DevState {
   chainNow: string;
 }
 
-const TABS = ["Orders", "Button", "Settings", "Webhooks"] as const;
+const TABS = ["Orders", "Products", "Button", "Settings", "Notifications"] as const;
 type Tab = (typeof TABS)[number];
 const CATEGORIES = ["damaged", "not_received", "not_as_described", "changed_mind"];
 
 export default function Dashboard() {
   const [id, setId] = useState<string | null | undefined>(undefined);
-  useEffect(() => setId(new URLSearchParams(window.location.search).get("m")), []);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setSellerToken(q.get("t"));
+    setId(q.get("m"));
+  }, []);
   if (id === undefined) return null;
   return id ? <MerchantDash id={id} /> : <Onboard />;
 }
@@ -60,22 +68,38 @@ function Page({ children, right }: { children: ReactNode; right?: ReactNode }) {
 }
 
 function Onboard() {
-  const [merchants, setMerchants] = useState<Array<{ id: string; name: string }> | null>(null);
-  const [name, setName] = useState("");
-  const [payoutAccount, setPayoutAccount] = useState("");
+  const [f, setF] = useState({ name: "", email: "", payout: "" });
+  const [mode, setMode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<Merchant | null>(null);
   useEffect(() => {
-    api<{ merchants: Array<{ id: string; name: string }> }>("/api/merchants").then((r) => setMerchants(r.merchants)).catch((e: Error) => setError(e.message));
+    api<{ mode: string }>("/api/dev/state").then((r) => setMode(r.mode)).catch(() => setMode("live"));
   }, []);
+  const local = mode === "local";
+  if (created)
+    return (
+      <Page>
+        <div className="mx-auto max-w-lg space-y-4">
+          <div className="card space-y-4 p-6">
+            <h1 className="text-lg font-semibold">Your shop is ready</h1>
+            <p className="text-sm text-muted">Payments go to <span className="mono font-semibold text-ink">{created.payoutAccount}</span>. Registration on the contract takes a few seconds.</p>
+            <Notice tone="warn">
+              <strong>Save your private dashboard link.</strong> It is your login: anyone with it can manage this shop.{created.email ? " We also emailed it to you." : ""}
+              <span className="mono mt-2 block text-xs break-all">{created.dashboardUrl}</span>
+              <span className="mt-2 block"><CopyButton text={created.dashboardUrl} label="Copy link" /></span>
+            </Notice>
+            <a className="btn-primary w-full" href={created.dashboardUrl}>Open my dashboard</a>
+          </div>
+        </div>
+      </Page>
+    );
   return (
-    <Page>
+    <Page right={<SimBadge mode={mode ?? undefined} />}>
       <div className="mx-auto max-w-md space-y-4">
         <div className="card p-6">
-          <h1 className="text-lg font-semibold">Create your shop</h1>
-          <p className="mt-1 text-sm text-muted">
-            Give a display name and the NEAR account that should receive USDC. We register the shop on chain for you — no wallet popups. Refund decisions stay in this dashboard until email login ships.
-          </p>
+          <h1 className="text-lg font-semibold">Start accepting payments</h1>
+          <p className="mt-1 text-sm text-muted">Any coin on any chain in, USDC on NEAR out. No wallet to connect and nothing to sign.</p>
           <form
             className="mt-4 space-y-3"
             onSubmit={async (e) => {
@@ -83,49 +107,23 @@ function Onboard() {
               setBusy(true);
               setError(null);
               try {
-                const m = await api<Merchant>("/api/merchants", {
-                  body: { name, payoutAccount: payoutAccount.trim() },
-                });
-                window.location.href = `/dashboard?m=${m.id}`;
+                setCreated(await api<Merchant>("/api/merchants", { body: { name: f.name, email: f.email || undefined, payoutAccount: f.payout || undefined } }));
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Could not create the shop");
+              } finally {
                 setBusy(false);
               }
             }}
           >
-            <Field label="Shop name" hint="Shown to customers on checkout and receipts.">
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Coffee" minLength={2} maxLength={60} required />
-            </Field>
-            <Field
-              label="Payout NEAR account"
-              hint="USDC releases here after each refund window. Must already exist on this network (e.g. your testnet wallet from the faucet)."
-            >
-              <input
-                className="input mono text-sm"
-                value={payoutAccount}
-                onChange={(e) => setPayoutAccount(e.target.value)}
-                placeholder="you.testnet"
-                minLength={2}
-                maxLength={64}
-                required
-                autoComplete="off"
-                spellCheck={false}
-              />
+            <Field label="Shop name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Acme Coffee" minLength={2} maxLength={60} required /></Field>
+            <Field label="Email" hint="Where we send your dashboard link and payment notices."><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" required={!local} /></Field>
+            <Field label="Pay me to (NEAR account)" hint={local ? "Local demo: leave empty and we create a throwaway account for you." : "Your NEAR account, e.g. yourname.near. Any NEAR wallet (Meteor, HOT, MyNearWallet) creates one for free. Payouts arrive as USDC."}>
+              <input className="input mono" value={f.payout} onChange={(e) => setF({ ...f, payout: e.target.value })} placeholder="yourname.near" required={!local} autoComplete="off" spellCheck={false} />
             </Field>
             {error ? <Notice tone="bad">{error}</Notice> : null}
-            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Registering on chain…</> : "Create shop"}</button>
+            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Creating…</> : "Create shop"}</button>
           </form>
         </div>
-        {merchants && merchants.length > 0 ? (
-          <div className="card p-6">
-            <h2 className="text-sm font-semibold">Open an existing shop</h2>
-            <ul className="mt-2 divide-y divide-line">
-              {merchants.map((m) => (
-                <li key={m.id}><a className="flex items-center justify-between py-2.5 text-sm hover:text-accent" href={`/dashboard?m=${m.id}`}><span className="font-medium">{m.name}</span><span className="mono text-xs text-muted">{m.id}</span></a></li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </Page>
   );
@@ -138,26 +136,38 @@ function MerchantDash({ id }: { id: string }) {
   const { data: dev, refresh: refreshDev } = usePoll(() => api<DevState>("/api/dev/state"), 4000);
   const reload = () => api<Merchant>(`/api/merchants/${id}`).then(setM).catch((e: Error) => setError(e.message));
   useEffect(() => void reload(), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (m?.chainState === "active") return;
+    const t = setInterval(() => void reload(), 3000);
+    return () => clearInterval(t);
+  }, [m?.chainState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Choose a shop</a></Notice></Page>;
+  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Create a shop</a></Notice></Page>;
   if (!m) return <Page><p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p></Page>;
   return (
     <Page right={<><SimBadge mode={dev?.mode} /><a className="btn-ghost" href={`/shop?m=${m.id}`}>View shop</a></>}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{m.name}</h1>
-          <p className="mono text-xs text-muted">{m.id}</p>
+          <p className="mono text-xs text-muted">Paid out to {m.payoutAccount}</p>
         </div>
         {dev?.canTimeTravel ? <TimeTravel onDone={refreshDev} /> : null}
       </div>
-      <div role="tablist" className="mb-5 flex gap-1 border-b border-line">
+      {m.chainState !== "active" ? (
+        <div className="mb-4">
+          <Notice tone={m.chainError ? "bad" : "warn"}>
+            {m.chainError ? `Registering your shop on the contract failed: ${m.chainError}. It is retried automatically.` : "Registering your shop on the receipt contract… payments open in a few seconds."}
+          </Notice>
+        </div>
+      ) : null}
+      <div role="tablist" className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`-mb-px border-b-2 px-3.5 py-2.5 text-sm font-semibold transition ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-ink"}`}>
             {t}
           </button>
         ))}
       </div>
-      {tab === "Orders" ? <OrdersTab id={id} /> : tab === "Button" ? <ButtonTab m={m} onSaved={reload} /> : tab === "Settings" ? <SettingsTab m={m} onSaved={reload} /> : <WebhooksTab m={m} />}
+      {tab === "Orders" ? <OrdersTab id={id} /> : tab === "Products" ? <ProductsTab m={m} /> : tab === "Button" ? <ButtonTab m={m} onSaved={reload} /> : tab === "Settings" ? <SettingsTab m={m} onSaved={reload} /> : <WebhooksTab m={m} />}
     </Page>
   );
 }
@@ -304,6 +314,13 @@ function OrdersTab({ id }: { id: string }) {
                       </div>
                     ) : null}
                     <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const active = q && ["Open", "AiApproved", "Escalated", "Approved"].includes(q.state);
+                        const due = !active && BigInt(r.inFlight) === 0n && (r.kind === "OneTime" ? held > 0n && (r.confirmed || new Date(r.windowEnd) <= new Date(data.chainNow)) : r.schedule.some((t) => t.state === "Pending" && new Date(t.at) <= new Date(data.chainNow)));
+                        return due ? (
+                          <button className="btn-primary" disabled={busy !== null} onClick={() => act(`p${r.id}`, `/api/receipts/${r.id}/release`, {}, "Payout sent to your account.")}>{busy === `p${r.id}` ? <Spinner /> : null} Collect payout</button>
+                        ) : null;
+                      })()}
                       {held > 0n && !(q && ["Open", "AiApproved", "Escalated", "Approved"].includes(q.state)) ? (
                         <button className="btn-ghost" disabled={busy !== null} onClick={() => act(`m${r.id}`, `/api/receipts/${r.id}/merchant-refund`, {}, "Refund started. No customer key was needed.")}>{busy === `m${r.id}` ? <Spinner /> : null} Refund what is in escrow</button>
                       ) : null}
@@ -471,7 +488,14 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
 }
 
 function WebhooksTab({ m }: { m: Merchant }) {
-  const { data } = usePoll(() => api<{ deliveries: Array<{ id: string; event: string; status: string; attempts: number; lastError: string | null; createdAt: string }> }>(`/api/merchants/${m.id}/webhooks`), 3000, [m.id]);
+  const { data } = usePoll(
+    () =>
+      api<{ deliveries: Array<{ id: string; event: string; status: string; attempts: number; lastError: string | null; createdAt: string }>; emails: Array<{ id: string; subject: string; status: string; error: string | null; createdAt: string }> }>(
+        `/api/merchants/${m.id}/webhooks`,
+      ),
+    3000,
+    [m.id],
+  );
   const sample = `// Node — verify before you trust it
 const ts  = req.headers["x-uc-timestamp"];
 const sig = req.headers["x-uc-signature"];           // "sha256=<hex>"
@@ -489,14 +513,121 @@ if (!fresh || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
         <div className="flex items-center gap-2"><code className="mono min-w-0 flex-1 truncate rounded-xl border border-line px-3 py-2.5 text-xs">{m.webhookSecret}</code><CopyButton text={m.webhookSecret} /></div>
         <pre className="mono overflow-x-auto rounded-xl bg-slate-950 p-4 text-[12px] leading-relaxed text-slate-100">{sample}</pre>
       </div>
+      <div className="card p-6 lg:col-span-2">
+        <h2 className="font-semibold">Emails to {m.email ?? "you"}</h2>
+        {!m.email ? <p className="mt-2 text-sm text-muted">Add an email in Settings to get payment and refund notices.</p> : !data || data.emails.length === 0 ? <p className="mt-2 text-sm text-muted">No emails yet.</p> : (
+          <ul className="mt-3 divide-y divide-line">
+            {data.emails.map((e) => (
+              <li key={e.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="min-w-0"><span className="font-medium">{e.subject}</span><span className="block truncate text-xs text-muted">{new Date(e.createdAt).toLocaleString()}{e.error ? ` · ${e.error}` : ""}</span></span>
+                <Pill tone={e.status === "sent" ? "good" : e.status === "failed" ? "bad" : "neutral"}>{e.status === "dev" ? "dev inbox" : e.status}</Pill>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="card p-6">
-        <h2 className="font-semibold">Recent deliveries</h2>
+        <h2 className="font-semibold">Webhook deliveries</h2>
         {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.deliveries.length === 0 ? <p className="mt-3 text-sm text-muted">Nothing sent yet. Events appear here after the first payment.</p> : (
           <ul className="mt-3 divide-y divide-line">
             {data.deliveries.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <span className="min-w-0"><span className="mono font-medium">{d.event}</span><span className="block truncate text-xs text-muted">{new Date(d.createdAt).toLocaleTimeString()}{d.lastError ? ` · ${d.lastError}` : ""}</span></span>
                 <Pill tone={d.status === "delivered" ? "good" : d.status === "failed" ? "bad" : d.status === "skipped" ? "neutral" : "warn"}>{d.status === "skipped" ? "no URL set" : d.status}{d.attempts > 1 ? ` · ${d.attempts} tries` : ""}</Pill>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  amount: string;
+  kind: "OneTime" | "Subscription" | "Schedule";
+  schedule: Array<{ afterSecs: number; amount: string }>;
+  windowSecs: number | null;
+}
+
+function ProductsTab({ m }: { m: Merchant }) {
+  const { data, refresh } = usePoll(() => api<{ products: Product[] }>(`/api/merchants/${m.id}/products`), 15000, [m.id]);
+  const [f, setF] = useState({ kind: "OneTime", name: "", price: "1", window: "300", periods: "3", interval: "180", emoji: "🛍️", description: "" });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
+  const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const sub = f.kind === "Subscription";
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api(`/api/merchants/${m.id}/products`, {
+        body: sub
+          ? { kind: "Subscription", name: f.name, emoji: f.emoji, description: f.description, pricePerPeriodUsd: f.price, periods: Number(f.periods), intervalSecs: Number(f.interval) }
+          : { kind: "OneTime", name: f.name, emoji: f.emoji, description: f.description, priceUsd: f.price, windowSecs: f.window === "" ? undefined : Number(f.window) },
+      });
+      setMsg({ tone: "good", text: `${f.name} added. It is live on your shop page.` });
+      setF({ ...f, name: "", description: "" });
+      refresh();
+    } catch (err) {
+      setMsg({ tone: "bad", text: err instanceof Error ? err.message : "Could not add the product" });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <form className="card space-y-3 p-6" onSubmit={add}>
+        <h2 className="font-semibold">Add a product</h2>
+        <div className="flex gap-2" role="radiogroup">
+          {[["OneTime", "One-time"], ["Subscription", "Prepaid pass"]].map(([k, label]) => (
+            <button type="button" key={k} role="radio" aria-checked={f.kind === k} onClick={() => setF({ ...f, kind: k! })} className={`pill ring-1 ${f.kind === k ? "bg-accent text-white ring-accent" : "bg-white text-slate-600 ring-line"}`}>{label}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-[4rem_1fr] gap-3">
+          <Field label="Icon"><input className="input text-center" value={f.emoji} onChange={up("emoji")} maxLength={4} /></Field>
+          <Field label="Name"><input className="input" value={f.name} onChange={up("name")} placeholder={sub ? "Coffee club pass" : "Pour-over set"} required /></Field>
+        </div>
+        <Field label="Description"><input className="input" value={f.description} onChange={up("description")} maxLength={240} /></Field>
+        {sub ? (
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Per period (USD)"><input className="input tabular-nums" inputMode="decimal" value={f.price} onChange={up("price")} /></Field>
+            <Field label="Periods"><input className="input tabular-nums" value={f.periods} onChange={up("periods")} /></Field>
+            <Field label="Every (seconds)" hint={/^\d+$/.test(f.interval) ? duration(Number(f.interval)) : ""}><input className="input tabular-nums" value={f.interval} onChange={up("interval")} /></Field>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Price (USD)"><input className="input tabular-nums" inputMode="decimal" value={f.price} onChange={up("price")} /></Field>
+            <Field label="Refund window (seconds)" hint={/^\d+$/.test(f.window) ? duration(Number(f.window)) : "empty = shop default"}><input className="input tabular-nums" value={f.window} onChange={up("window")} /></Field>
+          </div>
+        )}
+        <p className="text-xs leading-relaxed text-muted">
+          {sub ? "The customer prepays every period. One period is released to you each interval; if they cancel, the periods not yet started go back to them." : "The money waits in escrow during the refund window, then is paid out to you."} Times are real: for a live demo use a few minutes.
+        </p>
+        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+        <button className="btn-primary" disabled={busy || !f.name.trim()}>{busy ? <Spinner /> : null} Add product</button>
+      </form>
+      <div className="card p-6">
+        <div className="flex items-center justify-between"><h2 className="font-semibold">Your products</h2><a className="text-sm font-semibold text-accent hover:underline" href={`/shop?m=${encodeURIComponent(m.id)}`}>Open shop page</a></div>
+        {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.products.length === 0 ? <p className="mt-3 text-sm text-muted">No products yet. You can also skip products and set the price on the button itself.</p> : (
+          <ul className="mt-3 divide-y divide-line">
+            {data.products.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <span className="min-w-0">
+                  <span className="font-semibold">{p.emoji} {p.name}</span>
+                  <span className="block text-xs text-muted">
+                    {p.kind === "Subscription" ? `${p.schedule.length} × ${usd(p.schedule[0]?.amount)} every ${duration(p.schedule[1]?.afterSecs ?? 0)}` : `${usd(p.amount)} · refund window ${p.windowSecs !== null ? duration(p.windowSecs) : duration(m.defaultWindowSecs)}`}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold tabular-nums">{usd(p.amount)}</span>
+                  <button className="text-xs font-semibold text-bad hover:underline" onClick={async () => { await api(`/api/merchants/${m.id}/products`, { method: "DELETE", body: { productId: p.id } }); refresh(); }}>Remove</button>
+                </span>
               </li>
             ))}
           </ul>

@@ -125,32 +125,37 @@ async function main() {
   Object.assign(process.env, runtime);
 
   step("Seeding the demo shop");
-  const { registerMerchant } = await import("@uc/core");
+  const { registerMerchant, tickMerchants, dashboardUrl } = await import("@uc/core");
   const { db } = await import("@uc/db");
+  // Same path a real seller takes: sign up with a payout account; the worker registers the shop on chain.
   const shop = await registerMerchant({
     name: "Demo Shop",
+    email: "seller@demo.local",
     guardThreshold: "50000000", // $50: above this, refunds always go to the merchant
     autoApproveMax: "20000000", // $20: the refund assistant may approve up to this
-    defaultWindowSecs: 600, // 10-minute refund window so the whole flow fits in a demo
+    defaultWindowSecs: 300, // 5-minute refund window so the whole flow fits in a demo
     responseSecs: 300, // merchant has 5 minutes to answer; silence = approve
     vetoSecs: 30, // merchant may object to an AI approval for 30 seconds
     minOrder: "1000000",
     webhookUrl: `${PUBLIC_URL}/api/dev/webhook-sink?merchant=demo-shop.${root.id}`,
   });
-  const month = 30 * 86400;
+  await tickMerchants(executor, (m) => info(m));
   await db.product.createMany({
     data: [
-      { merchantId: shop.id, name: "Ceramic pour-over set", emoji: "☕", description: "Hand-glazed dripper and two cups. One-time payment, held in escrow during the refund period.", amount: "18000000", kind: "OneTime" },
-      { merchantId: shop.id, name: "Roaster's Club · 3-month pass", emoji: "🎟️", description: "Prepaid pass. One month is released to the shop at a time; cancel and the rest comes back. Transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * month, amount: "12000000" }))) },
-      { merchantId: shop.id, name: "Custom espresso bar build", emoji: "🛠️", description: "Paid in three milestones that release over time: deposit, build, install.", amount: "120000000", kind: "Schedule", scheduleJson: JSON.stringify([{ afterSecs: 0, amount: "30000000" }, { afterSecs: month, amount: "50000000" }, { afterSecs: 2 * month, amount: "40000000" }]) },
+      { merchantId: shop.id, name: "Ceramic pour-over set", emoji: "☕", description: "Hand-glazed dripper and two cups. Held in escrow for a 5-minute refund window.", amount: "18000000", kind: "OneTime", windowSecs: 300 },
+      { merchantId: shop.id, name: "Roaster's Club pass", emoji: "🎟️", description: "Prepaid pass: 3 periods, one released to the shop every 3 minutes. Cancel and the rest comes back. Transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * 180, amount: "12000000" }))) },
+      { merchantId: shop.id, name: "Custom espresso bar build", emoji: "🛠️", description: "Paid in three milestones that release over time: deposit, build, install.", amount: "120000000", kind: "Schedule", scheduleJson: JSON.stringify([{ afterSecs: 0, amount: "30000000" }, { afterSecs: 240, amount: "50000000" }, { afterSecs: 480, amount: "40000000" }]) },
     ],
   });
+  const fresh = await db.merchant.findUniqueOrThrow({ where: { id: shop.id } });
+  if (fresh.chainState !== "active") fail("The demo shop could not be registered on the contract", fresh.chainError ?? "");
+  const DASHBOARD = dashboardUrl(fresh);
   info(`${shop.name} registered on chain as ${shop.id}`);
   await db.$disconnect();
 
   if (SETUP_ONLY) {
     console.log("\nSetup complete (--setup-only). Sandbox stays up until this process exits.");
-    console.log(JSON.stringify({ rpcUrl: sandbox.rpcUrl, receipts, usdc, merchant: shop.id }));
+    console.log(JSON.stringify({ rpcUrl: sandbox.rpcUrl, receipts, usdc, merchant: shop.id, dashboard: DASHBOARD }));
     return;
   }
 
@@ -189,7 +194,8 @@ async function main() {
 
   Start here        ${PUBLIC_URL}
   Demo shop         ${PUBLIC_URL}/shop
-  Merchant dashboard ${PUBLIC_URL}/dashboard?m=${shop.id}
+  Seller dashboard  ${DASHBOARD}
+  Dev inbox (emails) ${PUBLIC_URL}/dev/inbox
 
   Try: buy something in the shop → "Simulate payment" → open the receipt →
   request a refund → answer the assistant → watch the money go back.

@@ -32,6 +32,7 @@ export interface PayButtonProps {
   radius?: string;
   size?: string;
   icon?: string;
+  metadata?: string;
   onPaid?: (detail: { sessionId: string; receiptId?: string; receiptUrl?: string }) => void;
 }
 
