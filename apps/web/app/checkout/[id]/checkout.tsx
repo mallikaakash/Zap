@@ -204,7 +204,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
           <p className="text-xs font-semibold tracking-wide text-muted uppercase">{s.merchantName}</p>
           <h1 className="mt-1 text-lg font-semibold">{s.product ?? "Your order"}</h1>
           <p className="mt-0.5 text-xs text-muted">
-            {s.kind === "OneTime" ? "One-time payment" : s.kind === "Subscription" ? `Prepaid pass · ${s.schedule.length} periods, released to the shop over time` : `Paid in ${s.schedule.length} milestones, released to the shop over time`}
+            {s.kind === "OneTime" ? "One-time payment" : s.kind === "Subscription" ? `Prepaid plan · ${s.schedule.length} periods, released to the business over time` : `Paid in ${s.schedule.length} milestones, released to the business over time`}
           </p>
         </div>
         <div className="text-right">
@@ -225,7 +225,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
             <div>
               <h2 className="text-lg font-semibold">Payment complete</h2>
               <p className="mt-1 text-sm text-muted">
-                Your money is held by receipt #{s.receiptId}, not by the shop, until the refund period ends.
+                Your money is held by receipt #{s.receiptId}, not by the business, until the refund period ends.
               </p>
             </div>
             <a className="btn-primary w-full" href={receiptHref} target={embed ? "_blank" : undefined} rel="noreferrer">
@@ -246,7 +246,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
         ) : ["failed", "underpaid"].includes(s.status) ? (
           <div className="space-y-3">
             <Notice tone="bad">{s.error ?? "This payment did not complete."}</Notice>
-            <p className="text-sm text-muted">Nothing was charged to the shop. Go back to the shop to start a new payment.</p>
+            <p className="text-sm text-muted">Nothing was charged. Go back to the business's site to start a new payment.</p>
           </div>
         ) : choosing ? (
           <div className="space-y-4">
@@ -305,7 +305,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
                 ) : null}
               </span>
             </Field>
-            <Field label="Email (optional)" hint="For payment and refund updates from the shop.">
+            <Field label="Email (optional)" hint="For payment and refund updates.">
               <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
             </Field>
             <button className="btn-primary w-full" onClick={getQuote} disabled={busy !== null}>
@@ -320,7 +320,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
                 {s.amountInFormatted} <span className="text-base text-muted">{s.originSymbol}</span>
               </p>
               <p className="text-xs text-muted">
-                on {chainName(s.originChain)} · the shop receives {usd(s.amount)} in USDC
+                on {chainName(s.originChain)} · the business receives {usd(s.amount)} in USDC
               </p>
             </div>
             {s.status === "quoted" ? (

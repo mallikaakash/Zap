@@ -224,7 +224,7 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
           await syncSessionStatus(r);
           log(`receipt #${r.id}: refund delivered to ${r.refundTarget.address}`);
         } else if (isTerminalStatus(status)) {
-          await note(c, "The refund swap did not complete. The USDC was returned to the contract account; the shop has been told.", { payoutState: "failed", closed: true, error: `Refund swap ended as ${status}` });
+          await note(c, "The refund swap did not complete. The USDC was returned to the contract account; the business has been told.", { payoutState: "failed", closed: true, error: `Refund swap ended as ${status}` });
         }
         continue;
       }
@@ -269,7 +269,7 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
       const silence = (q.state === "Open" || q.state === "Escalated") && now >= new Date(q.decisionDeadline) && c.aiState !== "asking";
       if (vetoOver || silence) {
         const tx = await chain.finalizeRequest(executor, r.id);
-        await note(c, vetoOver ? "The shop's objection window passed. Your refund is being sent." : "The shop did not answer in time, so your refund was approved automatically.");
+        await note(c, vetoOver ? "The business's objection window passed. Your refund is being sent." : "The business did not answer in time, so your refund was approved automatically.");
         await db.chainEvent.create({ data: { receiptId: r.id, event: "request_finalized", dataJson: JSON.stringify({ reason: vetoOver ? "veto_window_passed" : "merchant_silent" }), txHash: tx.txHash } });
         log(`receipt #${r.id}: request finalised (${vetoOver ? "veto window passed" : "merchant silent"})`);
         continue;

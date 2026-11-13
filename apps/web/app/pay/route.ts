@@ -23,7 +23,7 @@ a:focus-visible{outline:2.5px solid var(--pink);outline-offset:2px}
 </style></head><body><main>
 <span class="mark"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="#ff2d87" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></span>Zap</span>
 <h1>This payment link isn't valid</h1>
-<p>Nothing was charged. The shop that sent you this link needs to fix it; let them know what went wrong:</p>
+<p>Nothing was charged. The business that sent you this link needs to fix it; let them know what went wrong:</p>
 <code>${esc(message)}</code>
 <a href="/">Go to Zap</a>
 </main></body></html>`;

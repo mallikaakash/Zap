@@ -60,15 +60,15 @@ function Honesty() {
   const body =
     mode === "live" ? (
       <>
-        <span className="z-dot live" /> <b>Hackathon prototype</b> · live on NEAR mainnet · real money, capped at $50 a payment
+        <span className="z-dot live" /> <b>Live on NEAR mainnet</b> · real money, capped at $50 a payment
       </>
     ) : mode ? (
       <>
-        <span className="z-dot sim" /> <b>Hackathon prototype</b> · simulated mode · no real money moves
+        <span className="z-dot sim" /> <b>Local demo</b> · simulated, no real money moves
       </>
     ) : (
       <>
-        <span className="z-dot" /> <b>Hackathon prototype</b> · unaudited contracts
+        <span className="z-dot" /> <b>Payments on NEAR</b> · unaudited contracts
       </>
     );
   return (
@@ -171,7 +171,7 @@ export function HeroFlow() {
       <div className="z-wrap" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 28, marginTop: poster ? 0 : 20 }}>
         <div className="z-col" style={{ flex: "1 1 340px", maxWidth: 460, gap: 20 }}>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--z-body)" }}>
-            One button on any checkout. Shoppers pay with what they hold, on any chain. You receive USDC, and every payment becomes a receipt NFT that keeps the money in escrow until the refund window closes.
+            Crypto checkout for SaaS and online businesses. Customers pay with what they hold, on any chain. You receive USDC, and every payment becomes a receipt NFT that keeps the money in escrow until the refund window closes.
           </p>
           <div className="z-row" style={{ gap: 12 }}>
             <a href="#start" className="z-btn ink">
@@ -357,22 +357,29 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
   if (f.screen === "shop")
     return (
       <div className="z-scr">
-        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>kettleandco.shop</div>
+        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>acme.app/pricing</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span className="z-display" style={{ fontSize: 19 }}>
-            Kettle &amp; Co.
+            Acme Analytics
           </span>
-          <span style={muted}>Cart · 1</span>
+          <span style={muted}>Upgrade</span>
         </div>
-        <div aria-hidden="true" style={{ height: 170, borderRadius: 20, background: "#F3F3F1", position: "relative", overflow: "hidden", flex: "none" }}>
-          <div style={{ position: "absolute", left: "50%", bottom: 26, width: 96, height: 70, transform: "translateX(-50%)", borderRadius: "0 0 48px 48px", background: "#FFFFFF", border: "1.5px solid #111111" }} />
-          <div style={{ position: "absolute", left: "50%", bottom: 92, width: 118, height: 14, transform: "translateX(-50%)", borderRadius: 8, background: "#111111" }} />
-          <div style={{ position: "absolute", left: "50%", bottom: 104, width: 70, height: 36, transform: "translateX(-50%)", borderRadius: "40px 40px 6px 6px", background: "#E6E6E1", border: "1.5px solid #111111" }} />
+        {/* a small product dashboard, so the plan reads as software */}
+        <div aria-hidden="true" style={{ height: 170, borderRadius: 20, background: "#F3F3F1", position: "relative", overflow: "hidden", flex: "none", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <span style={{ width: 54, height: 8, borderRadius: 4, background: "#111111" }} />
+            <span style={{ width: 30, height: 8, borderRadius: 4, background: "#CFCFCB" }} />
+          </div>
+          <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 12px", borderRadius: 12, background: "#FFFFFF", border: "1.5px solid #111111" }}>
+            {[38, 58, 46, 72, 64, 90].map((h, i) => (
+              <span key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 4, background: i === 5 ? "#111111" : "#D9D9D4" }} />
+            ))}
+          </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div className="z-col" style={{ gap: 3 }}>
-            <span style={{ fontWeight: 600, fontSize: 16 }}>Pour-over kit</span>
-            <span style={muted}>Ceramic dripper + 40 filters</span>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>Pro plan</span>
+            <span style={muted}>1 year · unlimited dashboards</span>
           </div>
           <span className="z-display" style={{ fontSize: 20 }}>
             $24.00
@@ -381,7 +388,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
         <PayCta onClick={() => go({ step: 1, mode: "pay" })}>
           <Bolt /> Pay with Zap
         </PayCta>
-        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · seller gets USDC</span>
+        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · Acme gets USDC</span>
       </div>
     );
 
@@ -396,7 +403,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             $24.00
           </span>
         </div>
-        <span style={{ ...muted, marginTop: -6 }}>Kettle &amp; Co. · Pour-over kit</span>
+        <span style={{ ...muted, marginTop: -6 }}>Acme Analytics · Pro plan, 1 year</span>
         <div className="z-col" style={{ gap: 8 }}>
           <span id="z-paywith" style={{ fontSize: 13, fontWeight: 600 }}>
             Pay with
@@ -486,9 +493,9 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
       <span className="z-display" style={{ fontSize: 23, letterSpacing: "-0.02em" }}>
         {f.isRefund ? `Refunded in ${coin.label}` : "Order confirmed"}
       </span>
-      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>{f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `Kettle & Co. is paid in USDC once the refund window ends. You paid in ${coin.label}.`}</span>
+      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>{f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `Acme is paid in USDC once the refund window ends. You paid in ${coin.label}.`}</span>
       <button type="button" onClick={() => go({ step: 0, mode: "pay" })} style={{ marginTop: 10, minHeight: 46, padding: "0 22px", borderRadius: 999, border: 0, background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: 14 }}>
-        Back to the shop
+        Back to Acme
       </button>
     </div>
   );
@@ -567,7 +574,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
 
   return (
     <>
-      {/* route: phone → bridge in the shopper's coin, then USDC to the safe and the shop, then off the edge */}
+      {/* route: phone → bridge in the customer's coin, then USDC to the safe and the business, then off the edge */}
       <svg aria-hidden="true" viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0, width: W, height: H, overflow: "visible", pointerEvents: "none" }}>
         <path d={`M${phone[0]},${phone[1] - 58} Q${(phone[0] + bridgeStart[0]) / 2},${Math.min(phone[1], bridgeStart[1]) - 150} ${bridgeStart[0]},${bridgeStart[1]}`} fill="none" stroke={coin.color} strokeWidth="3" strokeDasharray="2 9" strokeLinecap="round" style={{ transition: "stroke .4s ease" }} />
         <g transform={`translate(${SX} ${SY})`}>
@@ -651,7 +658,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
           />
         </Obj>
 
-        {/* seller's shop */}
+        {/* the business (payout) */}
         <Obj x={P.shop.x} z={P.shop.z} lift={f.lf.shop} k={P.shop.k}>
           <div className="z-gs" style={v({ "--sw": "250px", "--sh": "200px" })} />
           <Bx
@@ -662,7 +669,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
                   <span style={{ position: "absolute", right: 5, top: 26, width: 5, height: 5, borderRadius: "50%", background: "#111111" }} />
                 </div>
                 <div style={{ position: "absolute", right: 16, top: 34, width: 68, height: 38, border: "1.5px solid #111111", backgroundColor: "#E3EAFF", backgroundImage: "linear-gradient(#111111,#111111), linear-gradient(#111111,#111111)", backgroundSize: "1.5px 100%, 100% 1.5px", backgroundPosition: "center, center", backgroundRepeat: "no-repeat" }} />
-                <div style={{ position: "absolute", left: -4, right: -4, top: -1.5, height: 30, border: "1.5px solid #111111", background: "repeating-linear-gradient(90deg,#111111 0 16px,#FFFFFF 16px 32px)", transformOrigin: "50% 0", transform: "rotateX(52deg)" }} />
+                <div style={{ position: "absolute", left: 18, top: 10, width: 36, height: 18, border: "1.5px solid #111111", background: "#E3EAFF" }} />
               </>
             }
             right={<div style={{ position: "absolute", left: 30, top: 30, width: 50, height: 36, border: "1.5px solid #111111", background: "#D3DCF5" }} />}
@@ -672,13 +679,13 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
             style={box(118, 28, 6, "#111111", "#FFFFFF", "#E6E6E1", { "--y": "-102px", "--z": "20px" })}
             front={
               <div className="z-display" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, letterSpacing: "0.02em", color: "#111111" }}>
-                KETTLE &amp; CO.
+                ACME
               </div>
             }
           />
         </Obj>
 
-        {/* USDC stack at the shop */}
+        {/* USDC stack at the business */}
         <Obj x={P.stack.x} z={P.stack.z} lift={f.lf.shop} k={P.stack.k}>
           <div className="z-gs" style={v({ "--sw": "120px", "--sh": "120px" })} />
           {f.usdcDiscs.map((d, i) => (
@@ -756,7 +763,7 @@ export function Stats() {
         : "that NEAR Intents 1Click lists, plus MetaMask on EVM chains",
     ],
     [kb ?? "Tiny", kb ? "pay.js, gzipped, measured from this build. No dependencies" : "web component, no dependencies"],
-    ["Original chain", "refunds return in the coin the shopper paid with"],
+    ["Original chain", "refunds return in the coin the customer paid with"],
     ["Public /verify", "anyone can check a receipt and that escrow covers it"],
   ];
   return (

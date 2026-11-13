@@ -15,7 +15,7 @@ async function origin(): Promise<string> {
 export async function generateMetadata(): Promise<Metadata> {
   const base = await origin();
   const title = "Zap · Any coin in, USDC out";
-  const description = "One pay button for any site. Shoppers pay in any coin on any chain through NEAR Intents; sellers get USDC; every payment is a receipt NFT that holds the money in escrow until the refund window closes.";
+  const description = "Crypto checkout for SaaS and online businesses. Customers pay in any coin on any chain through NEAR Intents; you get USDC; every payment is a receipt NFT that holds the money in escrow until the refund window closes.";
   return {
     title,
     description,

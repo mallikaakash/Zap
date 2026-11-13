@@ -42,12 +42,12 @@ export default function VerifyPage({ params }: { params: Promise<{ id: string }>
             <p className="mt-1 text-sm text-muted">Read from contract <span className="mono">{v.contract}</span> on {v.networkId}. The executor attributes payments to orders and passes refund deposit addresses; this page shows what it did so anyone can check.</p>
             <div className="mt-4">
               <Row k="Amount">{usd(v.receipt.amount)}</Row>
-              <Row k="Paid to shop / refunded">{usd(v.receipt.released)} / {usd(v.receipt.refunded)}</Row>
+              <Row k="Paid out / refunded">{usd(v.receipt.released)} / {usd(v.receipt.refunded)}</Row>
               <Row k="Refund target (on chain)"><span className="mono">{short(v.receipt.refundTarget.address, 12, 10)}</span> · {v.receipt.refundTarget.chain}</Row>
               <Row k="Order reference (hash)"><span className="mono">{short(v.receipt.orderRef, 10, 10)}</span></Row>
               {v.attribution ? (
                 <>
-                  <Row k="Matches the shop's order">{v.attribution.matches ? <Pill tone="good">Yes</Pill> : <Pill tone="bad">No</Pill>}</Row>
+                  <Row k="Matches the merchant's order">{v.attribution.matches ? <Pill tone="good">Yes</Pill> : <Pill tone="bad">No</Pill>}</Row>
                   <Row k="Amount matches the order">{v.attribution.amountMatches ? <Pill tone="good">Yes</Pill> : <Pill tone="bad">No</Pill>}</Row>
                   <Row k="How it was paid">{v.attribution.direct ? "USDC sent straight to the contract" : "Swap delivered to the contract; executor minted the receipt"}</Row>
                 </>

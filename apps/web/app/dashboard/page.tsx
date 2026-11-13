@@ -82,10 +82,10 @@ function Onboard() {
       <Page>
         <div className="mx-auto max-w-lg space-y-4">
           <div className="card space-y-4 p-6">
-            <h1 className="text-lg font-semibold">Your shop is ready</h1>
+            <h1 className="text-lg font-semibold">Your merchant account is ready</h1>
             <p className="text-sm text-muted">Payments go to <span className="mono font-semibold text-ink">{created.payoutAccount}</span>. Registration on the contract takes a few seconds.</p>
             <Notice tone="warn">
-              <strong>Save your private dashboard link.</strong> It is your login: anyone with it can manage this shop.{created.email ? " We also emailed it to you." : ""}
+              <strong>Save your private dashboard link.</strong> It is your login: anyone with it can manage this account.{created.email ? " We also emailed it to you." : ""}
               <span className="mono mt-2 block text-xs break-all">{created.dashboardUrl}</span>
               <span className="mt-2 block"><CopyButton text={created.dashboardUrl} label="Copy link" /></span>
             </Notice>
@@ -109,19 +109,19 @@ function Onboard() {
               try {
                 setCreated(await api<Merchant>("/api/merchants", { body: { name: f.name, email: f.email || undefined, payoutAccount: f.payout || undefined } }));
               } catch (err) {
-                setError(err instanceof Error ? err.message : "Could not create the shop");
+                setError(err instanceof Error ? err.message : "Could not create the merchant account");
               } finally {
                 setBusy(false);
               }
             }}
           >
-            <Field label="Shop name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Acme Coffee" minLength={2} maxLength={60} required /></Field>
+            <Field label="Business name"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Acme Analytics" minLength={2} maxLength={60} required /></Field>
             <Field label="Email" hint="Where we send your dashboard link and payment notices."><input className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" required={!local} /></Field>
             <Field label="Pay me to (NEAR account)" hint={local ? "Local demo: leave empty and we create a throwaway account for you." : "Your NEAR account, e.g. yourname.near. Any NEAR wallet (Meteor, HOT, MyNearWallet) creates one for free. Payouts arrive as USDC."}>
               <input className="input mono" value={f.payout} onChange={(e) => setF({ ...f, payout: e.target.value })} placeholder="yourname.near" required={!local} autoComplete="off" spellCheck={false} />
             </Field>
             {error ? <Notice tone="bad">{error}</Notice> : null}
-            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Creating…</> : "Create shop"}</button>
+            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Creating…</> : "Create merchant account"}</button>
           </form>
         </div>
       </div>
@@ -142,7 +142,7 @@ function MerchantDash({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [m?.chainState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Create a shop</a></Notice></Page>;
+  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Create a merchant account</a></Notice></Page>;
   if (!m) return <Page><p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p></Page>;
   return (
     <Page right={<><SimBadge mode={dev?.mode} /><a className="btn-ghost" href={`/shop?m=${m.id}`}>View shop</a></>}>
@@ -156,7 +156,7 @@ function MerchantDash({ id }: { id: string }) {
       {m.chainState !== "active" ? (
         <div className="mb-4">
           <Notice tone={m.chainError ? "bad" : "warn"}>
-            {m.chainError ? `Registering your shop on the contract failed: ${m.chainError}. It is retried automatically.` : "Registering your shop on the receipt contract… payments open in a few seconds."}
+            {m.chainError ? `Registering your account on the contract failed: ${m.chainError}. It is retried automatically.` : "Registering your account on the receipt contract… payments open in a few seconds."}
           </Notice>
         </div>
       ) : null}
@@ -240,8 +240,8 @@ function OrdersTab({ id }: { id: string }) {
       {data.receipts.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="font-semibold">No orders yet</p>
-          <p className="mt-1 text-sm text-muted">Payments appear here as receipts the moment they are minted. Try the button in your shop.</p>
-          <a className="btn-primary mt-4" href={`/shop?m=${id}`}>Open the shop</a>
+          <p className="mt-1 text-sm text-muted">Payments appear here as receipts the moment they are minted. Try the button on your pricing page or in your app.</p>
+          <a className="btn-primary mt-4" href={`/shop?m=${id}`}>Open the business</a>
         </div>
       ) : (
         <div className="card divide-y divide-line">
@@ -284,10 +284,10 @@ function OrdersTab({ id }: { id: string }) {
                       {decidable ? (
                         <>
                           <button className="btn-primary" disabled={busy !== null} onClick={() => act(`a${r.id}`, `/api/receipts/${r.id}/approve`, {}, "Refund approved. It is being sent back to the customer.")}>{busy === `a${r.id}` ? <Spinner /> : null} Approve refund</button>
-                          <button className="btn-danger" disabled={busy !== null} onClick={() => act(`r${r.id}`, `/api/receipts/${r.id}/reject`, { note: "Declined by the shop" }, "Request declined. The money stays in escrow until the window ends.")}>{busy === `r${r.id}` ? <Spinner /> : null} Decline</button>
+                          <button className="btn-danger" disabled={busy !== null} onClick={() => act(`r${r.id}`, `/api/receipts/${r.id}/reject`, { note: "Declined by the businep" }, "Request declined. The money stays in escrow until the window ends.")}>{busy === `r${r.id}` ? <Spinner /> : null} Decline</button>
                         </>
                       ) : (
-                        <button className="btn-ghost" disabled={busy !== null} onClick={() => act(`v${r.id}`, `/api/receipts/${r.id}/veto`, { note: "Shop asked to review" }, "Paused. The request is now waiting for your decision.")}>{busy === `v${r.id}` ? <Spinner /> : null} Object and review it myself</button>
+                        <button className="btn-ghost" disabled={busy !== null} onClick={() => act(`v${r.id}`, `/api/receipts/${r.id}/veto`, { note: "The business asked to review" }, "Paused. The request is now waiting for your decision.")}>{busy === `v${r.id}` ? <Spinner /> : null} Object and review it myself</button>
                       )}
                     </div>
                   </div>
@@ -588,7 +588,7 @@ function ProductsTab({ m }: { m: Merchant }) {
           ? { kind: "Subscription", name: f.name, emoji: f.emoji, description: f.description, pricePerPeriodUsd: f.price, periods: Number(f.periods), intervalSecs: Number(f.interval) }
           : { kind: "OneTime", name: f.name, emoji: f.emoji, description: f.description, priceUsd: f.price, windowSecs: f.window === "" ? undefined : Number(f.window) },
       });
-      setMsg({ tone: "good", text: `${f.name} added. It is live on your shop page.` });
+      setMsg({ tone: "good", text: `${f.name} added. It is live on your demo checkout page.` });
       setF({ ...f, name: "", description: "" });
       refresh();
     } catch (err) {
@@ -608,7 +608,7 @@ function ProductsTab({ m }: { m: Merchant }) {
         </div>
         <div className="grid grid-cols-[4rem_1fr] gap-3">
           <Field label="Icon"><input className="input text-center" value={f.emoji} onChange={up("emoji")} maxLength={4} /></Field>
-          <Field label="Name"><input className="input" value={f.name} onChange={up("name")} placeholder={sub ? "Coffee club pass" : "Pour-over set"} required /></Field>
+          <Field label="Name"><input className="input" value={f.name} onChange={up("name")} placeholder={sub ? "Team plan, prepaid" : "Pro plan, 1 year"} required /></Field>
         </div>
         <Field label="Description"><input className="input" value={f.description} onChange={up("description")} maxLength={240} /></Field>
         {sub ? (
@@ -620,7 +620,7 @@ function ProductsTab({ m }: { m: Merchant }) {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Price (USD)"><input className="input tabular-nums" inputMode="decimal" value={f.price} onChange={up("price")} /></Field>
-            <Field label="Refund window (seconds)" hint={/^\d+$/.test(f.window) ? duration(Number(f.window)) : "empty = shop default"}><input className="input tabular-nums" value={f.window} onChange={up("window")} /></Field>
+            <Field label="Refund window (seconds)" hint={/^\d+$/.test(f.window) ? duration(Number(f.window)) : "empty = account default"}><input className="input tabular-nums" value={f.window} onChange={up("window")} /></Field>
           </div>
         )}
         <p className="text-xs leading-relaxed text-muted">

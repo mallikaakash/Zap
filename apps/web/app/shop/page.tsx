@@ -26,7 +26,7 @@ const TIMEOUT_MS = 15_000;
 
 /** Fail instead of spinning forever when the server is slow or unreachable. */
 function withTimeout<T>(p: Promise<T>): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("The shop took too long to answer.")), TIMEOUT_MS))]);
+  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("The demo checkout took too long to answer.")), TIMEOUT_MS))]);
 }
 
 export default function Shop() {
@@ -47,7 +47,7 @@ export default function Shop() {
       })(),
     )
       .then(setLoad)
-      .catch((e: unknown) => setLoad({ s: "error", message: e instanceof Error ? e.message : "Could not load the shop." }));
+      .catch((e: unknown) => setLoad({ s: "error", message: e instanceof Error ? e.message : "Could not load the demo checkout." }));
   }, []);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function Shop() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <a href="/shop" className="flex items-center gap-3">
             <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-              {merchant?.name ?? "Demo shop"}
+              {merchant?.name ?? "Demo checkout"}
             </span>
             <span className="pill bg-accent-soft text-muted">powered by Zap</span>
           </a>
@@ -82,15 +82,15 @@ export default function Shop() {
       </header>
 
       <main className="mx-auto max-w-5xl px-5 py-10">
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Small-batch coffee gear</h1>
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Plans and pricing</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-muted">
-          An ordinary shop page. Each button below is one <code className="mono text-sm text-ink">&lt;pay-button&gt;</code> tag. Pay with any coin on any chain; the shop receives USDC, and your money waits in a receipt you control until the refund period ends.
+          An ordinary pricing page. Each button below is one <code className="mono text-sm text-ink">&lt;pay-button&gt;</code> tag. Customers pay with any coin on any chain; the business receives USDC, and the money waits in a receipt the customer controls until the refund period ends.
         </p>
 
         {paid ? (
           <div className="mt-6">
             <Notice tone="good">
-              Thanks! The shop was told about your payment for <strong>{paid.name}</strong> by a signed webhook{paid.receiptId ? ` (receipt #${paid.receiptId})` : ""}. Your receipt link is in the checkout window; keep it.
+              Thanks! The business was told about your payment for <strong>{paid.name}</strong> by a signed webhook{paid.receiptId ? ` (receipt #${paid.receiptId})` : ""}. Your receipt link is in the checkout window; keep it.
             </Notice>
           </div>
         ) : null}
@@ -111,11 +111,11 @@ export default function Shop() {
         {load.s === "no-shop" ? (
           <div className="card mt-8 max-w-xl p-6">
             <Logo />
-            <h2 className="mt-5 text-xl font-bold">No shop is set up on this server yet</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">This demo page shows the first shop registered here. Create one in the merchant dashboard: it takes a minute, and you can add a product and a pass straight away.</p>
+            <h2 className="mt-5 text-xl font-bold">No merchant is set up on this server yet</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">This demo checkout shows the first merchant registered here. Create one in the merchant dashboard: it takes a minute, and you can add a product and a pass straight away.</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <a className="btn-primary" href="/dashboard">
-                Set up a shop
+                Set up a merchant account
               </a>
               <a className="btn-ghost" href="/">
                 Back to Zap
@@ -135,8 +135,8 @@ export default function Shop() {
 
         {load.s === "ready" && load.products.length === 0 ? (
           <div className="card mt-8 max-w-xl p-6">
-            <h2 className="text-xl font-bold">{load.merchant.name} has no products yet</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">Products are added in the merchant dashboard, under Products. A one-time item and a prepaid pass are enough to try every flow.</p>
+            <h2 className="text-xl font-bold">{load.merchant.name} has no plans or products yet</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">Plans and products are added in the merchant dashboard, under Products. A one-time plan and a prepaid plan are enough to try every flow.</p>
             <a className="btn-primary mt-5" href={`/dashboard?m=${load.merchant.id}`}>
               Open the dashboard
             </a>

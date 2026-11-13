@@ -15,7 +15,7 @@ export function Gasless() {
     {
       n: "01",
       title: "Your browser makes a receipt key",
-      body: "An ed25519 key, created on the shopper's device for their receipt.",
+      body: "An ed25519 key, created on the customer's device for their receipt.",
       ink: false,
       icon: (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -41,7 +41,7 @@ export function Gasless() {
     {
       n: "03",
       title: "We relay it and pay the gas",
-      body: "The server forwards the signed action. The shopper never buys NEAR.",
+      body: "The server forwards the signed action. The customer never buys NEAR.",
       ink: true,
       icon: (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -53,7 +53,7 @@ export function Gasless() {
   ];
   return (
     <section className="z-wrap z-sec">
-      <Head eyebrow="FOR SHOPPERS" lead="Shoppers manage their receipt, and ask for refunds, without ever setting up NEAR.">
+      <Head eyebrow="FOR YOUR CUSTOMERS" lead="Customers manage their receipt, and ask for refunds, without ever setting up NEAR.">
         No NEAR wallet. <span className="z-acc">No gas.</span>
       </Head>
       <div className="z-grid" style={{ ["--min" as string]: "280px", gap: 16 }}>
@@ -87,31 +87,31 @@ export function Passes() {
       ? "All six months released. The pass ran its full course."
       : cancelled
         ? `Cancelled in ${MONTHS[p]}. That month finishes, and ${usdc2(t.returned)} USDC for the months not started goes back.`
-        : `${MONTHS[p]} is in progress. Each month releases to the shop only once it has started.`;
+        : `${MONTHS[p]} is in progress. Each month releases to the business only once it has started.`;
   return (
     <section className="z-band">
       <div className="z-wrap z-sec">
-        <Head eyebrow="PREPAID PASSES" lead="A pass releases payment to the shop one period at a time. Cancel, and every period that hasn't started comes back.">
+        <Head eyebrow="PREPAID PLANS" lead="A prepaid plan releases payment to you one billing period at a time. If the customer cancels, every period that hasn't started goes back to them.">
           Subscriptions that pay out <span className="z-acc">as they&apos;re earned.</span>
         </Head>
         <div className="z-grid" style={{ ["--min" as string]: "340px", alignItems: "stretch" }}>
           <div className="z-card ink" style={{ borderRadius: 28, padding: 30, justifyContent: "space-between", gap: 28, minHeight: 300 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
-                PASS NFT · TRANSFERABLE
+                PLAN PASS · TRANSFERABLE
               </span>
               <Bolt size={22} />
             </div>
             <div className="z-col" style={{ gap: 6 }}>
               <span className="z-display" style={{ fontSize: 34, letterSpacing: "-0.03em" }}>
-                Coffee Club
+                Team plan
               </span>
-              <span className="z-pm" style={{ fontSize: 15 }}>Kettle &amp; Co. · 6 months · 8 USDC a month</span>
+              <span className="z-pm" style={{ fontSize: 15 }}>Acme Analytics · 6 months · 8 USDC a month</span>
             </div>
             <dl className="z-col" style={{ gap: 6, paddingTop: 18, borderTop: "1px solid var(--z-panel-line)", fontSize: 14, margin: 0 }} aria-live="polite">
               {(
                 [
-                  ["Released to shop", usdc2(t.released), "inherit"],
+                  ["Released to Acme", usdc2(t.released), "inherit"],
                   ["Still in escrow", usdc2(t.escrow), "inherit"],
                   ["Returned to you", usdc2(t.returned), ACCENT],
                 ] as const
@@ -129,7 +129,7 @@ export function Passes() {
             <ol style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 8 }}>
               {MONTHS.map((m, i) => {
                 let state: string, bg: string, fg: string, border: string;
-                if (i < p) [state, bg, fg, border] = ["Released to shop", "var(--z-btn)", "var(--z-btn-fg)", "var(--z-btn)"];
+                if (i < p) [state, bg, fg, border] = ["Released to Acme", "var(--z-btn)", "var(--z-btn-fg)", "var(--z-btn)"];
                 else if (i === p && p < PASS_PERIODS) [state, bg, fg, border] = [cancelled ? "Finishing, then released" : "In progress", ACCENT, "#111111", "#111111"];
                 else if (cancelled) [state, bg, fg, border] = ["Returned to you", "var(--z-soft)", "var(--z-muted)", "var(--z-line)"];
                 else [state, bg, fg, border] = ["Upcoming, in escrow", "var(--z-bg)", "var(--z-fg)", "var(--z-line)"];
@@ -164,7 +164,7 @@ export function Passes() {
                 Reset
               </button>
             </div>
-            <span className="z-muted" style={{ fontSize: 13 }}>Passes are transferable NFTs. One-time receipts aren&apos;t.</span>
+            <span className="z-muted" style={{ fontSize: 13 }}>Plan passes are transferable NFTs, so a seat can change hands. One-time receipts aren&apos;t.</span>
           </div>
         </div>
       </div>
@@ -185,16 +185,16 @@ export function Dashboard() {
     ["Webhook & email logs", ""],
   ];
   const orders: Array<[string, string, string, string, string, string, string]> = [
-    ["#1042", "Pour-over kit", "24.00 USDC", "ETH", "Refund approved", "#FFF3F8", "#111111"],
-    ["#1041", "Burr grinder", "48.00 USDC", "BTC", "Released", "#111111", "#FFFFFF"],
-    ["#1040", "Coffee Club pass", "48.00 USDC", "SOL", "Pass · 2 of 6", "#F4F4F1", "#111111"],
-    ["#1039", "Paper filters", "9.00 USDC", "USDC", "Refunded", "#F4F4F1", "#5C5C5C"],
-    ["#1038", "Gooseneck kettle", "33.00 USDC", "USDT", "In escrow", "#E3EAFF", "#111111"],
+    ["#1042", "Pro plan · 1 year", "24.00 USDC", "ETH", "Refund approved", "#FFF3F8", "#111111"],
+    ["#1041", "Team plan · 6 seats", "48.00 USDC", "BTC", "Released", "#111111", "#FFFFFF"],
+    ["#1040", "Team plan · prepaid", "48.00 USDC", "SOL", "Plan · 2 of 6", "#F4F4F1", "#111111"],
+    ["#1039", "API credits · 10k", "9.00 USDC", "USDC", "Refunded", "#F4F4F1", "#5C5C5C"],
+    ["#1038", "Onboarding package", "33.00 USDC", "USDT", "In escrow", "#E3EAFF", "#111111"],
   ];
   const cols = "70px 1.4fr 1fr 0.8fr 1.1fr";
   return (
     <section className="z-wrap z-sec" style={{ gap: 48 }}>
-      <Head center eyebrow="SELLER DASHBOARD">
+      <Head center eyebrow="MERCHANT DASHBOARD">
         Every order. Every dollar <span className="z-acc">in escrow.</span>
       </Head>
       <figure className="z-lap">
@@ -202,7 +202,7 @@ export function Dashboard() {
           <div style={{ background: "#FFFFFF", borderRadius: "12px 12px 0 0", overflow: "hidden", display: "flex", flexWrap: "wrap", minHeight: 470 }}>
             <div className="z-lap-side" style={{ flex: "0 0 210px", background: "#F7F7F5", borderRight: "1px solid #EDEDEA", padding: "20px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
               <span className="z-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, padding: "0 8px 14px" }}>
-                <Mark size={24} radius={7} /> Kettle &amp; Co.
+                <Mark size={24} radius={7} /> Acme Analytics
               </span>
               {nav.map(([t, b], i) => (
                 <span key={t} style={{ padding: "9px 10px", borderRadius: 9, fontSize: 14, fontWeight: i === 0 ? 600 : 500, background: i === 0 ? "#F0F0EC" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -233,7 +233,7 @@ export function Dashboard() {
               <div style={{ borderRadius: 14, border: "1.5px solid #111111", padding: "14px 16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div className="z-col" style={{ gap: 3 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>Refund #1042 · AI approved · 24.00 USDC</span>
-                  <span style={{ fontSize: 13, color: "#5C5C5C" }}>“Dripper arrived cracked” · veto window closes in 5h 12m</span>
+                  <span style={{ fontSize: 13, color: "#5C5C5C" }}>“Charged twice for Pro” · veto window closes in 5h 12m</span>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <span style={{ padding: "8px 14px", borderRadius: 999, border: "1.5px solid #111111", fontSize: 13, fontWeight: 600 }}>Veto</span>
@@ -272,7 +272,7 @@ export function Dashboard() {
         <div aria-hidden="true" style={{ width: "100%", maxWidth: 1180, height: 22, background: "#D9D9D4", borderRadius: "0 0 22px 22px", position: "relative", borderTop: "2px solid #BDBDB7" }}>
           <span style={{ position: "absolute", left: "50%", top: 0, width: 140, height: 8, marginLeft: -70, background: "#C6C6C0", borderRadius: "0 0 10px 10px" }} />
         </div>
-        <figcaption className="z-sr">Illustration of the seller dashboard with example orders.</figcaption>
+        <figcaption className="z-sr">Illustration of the merchant dashboard with example orders.</figcaption>
       </figure>
       <div className="z-row" style={{ justifyContent: "center", gap: 10 }}>
         {["Orders", "Escrow state", "Approvals", "Fulfilment", "Product types", "Button styler", "Settings", "Webhook + email logs"].map((f) => (
@@ -283,7 +283,7 @@ export function Dashboard() {
       </div>
       <div className="z-row" style={{ justifyContent: "center" }}>
         <a className="z-btn ink" href={href("/dashboard")}>
-          Open your shop&apos;s dashboard
+          Open your merchant dashboard
         </a>
       </div>
     </section>
@@ -326,7 +326,7 @@ export function Developers() {
           <div className="z-code">
             <div className="z-code-bar" style={{ justifyContent: "space-between" }}>
               <span>terminal</span>
-              <span className="z-sim">SIMULATED</span>
+              <span className="z-sim" title="pnpm demo runs a local sandbox: no keys, no real money">LOCAL DEMO</span>
             </div>
             <pre style={{ fontSize: 15, lineHeight: 1.8 }}>
               <span className="z-acc">$</span> pnpm install && pnpm demo{"\n"}
@@ -358,11 +358,11 @@ export function Developers() {
 export function Roadmap() {
   const items: Array<[string, string]> = [
     ["Shopify", "Install instead of paste."],
-    ["WooCommerce", "For WordPress shops."],
+    ["WooCommerce", "For WordPress stores."],
     ["MCP integration", "Let agents check out with Zap."],
     ["Payouts to your chain", "Receive on the chain you prefer."],
     ["Worker in a TEE", "Settlement inside a trusted enclave."],
-    ["Seller wallet signing", "Sign dashboard decisions yourself."],
+    ["Merchant wallet signing", "Sign dashboard decisions yourself."],
     ["Photo analysis", "The assistant reads refund evidence."],
     ["Keeper-triggered releases", "Payouts that release on their own."],
   ];
@@ -400,7 +400,7 @@ export function Cta() {
         Get paid in <span className="z-acc">USDC.</span>
       </h2>
       <code className="z-mono" style={{ fontSize: 15, background: "var(--z-soft)", borderRadius: 12, padding: "14px 20px", maxWidth: "100%", overflowX: "auto", whiteSpace: "nowrap" }}>
-        &lt;pay-button merchant=&quot;{merchant || "[YOUR-SHOP].near"}&quot; amount=&quot;24&quot;&gt;&lt;/pay-button&gt;
+        &lt;pay-button merchant=&quot;{merchant || "[YOUR-BUSINESS].near"}&quot; amount=&quot;24&quot;&gt;&lt;/pay-button&gt;
       </code>
       <div className="z-row" style={{ justifyContent: "center", gap: 12 }}>
         <a href={href("/dashboard")} className="z-btn ink">
@@ -408,7 +408,7 @@ export function Cta() {
         </a>
         {merchant ? (
           <a href={href("/shop")} className="z-btn">
-            Try the demo shop
+            Try the demo checkout
           </a>
         ) : null}
         <a href={GITHUB} className="z-btn">
@@ -457,7 +457,7 @@ export function Footer() {
           </nav>
         </div>
         <p style={{ fontSize: 13, lineHeight: 1.65, color: "var(--z-muted)", maxWidth: 900 }}>
-          Zap is a hackathon prototype. The contracts are unaudited, and Zap is not a licensed money service. On mainnet, payments are capped at $50 per receipt. Pages outside live mode show a “Simulated” badge.
+          Zap is a hackathon prototype. The contracts are unaudited, and Zap is not a licensed money service. On mainnet, payments are capped at $50 per receipt.
         </p>
       </div>
     </footer>

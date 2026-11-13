@@ -12,7 +12,7 @@ import { AnyCoin, DropIn, Problem, Protections, Refunds, Verify } from "./sectio
 export interface LandingProps {
   /** Origin of the checkout app. "" (default) when the landing is served by the app itself. */
   appUrl?: string;
-  /** Shop used by the real "pay $1" button. Default: the first registered shop on appUrl. */
+  /** Merchant used by the real "pay $1" button. Default: the first registered merchant on appUrl. */
   demoMerchant?: string;
   /** Numbers the host measured (e.g. the gzip size of the pay.js it serves). */
   stats?: LandingStats;

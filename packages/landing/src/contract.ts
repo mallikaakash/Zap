@@ -33,7 +33,7 @@ export const EXCERPTS: Excerpt[] = [
   },
   {
     fn: "veto",
-    rule: "The seller can overrule an AI approval only inside the veto window.",
+    rule: "The business can overrule an AI approval only inside the veto window.",
     line: 126,
     hl: 1,
     code: ["require!(", "    q.veto_until.is_some_and(|until| now < until),", '    "veto window is over"', ");"],
@@ -47,7 +47,7 @@ export const EXCERPTS: Excerpt[] = [
   },
   {
     fn: "execute_refund",
-    rule: "No refund can push the day's total past the seller's cap.",
+    rule: "No refund can push the day's total past the business's daily cap.",
     line: 307,
     hl: 1,
     code: ["require!(", "    m.refunded_today + amount <= m.daily_refund_cap,", '    "daily refund cap exceeded"', ");"],

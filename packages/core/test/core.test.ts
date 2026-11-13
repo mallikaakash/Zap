@@ -136,3 +136,21 @@ describe("live claim accounts", () => {
   });
 });
 
+// The landing page's three refund stories (packages/landing/src/sections.tsx) must match real behaviour.
+describe("landing refund stories", () => {
+  const story = (requested: string) => ({ limits: { requested, autoApproveMax: "30000000", guardThreshold: "50000000", partialAllowed: true } });
+  it("approve: a feature not working asks for a screenshot, then approves", async () => {
+    const first = await triage(input({ ...story("24000000"), messages: [customer("Exports are not working since I upgraded to Pro.")] }), noKey);
+    expect(first.type).toBe("ask");
+    const second = await triage(input({ ...story("24000000"), rounds: 1, messages: [customer("Exports are not working since I upgraded to Pro."), customer("Every export fails with an error. Screenshot attached.", "screenshot.png")] }), noKey);
+    expect(second).toMatchObject({ type: "decision", decision: "approve", amount: "24000000" });
+  });
+  it("deny: no longer needed is a change of mind", async () => {
+    expect(await triage(input({ ...story("24000000"), messages: [customer("We don't need it anymore. Can I get a refund?")] }), noKey)).toMatchObject({ decision: "deny" });
+  });
+  it("escalate: a valid claim above the auto-approve limit goes to the business", async () => {
+    const r = await triage(input({ limits: { requested: "24000000", autoApproveMax: "20000000", guardThreshold: "50000000", partialAllowed: true }, messages: [customer("SSO is not working for our whole team since the update. Screenshot attached.", "sso.png")] }), noKey);
+    expect(r).toMatchObject({ decision: "escalate" });
+  });
+});
+

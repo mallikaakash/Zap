@@ -130,11 +130,11 @@ export function triageByRules(i: TriageInput): { type: "ask"; question: string }
 
   if (canAsk && text.trim().length < 12) return { type: "ask", question: "Sorry something went wrong. Could you tell me a bit more about what happened with your order?" };
   if (category === "other") {
-    if (canAsk) return { type: "ask", question: "Thanks. So I can route this correctly: did the item arrive damaged, not arrive at all, differ from its description, or do you no longer want it?" };
+    if (canAsk) return { type: "ask", question: "Thanks. So I can route this correctly: is something broken or not working, did it never arrive or get activated, is it different from what was described, or do you no longer need it?" };
     return decide("escalate", "The reason could not be classified, so the merchant should decide.", 0.3);
   }
   if (category === "damaged" && i.policy.requiresPhotoFor.includes("damaged") && !hasPhoto(i)) {
-    if (canAsk) return { type: "ask", question: "Sorry it arrived damaged. Which part is damaged? Please add a photo of the item (and the packaging if you still have it)." };
+    if (canAsk) return { type: "ask", question: "Sorry about that. What exactly is broken or not working? Please add a screenshot or photo that shows it." };
     return decide("escalate", "No photo was provided for a damage claim, so the merchant should decide.", 0.4);
   }
   if (category === "not_received" && i.fulfilment === "delivered") {
@@ -143,12 +143,12 @@ export function triageByRules(i: TriageInput): { type: "ask"; question: string }
     return decide("escalate", "Tracking shows delivered but the customer says it did not arrive; this needs the merchant.", 0.4);
   }
   if (i.fulfilment === "digital_accessed" && i.policy.digitalGoodsRule === "no_refund_after_access" && category === "changed_mind")
-    return decide("deny", "The digital item was already accessed and the shop's policy excludes refunds after access.", 0.9);
+    return decide("deny", "The digital item was already accessed and the business's policy excludes refunds after access.", 0.9);
   if (category === "changed_mind" && !i.policy.refundableCategories.includes("changed_mind"))
-    return decide("deny", "The shop's policy does not refund a change of mind.", 0.85);
-  if (!i.policy.refundableCategories.includes(category)) return decide("escalate", `"${label(category)}" is not something this shop refunds automatically.`, 0.6);
+    return decide("deny", "The business's policy does not refund a change of mind.", 0.85);
+  if (!i.policy.refundableCategories.includes(category)) return decide("escalate", `"${label(category)}" is not something this business refunds automatically.`, 0.6);
   if (i.priorRequests >= 2) return decide("escalate", "Several earlier refund requests from this customer; the merchant should review.", 0.5);
-  return decide("approve", "The claim is consistent and within the shop's policy.", category === "damaged" && hasPhoto(i) ? 0.9 : 0.75);
+  return decide("approve", "The claim is consistent and within the business's policy.", category === "damaged" && hasPhoto(i) ? 0.9 : 0.75);
 }
 
 /** The code-level bound. Whatever proposed it, this is what is allowed. */
@@ -162,7 +162,7 @@ export function enforce(i: TriageInput, p: Omit<Decision, "engine">, engine: Dec
   const out = (decision: Decision["decision"], amt: bigint, note?: string): Decision => ({ decision, amount: amt.toString(), category, confidence, engine, summary: note ? `${summary} ${note}` : summary });
 
   if (requested === 0n) return out("deny", 0n, "Nothing is left to refund on this receipt.");
-  if (i.policy.escalateAlways) return out("escalate", requested, "This shop reviews every request itself.");
+  if (i.policy.escalateAlways) return out("escalate", requested, "This business reviews every request itself.");
 
   if (p.decision === "deny") {
     // Only clear, objective policy violations may be denied by the agent.
@@ -177,8 +177,8 @@ export function enforce(i: TriageInput, p: Omit<Decision, "engine">, engine: Dec
   if (!i.policy.refundableCategories.includes(category)) return out("escalate", requested, `"${label(category)}" is outside what the agent may approve.`);
   if (i.policy.requiresPhotoFor.includes(category) && !hasPhoto(i)) return out("escalate", requested, "A photo is required for this kind of claim.");
   if (confidence < 0.6) return out("escalate", requested, "Confidence is too low for an automatic decision.");
-  if (amount > BigInt(i.limits.autoApproveMax)) return out("escalate", requested, "Above the shop's automatic approval limit.");
-  if (amount > BigInt(i.limits.guardThreshold)) return out("escalate", requested, "Above the shop's guard threshold.");
+  if (amount > BigInt(i.limits.autoApproveMax)) return out("escalate", requested, "Above the business's automatic approval limit.");
+  if (amount > BigInt(i.limits.guardThreshold)) return out("escalate", requested, "Above the business's guard threshold.");
   return out(amount < requested ? "partial" : "approve", amount);
 }
 
@@ -188,7 +188,7 @@ export interface AgentEnv {
   NEARAI_MODEL?: string;
 }
 
-const SYSTEM_PROMPT = `You are the refund triage agent for an online shop. You are the first responder on a refund request.
+const SYSTEM_PROMPT = `You are the refund triage agent for an online business (often a SaaS product, sometimes a store). You are the first responder on a refund request.
 Reply with ONLY one JSON object, either a clarifying question:
 {"type":"ask","question":"<one short, specific question>"}
 or a decision:

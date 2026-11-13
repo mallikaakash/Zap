@@ -64,7 +64,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   const merchantId = String(input.merchantId ?? "");
   const merchant = await db.merchant.findUnique({ where: { id: merchantId } });
   if (!merchant) throw new UserError(`Unknown merchant "${merchantId}"`, 404);
-  if (merchant.chainState !== "active") throw new UserError("This shop is still being set up. Try again in a minute.", 409);
+  if (merchant.chainState !== "active") throw new UserError("This merchant is still being set up. Try again in a minute.", 409);
   // A dashboard product overrides what the page sent, so a visitor cannot edit the price in the browser.
   const productId = input.productId ?? (typeof input.metadata?.productId === "string" ? input.metadata.productId : undefined);
   let windowSecs: number | null = null;
@@ -76,7 +76,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   }
   if (!isMinor(input.amountUsd) || BigInt(input.amountUsd) <= 0n) throw new UserError("amountUsd must be a positive integer string in USDC minor units (6 dp)");
   if (BigInt(input.amountUsd) > MAX_AMOUNT) throw new UserError("Amount is above the per-payment limit");
-  if (BigInt(input.amountUsd) < BigInt(merchant.minOrder)) throw new UserError(`This shop's minimum order is $${fromMinor(merchant.minOrder)}`);
+  if (BigInt(input.amountUsd) < BigInt(merchant.minOrder)) throw new UserError(`This merchant's minimum order is $${fromMinor(merchant.minOrder)}`);
   const kind = input.kind ?? "OneTime";
   if (!KINDS.includes(kind)) throw new UserError(`kind must be one of ${KINDS.join(", ")}`);
 

@@ -29,7 +29,7 @@ export function Problem() {
   return (
     <section className="z-wrap z-sec">
       <Head eyebrow="THE PROBLEM">
-        Crypto checkout makes the shopper do the <span className="z-acc">work.</span>
+        Crypto checkout makes the customer do the <span className="z-acc">work.</span>
       </Head>
       <div className="z-grid" style={{ ["--min" as string]: "320px" }}>
         <div className="z-card soft" style={{ borderRadius: 28, gap: 26 }}>
@@ -60,7 +60,7 @@ export function Problem() {
             <span style={line}>refunds go back where they came from</span>
           </div>
           <ul className="z-col" style={{ gap: 16 }}>
-            {["Pay in whatever you already hold", "The seller always gets USDC", "A refund button that works"].map((g) => (
+            {["Pay in whatever you already hold", "The business always gets USDC", "A refund button that works"].map((g) => (
               <li key={g} style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <span style={{ width: 30, height: 30, borderRadius: 999, background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
                   <Check size={14} color="#111111" width={3} />
@@ -92,16 +92,16 @@ export function DropIn() {
   const [radius, setRadius] = useState<keyof typeof RADII>("pill");
   const [label, setLabel] = useState(0);
   const col = COLORS[color];
-  const shop = merchant || "your-shop.near";
+  const shop = merchant || "your-business.near";
   // The snippet mirrors the styler, so a seller can copy exactly what they see.
-  const attrs: string[] = [`merchant="${shop}"`, `amount="24"`, `product="Pour-over kit"`, `color="${col.bg}"`];
+  const attrs: string[] = [`merchant="${shop}"`, `amount="24"`, `product="Pro plan"`, `color="${col.bg}"`];
   if (radius !== "rounded") attrs.push(`radius="${RADII[radius][1]}"`);
   if (label !== 0) attrs.push(`label="${LABELS[label]}"`);
   const kb = stats?.payJsGzipBytes ? `${(stats.payJsGzipBytes / 1000).toFixed(1)} kB gzipped` : "Small, gzipped";
 
   return (
     <section id="start" className="z-wrap z-sec" style={{ paddingTop: 32 }}>
-      <Head eyebrow="DROP-IN" lead="A script tag and one element. The button opens a hosted checkout, so there's nothing to build and no keys on your site.">
+      <Head eyebrow="DROP-IN" lead="A script tag and one element, on your pricing page or inside your app. The button opens a hosted checkout, so there's nothing to build and no keys on your site.">
         Paste it. You&apos;re taking <span className="z-acc">payments.</span>
       </Head>
       <div className="z-grid">
@@ -142,7 +142,7 @@ export function DropIn() {
         <div className="z-card" style={{ gap: 22 }}>
           <div style={{ flex: 1, minHeight: 210, borderRadius: 18, background: "var(--z-soft)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}>
             <span className="z-muted" style={{ fontSize: 14 }}>
-              Pour-over kit · $24.00
+              Pro plan · $24.00
             </span>
             <span aria-label={`Button preview: ${LABELS[label]}`} style={{ minHeight: 54, padding: "0 26px", borderRadius: RADII[radius][1], background: col.bg, color: col.fg, border: "1.5px solid #111111", fontWeight: 700, fontSize: 16, display: "inline-flex", alignItems: "center", gap: 9, transition: "all .25s ease" }}>
               <Bolt color={col.bolt} />
@@ -279,6 +279,7 @@ export function AnyCoin() {
 
 type Msg = [who: string, text: string, shopper: boolean, photo: boolean];
 const SCENARIOS = {
+  // Each story follows what the refund assistant really does (packages/core/src/refund-agent.ts).
   approve: {
     name: "Approve",
     dot: "#1F9D57",
@@ -286,19 +287,19 @@ const SCENARIOS = {
     vBg: "#1F9D57",
     vFg: "#FFFFFF",
     chat: [
-      ["Shopper", "The dripper arrived cracked. Photo attached.", true, true],
-      ["Refund assistant", "Sorry about that. Is the crack on the dripper itself, or the packaging?", false, false],
-      ["Shopper", "The dripper. It leaks.", true, false],
-      ["Refund assistant", "The order shows delivered and your shop’s policy covers damage on arrival. Approved: 24.00 USDC goes back to you as ETH.", false, false],
+      ["Customer", "Exports are not working since I upgraded to Pro.", true, false],
+      ["Refund assistant", "Sorry about that. What exactly is broken or not working? Please add a screenshot that shows it.", false, false],
+      ["Customer", "Every export fails with an error. Screenshot attached.", true, true],
+      ["Refund assistant", "Thanks. A feature that doesn’t work is covered by Acme’s refund policy, and this is within what I can approve. Approved: 24.00 USDC goes back to you as ETH.", false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Held by receipt NFT #1042", true],
-      ["Seller veto window", "The seller can still step in", true],
+      ["Business veto window", "Acme can still step in", true],
       ["1Click swap back", "Quote ID logged on chain", true],
       ["ETH on Ethereum", "To 0x8f3a…c21a, the refund address", true],
     ] as Array<[string, string, boolean]>,
     outTitle: "Approve: clear, small cases",
-    outBody: "The assistant approves within your guard threshold. AI approvals still wait out your veto window before the refund executes.",
+    outBody: "The assistant approves within your guard threshold and auto-approve limit. AI approvals still wait out your veto window before the refund executes.",
   },
   deny: {
     name: "Deny",
@@ -307,19 +308,17 @@ const SCENARIOS = {
     vBg: "var(--z-btn)",
     vFg: "var(--z-btn-fg)",
     chat: [
-      ["Shopper", "I changed my mind. Can I get a refund?", true, false],
-      ["Refund assistant", "Was anything wrong with the item, or did it arrive late?", false, false],
-      ["Shopper", "No, it’s fine. I just don’t need it.", true, false],
-      ["Refund assistant", "This shop’s policy covers damage and non-delivery, not change of mind, so I can’t approve this. You can appeal once.", false, false],
+      ["Customer", "We don’t need it anymore. Can I get a refund?", true, false],
+      ["Refund assistant", "Acme’s policy refunds something that is broken, never activated or not as described, but not a change of mind, so I can’t approve this. You can appeal once and Acme will review it.", false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Nothing moves", true],
       ["Appeal available", "One appeal per request", false],
       ["Refund window ends", "Release becomes due", false],
-      ["USDC to the seller", "Anyone can trigger it", false],
+      ["USDC to the business", "Anyone can trigger it", false],
     ] as Array<[string, string, boolean]>,
     outTitle: "Deny: objective policy violations",
-    outBody: "Only when the policy clearly rules it out. The shopper gets one appeal, and the money stays in escrow until the window ends.",
+    outBody: "Only when the policy clearly rules it out. The customer gets one appeal, and the money stays in escrow until the window ends.",
   },
   escalate: {
     name: "Escalate",
@@ -328,19 +327,17 @@ const SCENARIOS = {
     vBg: ACCENT,
     vFg: "#111111",
     chat: [
-      ["Shopper", "It works, but the colour isn’t what the photos showed.", true, true],
-      ["Refund assistant", "Thanks. Is it a different product, or a different shade of the same one?", false, false],
-      ["Shopper", "Same product, much darker.", true, false],
-      ["Refund assistant", "This needs the seller’s judgement. I’ve sent them a summary of our chat. They’ll decide before the deadline.", false, false],
+      ["Customer", "SSO is not working for our whole team since the update. Screenshot attached.", true, true],
+      ["Refund assistant", "That is covered by Acme’s policy, but the amount is above what I may approve on my own, so I’ve sent Acme a summary. If they don’t answer by the deadline, it’s approved.", false, false],
     ] as Msg[],
     route: [
-      ["24.00 USDC in escrow", "Held while the seller decides", true],
-      ["Summary sent to seller", "With the chat and the attachment", true],
+      ["24.00 USDC in escrow", "Held while Acme decides", true],
+      ["Summary sent to Acme", "With the chat and the attachment", true],
       ["Decision deadline", "No answer in time means approved", false],
-      ["Refund or release", "Whatever the seller decides", false],
+      ["Refund or release", "Whatever Acme decides", false],
     ] as Array<[string, string, boolean]>,
-    outTitle: "Escalate: anything that needs judgement",
-    outBody: "The seller gets a short summary. If they don’t respond by the decision deadline, the request is approved, so shoppers are never left waiting forever.",
+    outTitle: "Escalate: above your limits, or needs judgement",
+    outBody: "The business gets a short summary. If they don’t respond by the decision deadline, the request is approved, so customers are never left waiting forever.",
   },
 };
 type ScenKey = keyof typeof SCENARIOS;
@@ -361,7 +358,7 @@ export function Refunds() {
   return (
     <section id="refunds" className="z-band">
       <div className="z-wrap z-sec">
-        <Head xl eyebrow="REFUNDS" lead="A refund assistant handles the first response. It can ask up to three questions, ask for a photo, and check your policy and the order's fulfilment status.">
+        <Head xl eyebrow="REFUNDS" lead="A refund assistant handles the first response. It can ask up to three questions, ask for a screenshot, and check your policy and the order.">
           Crypto payments with a real <span className="z-acc">refund button.</span>
         </Head>
         <div role="tablist" aria-label="Refund outcome" className="z-row" style={{ gap: 8 }}>
@@ -374,16 +371,16 @@ export function Refunds() {
         </div>
 
         <div id="z-refund-panel" role="tabpanel" aria-labelledby={`z-tab-${scen}`} className="z-col" style={{ gap: 0 }}>
-          {/* beat 1: the shopper's view */}
+          {/* beat 1: the customer's view */}
           <div className="z-beat">
             <BeatRail n="01" />
             <div className="z-col" style={{ gap: 14, paddingBottom: 36, minWidth: 0 }}>
-              <span className="z-eyebrow">THE SHOPPER ASKS · ON THEIR RECEIPT PAGE</span>
+              <span className="z-eyebrow">THE CUSTOMER ASKS · ON THEIR RECEIPT PAGE</span>
               <div className="z-col" style={{ maxWidth: 760, borderRadius: 28, background: "var(--z-bg)", border: "1.5px solid var(--z-edge)", overflow: "hidden" }}>
                 <div className="z-col" style={{ gap: 2, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
                   <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #1042</span>
                   <span className="z-muted" style={{ fontSize: 13 }}>
-                    Kettle &amp; Co. · Pour-over kit · 24.00 USDC in escrow
+                    Acme Analytics · Pro plan · 24.00 USDC in escrow
                   </span>
                 </div>
                 <div key={scen} className="z-col" style={{ padding: 22, gap: 12 }}>
@@ -395,10 +392,14 @@ export function Refunds() {
                       <div style={{ padding: "12px 16px", borderRadius: shopper ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: shopper ? "var(--z-btn)" : "var(--z-soft)", color: shopper ? "var(--z-btn-fg)" : "var(--z-fg)", fontSize: 15, lineHeight: 1.5 }}>{text}</div>
                       {photo ? (
                         <div aria-label="Attached photo" role="img" style={{ alignSelf: "flex-end", width: 150, height: 96, borderRadius: 14, border: "1.5px solid #111111", background: "#F4F4F1", position: "relative", overflow: "hidden" }}>
-                          <div style={{ position: "absolute", left: 34, top: 22, width: 80, height: 54, borderRadius: "0 0 40px 40px", background: "#FFFFFF", border: "1.5px solid #111111" }} />
-                          <div style={{ position: "absolute", left: 70, top: 30, width: 2, height: 40, background: "#111111", transform: "rotate(18deg)" }} />
+                          {/* a tiny app window with an error, i.e. a screenshot */}
+                          <div style={{ position: "absolute", left: 14, right: 14, top: 12, height: 62, borderRadius: 8, background: "#FFFFFF", border: "1.5px solid #111111", overflow: "hidden" }}>
+                            <div style={{ height: 10, background: "#E6E6E1", borderBottom: "1px solid #111111" }} />
+                            <div style={{ margin: "8px 8px 0", height: 14, borderRadius: 4, background: "#FDE2E2", border: "1px solid #DC2626" }} />
+                            <div style={{ margin: "6px 8px 0", width: "60%", height: 6, borderRadius: 3, background: "#D9D9D4" }} />
+                          </div>
                           <span className="z-mono" style={{ position: "absolute", left: 8, bottom: 6, fontSize: 10, fontWeight: 600, color: "#111111" }}>
-                            PHOTO.JPG
+                            SCREENSHOT.PNG
                           </span>
                         </div>
                       ) : null}
@@ -413,7 +414,7 @@ export function Refunds() {
           <div className="z-beat">
             <BeatRail n="02" last />
             <div key={scen} className="z-col z-msg" style={{ ...stagger(sc.chat.length), gap: 14, minWidth: 0 }}>
-              <span className="z-eyebrow">THE VERDICT · INSIDE THE SELLER&apos;S RULES</span>
+              <span className="z-eyebrow">THE VERDICT · INSIDE YOUR RULES</span>
               <div className="z-grid" style={{ alignItems: "stretch" }}>
                 <div className="z-col" style={{ gap: 16 }}>
                   <div className="z-card" style={{ borderRadius: 22, gap: 12 }}>
@@ -426,7 +427,7 @@ export function Refunds() {
                     <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>{sc.outBody}</span>
                   </div>
                   <div className="z-row" style={{ gap: 8 }}>
-                    {["NEAR AI Cloud", "or a deterministic rule engine", "≤ 3 clarifying questions", "asks for a photo"].map((c) => (
+                    {["NEAR AI Cloud", "or a deterministic rule engine", "≤ 3 clarifying questions", "asks for a screenshot"].map((c) => (
                       <span key={c} className="z-chip sm">
                         {c}
                       </span>
@@ -485,7 +486,7 @@ export function Protections() {
   const tagBg = r.overCap ? "#BDBDBD" : r.overThr ? ACCENT : "#3FE0A5";
   return (
     <section className="z-wrap z-sec">
-      <Head eyebrow="SELLER PROTECTIONS" lead={`Limits are enforced in code and on chain, not just in a prompt. Try the controls and watch what happens to a $${REQUEST} refund request.`}>
+      <Head eyebrow="BUSINESS PROTECTIONS" lead={`Limits are enforced in code and on chain, not just in a prompt. Try the controls and watch what happens to a $${REQUEST} refund request.`}>
         The AI proposes. <span className="z-acc">Your rules</span> decide.
       </Head>
       <div className="z-grid">
@@ -519,7 +520,7 @@ export function Protections() {
                 INCOMING REQUEST
               </span>
               <span className="z-display" style={{ fontSize: 28, letterSpacing: "-0.02em" }}>
-                ${REQUEST} · arrived damaged
+                ${REQUEST} · charged twice
               </span>
             </div>
             <span className="z-tag" style={{ fontSize: 12, padding: "7px 11px", background: tagBg, color: "#111111" }}>
@@ -595,7 +596,7 @@ function usdc(minor: string): string {
   return `${cents / 100n}.${String(cents % 100n).padStart(2, "0")}`;
 }
 const short = (a: string) => (a.length > 18 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
-const STATUS: Record<string, string> = { Held: "in escrow", PartiallyReleased: "partly paid out", Released: "paid out to the seller", PartiallyRefunded: "partly refunded", Refunded: "refunded" };
+const STATUS: Record<string, string> = { Held: "in escrow", PartiallyReleased: "partly paid out", Released: "paid out to the business", PartiallyRefunded: "partly refunded", Refunded: "refunded" };
 
 function useLatestReceipt() {
   const { href } = useApp();
@@ -628,7 +629,7 @@ export function Verify() {
     ["01", "Public contract, not a company", "Escrow lives in a NEAR contract anyone can read.", true],
     ["02", "Refunds are bounded", "Only approved requests, never more than the unreleased amount, always within the daily cap.", false],
     ["03", "Refunds survive a pause", "Pausing stops new payments and releases. Refunds keep working.", false],
-    ["04", "Sellers can take over", "Call register_merchant from your own account to own your registration.", false],
+    ["04", "You can take over", "Call register_merchant from your own NEAR account to own your registration.", false],
   ] as const;
 
   const real = data ?? null;
@@ -640,7 +641,7 @@ export function Verify() {
         ["Solvency", `Contract holds ${usdc(real.contractTotals.usdcBalance)} USDC for ${usdc(real.contractTotals.allocated)} owed`, BigInt(real.contractTotals.usdcBalance) >= BigInt(real.contractTotals.allocated)],
       ]
     : [
-        ["Attribution", "Payment attributed to kettleandco.near", true],
+        ["Attribution", "Payment attributed to acme.near", true],
         ["Refund destination", "ETH · Ethereum · 0x8f3a…c21a", true],
         ["Solvency", "Contract USDC covers every open receipt", true],
       ];

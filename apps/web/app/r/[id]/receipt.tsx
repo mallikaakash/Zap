@@ -81,7 +81,7 @@ export default function ReceiptPage({ id }: { id: string }) {
         <dl className="mt-5 grid grid-cols-3 gap-3 text-sm">
           {[
             ["Held", usd(held)],
-            ["Paid to shop", usd(r.released)],
+            ["Paid out", usd(r.released)],
             ["Refunded", usd(r.refunded)],
           ].map(([k, val]) => (
             <div key={k} className="rounded-xl bg-canvas px-3 py-2.5">
@@ -94,13 +94,13 @@ export default function ReceiptPage({ id }: { id: string }) {
         <div className="mt-4 text-sm leading-relaxed text-ink">
           {r.kind === "OneTime" ? (
             held === 0n ? null : r.confirmed ? (
-              <p>You confirmed the order arrived, so the shop can be paid now.</p>
+              <p>You confirmed the order, so the business can be paid now.</p>
             ) : windowOpen ? (
               <p>
-                The money stays in the receipt contract for another <strong>{until(r.windowEnd, v.chainNow)}</strong>. Until then you can ask for a refund; after that it is paid to the shop.
+                The money stays in the receipt contract for another <strong>{until(r.windowEnd, v.chainNow)}</strong>. Until then you can ask for a refund; after that it is paid to the business.
               </p>
             ) : (
-              <p>The refund period has ended. The money is being paid to the shop.</p>
+              <p>The refund period has ended. The money is being paid to the business.</p>
             )
           ) : (
             <ol className="mt-1 space-y-1.5">
@@ -111,7 +111,7 @@ export default function ReceiptPage({ id }: { id: string }) {
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="font-semibold tabular-nums">{usd(t.amount)}</span>
-                    {t.state === "Released" ? <Pill tone="good">Paid to shop</Pill> : t.state === "Refunded" ? <Pill>Refunded</Pill> : t.state === "RefundPending" ? <Pill tone="warn">Refund pending</Pill> : <Pill tone="accent">{new Date(t.at) <= new Date(v.chainNow) ? "Due now" : `in ${until(t.at, v.chainNow)}`}</Pill>}
+                    {t.state === "Released" ? <Pill tone="good">Paid out</Pill> : t.state === "Refunded" ? <Pill>Refunded</Pill> : t.state === "RefundPending" ? <Pill tone="warn">Refund pending</Pill> : <Pill tone="accent">{new Date(t.at) <= new Date(v.chainNow) ? "Due now" : `in ${until(t.at, v.chainNow)}`}</Pill>}
                   </span>
                 </li>
               ))}
@@ -130,14 +130,14 @@ export default function ReceiptPage({ id }: { id: string }) {
       {done ? <Notice tone="good">{done}</Notice> : null}
 
       {!r.claimed && key === null ? (
-        <Notice tone="warn">You are viewing this receipt without its key, so you can read it but not act on it. Open the full receipt link you saved after paying (it ends in <span className="mono">#k=…</span>). Lost it? Ask the shop: they can refund you without it.</Notice>
+        <Notice tone="warn">You are viewing this receipt without its key, so you can read it but not act on it. Open the full receipt link you saved after paying (it ends in <span className="mono">#k=…</span>). Lost it? Ask the business: they can refund you without it.</Notice>
       ) : !r.claimed && keyOk === false ? (
         <Notice tone="bad">The key in this link does not match this receipt. Check that you copied the whole link.</Notice>
       ) : r.claimed && !v.ownerIsDemoAccount ? (
         <Notice>This receipt belongs to {r.owner}. Its owner acts on it from their NEAR wallet.</Notice>
       ) : null}
 
-      {openCase ? <Chat c={openCase} v={v} canAct={canAct} busy={busy} onSend={(text, imageName) => act("Message sent.", async () => api(`/api/receipts/${id}/messages`, { body: { text, imageName, ...(r.claimed ? { owner: r.owner } : { sig: await signReceiptAction(key!, v.contract, id, (await api<ReceiptView>(`/api/receipts/${id}`)).receipt.nonce, { action: "message", bodyHash: await sha256Hex(text.trim().slice(0, 2000)) }) }) } }))} onAppeal={() => act("Appeal sent to the shop.", async () => api(`/api/receipts/${id}/appeal`, { body: await auth({ action: "appeal" }) }))} /> : null}
+      {openCase ? <Chat c={openCase} v={v} canAct={canAct} busy={busy} onSend={(text, imageName) => act("Message sent.", async () => api(`/api/receipts/${id}/messages`, { body: { text, imageName, ...(r.claimed ? { owner: r.owner } : { sig: await signReceiptAction(key!, v.contract, id, (await api<ReceiptView>(`/api/receipts/${id}`)).receipt.nonce, { action: "message", bodyHash: await sha256Hex(text.trim().slice(0, 2000)) }) }) } }))} onAppeal={() => act("Appeal sent to the business.", async () => api(`/api/receipts/${id}/appeal`, { body: await auth({ action: "appeal" }) }))} /> : null}
 
       {canAct ? (
         <div className="card p-5">
@@ -146,8 +146,8 @@ export default function ReceiptPage({ id }: { id: string }) {
             {r.kind === "OneTime" && BigInt(v.refundable) > 0n ? <button className="btn-ghost" onClick={() => setPanel(panel === "refund" ? null : "refund")}>Request refund</button> : null}
             {r.kind !== "OneTime" && BigInt(v.refundable) > 0n ? <button className="btn-ghost" onClick={() => setPanel(panel === "cancel" ? null : "cancel")}>Cancel and refund the rest</button> : null}
             {r.kind === "OneTime" && windowOpen && held > 0n && !(q && ["Open", "AiApproved", "Escalated", "Approved"].includes(q.state)) ? (
-              <button className="btn-ghost" disabled={busy} onClick={() => act("Thanks. The shop can now be paid.", async () => api(`/api/receipts/${id}/confirm`, { body: await auth({ action: "confirm_received" }) }))}>
-                It arrived, pay the shop
+              <button className="btn-ghost" disabled={busy} onClick={() => act("Thanks. The business can now be paid.", async () => api(`/api/receipts/${id}/confirm`, { body: await auth({ action: "confirm_received" }) }))}>
+                All good, release the payment
               </button>
             ) : null}
             {!r.claimed ? <button className="btn-ghost" onClick={() => setPanel(panel === "claim" ? null : "claim")}>Claim to a NEAR account</button> : null}
@@ -271,7 +271,7 @@ function RequestForm({ kind, max, busy, ai, onSubmit }: { kind: "refund" | "canc
         if (!bad && reason.trim().length >= 3) onSubmit(reason.trim(), minor!, photo || undefined);
       }}
     >
-      <Field label="What went wrong?" hint={ai ? "The shop's refund assistant reads this first and may ask a follow-up question." : "This goes to the shop. If they do not answer in time, the refund is approved automatically."}>
+      <Field label="What went wrong?" hint={ai ? "The business's refund assistant reads this first and may ask a follow-up question." : "This goes to the business. If they do not answer in time, the refund is approved automatically."}>
         <textarea className="input min-h-24" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={kind === "refund" ? "For example: it arrived damaged, or it never arrived" : "For example: I no longer need the remaining months"} maxLength={2000} required />
       </Field>
       {kind === "refund" ? (
@@ -279,7 +279,7 @@ function RequestForm({ kind, max, busy, ai, onSubmit }: { kind: "refund" | "canc
           <input className="input tabular-nums" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={bad} />
         </Field>
       ) : (
-        <p className="text-sm text-muted">${fromMinor(max)} for periods that have not started will be refunded. Periods already due stay with the shop.</p>
+        <p className="text-sm text-muted">${fromMinor(max)} for periods that have not started will be refunded. Periods already due stay with the business.</p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Photo name={photo} onPick={setPhoto} />
@@ -323,24 +323,24 @@ function Chat({ c, v, canAct, busy, onSend, onAppeal }: { c: CaseView; v: Receip
     ) : c.payoutState === "sent" ? (
       <>Your refund left escrow and is being converted back to your coin.</>
     ) : c.payoutState === "failed" ? (
-      <>The refund swap failed. The shop has been told.</>
+      <>The refund swap failed. The business has been told.</>
     ) : q?.state === "AiApproved" && q.vetoUntil ? (
-      <>Approved for {usd(q.amount)}. It is sent in {until(q.vetoUntil, v.chainNow)} unless the shop objects.</>
+      <>Approved for {usd(q.amount)}. It is sent in {until(q.vetoUntil, v.chainNow)} unless the business objects.</>
     ) : q?.state === "Escalated" || (q?.state === "Open" && !asking) ? (
-      <>With the shop. If they do not answer within {until(q.decisionDeadline, v.chainNow)}, it is approved automatically.</>
+      <>With the business. If they do not answer within {until(q.decisionDeadline, v.chainNow)}, it is approved automatically.</>
     ) : q?.state === "Approved" ? (
       <>Approved. Your refund is being sent.</>
     ) : q?.state === "Rejected" ? (
-      <>The shop declined this request.</>
+      <>The business declined this request.</>
     ) : q?.state === "AiDenied" ? (
-      <>Declined under the shop's policy.{q.appealed ? "" : " You can appeal once."}</>
+      <>Declined under the business's policy.{q.appealed ? "" : " You can appeal once."}</>
     ) : asking ? (
       <>Waiting for your reply.</>
     ) : null;
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">{c.kind === "cancel" ? "Cancellation" : c.kind === "merchant" ? "Refund from the shop" : "Refund request"} · {usd(q?.amount ?? c.amount)}</h2>
+        <h2 className="text-sm font-semibold">{c.kind === "cancel" ? "Cancellation" : c.kind === "merchant" ? "Refund from the business" : "Refund request"} · {usd(q?.amount ?? c.amount)}</h2>
         {c.decision ? <Pill tone="neutral">{c.decision.engine === "near-ai" ? "NEAR AI · private inference" : "Rule-based assistant"}</Pill> : null}
       </div>
       <ol className="mt-3 space-y-2.5" aria-live="polite">
@@ -375,7 +375,7 @@ function Chat({ c, v, canAct, busy, onSend, onAppeal }: { c: CaseView; v: Receip
       ) : null}
       {canAct && q?.state === "AiDenied" && !q.appealed ? (
         <button className="btn-ghost mt-3" disabled={busy} onClick={onAppeal}>
-          Appeal to the shop
+          Appeal to the business
         </button>
       ) : null}
     </div>

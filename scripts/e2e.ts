@@ -3,6 +3,8 @@
  * terminal, or `pnpm test:e2e` which starts one). Drives the same service functions the
  * API routes call, with a real receipt key signing in-process like the browser does.
  */
+// Must stay the first import: pins the run to the local sandbox even when a live .env exists.
+import "./sandbox-env";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { newReceiptKey, signReceiptAction } from "@uc/chain";
@@ -41,6 +43,9 @@ async function pay(merchantId: string, amount: string, opts: { kind?: "OneTime" 
 async function main() {
   const chain = getChain();
   const c = getConfig();
+  // Belt and braces next to sandbox-env: never run this against a real network.
+  assert.equal(c.mode, "local", "e2e only runs against the local sandbox");
+  assert.equal(c.networkId, "localnet", "e2e only runs against the local sandbox");
   const merchant = (await db.merchant.findFirst())!;
   assert.ok(merchant, "run the demo setup first");
   const sign = async (id: string, key: string, a: Parameters<typeof signReceiptAction>[4]) => signReceiptAction(key, c.receipts, id, (await mustGet(id)).nonce, a);
@@ -53,14 +58,14 @@ async function main() {
   assert.equal(r.transferable, false);
   log(`receipt #${a.id} holds ${r.amount}; contract USDC balance ${await chain.usdcBalance(c.receipts)}`);
 
-  console.log("2. Refund: assistant asks for a photo, then approves; veto window passes; money returns");
-  const reason = "The dripper arrived broken in two pieces";
+  console.log("2. Refund: assistant asks for a screenshot, then approves; veto window passes; money returns");
+  const reason = "Exports are not working since I upgraded to Pro";
   await openRequest(a.id, "refund", { reason, amount: "18000000", auth: { sig: await sign(a.id, a.key, { action: "request_refund", amount: "18000000", reasonHash: sha(reason) }) } });
   let view = await receiptView(a.id);
   assert.equal(view.receipt.request?.state, "Open");
   assert.equal(view.cases[0]!.messages.at(-1)!.role, "agent");
   log(`assistant: ${view.cases[0]!.messages.at(-1)!.text}`);
-  await postMessage(a.id, { text: "Photo attached", imageName: "broken.jpg", auth: { sig: await sign(a.id, a.key, { action: "message", bodyHash: sha("Photo attached") }) } });
+  await postMessage(a.id, { text: "Screenshot attached", imageName: "export-error.png", auth: { sig: await sign(a.id, a.key, { action: "message", bodyHash: sha("Screenshot attached") }) } });
   await until("AiApproved on chain", async () => (await mustGet(a.id)).request?.state === "AiApproved");
   // replayed signature must be rejected by the contract
   await assert.rejects(async () => chain.requestRefund(c.relayer, a.id, "18000000", sha(reason), await signReceiptAction(a.key, c.receipts, a.id, 0, { action: "request_refund", amount: "18000000", reasonHash: sha(reason) })));

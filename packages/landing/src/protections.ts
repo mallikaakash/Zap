@@ -48,7 +48,7 @@ export function evaluate(idx: ProtectionIdx) {
     overCap
       ? { tone: "attention", title: "Daily cap reached", body: `$${REFUNDED_TODAY} already refunded today. Another $${REQUEST} would pass your $${cap} cap, so it can’t execute today.` }
       : { tone: "ok", title: "Within your daily cap", body: `$${REFUNDED_TODAY + REQUEST} of $${cap} used today.` },
-    { tone: "plain", title: `Deadline: ${dl}h`, body: "If nobody decides by then, the shopper’s request is approved." },
+    { tone: "plain", title: `Deadline: ${dl}h`, body: "If nobody decides by then, the customer’s request is approved." },
   ];
   const tag = overCap ? "HELD" : overThr ? "NEEDS YOU" : "AUTO-APPROVE";
   return { thr, veto, cap, dl, evals, tag, overThr, overCap };

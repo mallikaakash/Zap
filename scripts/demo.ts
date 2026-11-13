@@ -3,7 +3,7 @@
  *
  *   1. starts a local NEAR sandbox
  *   2. deploys the prebuilt mock USDC and receipt contracts
- *   3. seeds a demo shop with three products
+ *   3. seeds a demo merchant (a SaaS business) with three products
  *   4. starts the web app and the settlement worker
  *
  * Everything it creates is throwaway: the chain lives in a temp dir and the keys it
@@ -124,31 +124,31 @@ async function main() {
   writeFileSync(path.join(UC, "runtime.json"), JSON.stringify(runtime, null, 2));
   Object.assign(process.env, runtime);
 
-  step("Seeding the demo shop");
+  step("Seeding the demo merchant");
   const { registerMerchant, tickMerchants, dashboardUrl } = await import("@uc/core");
   const { db } = await import("@uc/db");
-  // Same path a real seller takes: sign up with a payout account; the worker registers the shop on chain.
+  // Same path a real merchant takes: sign up with a payout account; the worker registers it on chain.
   const shop = await registerMerchant({
-    name: "Demo Shop",
-    email: "seller@demo.local",
+    name: "Acme Analytics",
+    email: "billing@acme.local",
     guardThreshold: "50000000", // $50: above this, refunds always go to the merchant
     autoApproveMax: "20000000", // $20: the refund assistant may approve up to this
     defaultWindowSecs: 300, // 5-minute refund window so the whole flow fits in a demo
     responseSecs: 300, // merchant has 5 minutes to answer; silence = approve
     vetoSecs: 30, // merchant may object to an AI approval for 30 seconds
     minOrder: "1000000",
-    webhookUrl: `${PUBLIC_URL}/api/dev/webhook-sink?merchant=demo-shop.${root.id}`,
+    webhookUrl: `${PUBLIC_URL}/api/dev/webhook-sink?merchant=acme-analytics.${root.id}`,
   });
   await tickMerchants(executor, (m) => info(m));
   await db.product.createMany({
     data: [
-      { merchantId: shop.id, name: "Ceramic pour-over set", emoji: "☕", description: "Hand-glazed dripper and two cups. Held in escrow for a 5-minute refund window.", amount: "18000000", kind: "OneTime", windowSecs: 300 },
-      { merchantId: shop.id, name: "Roaster's Club pass", emoji: "🎟️", description: "Prepaid pass: 3 periods, one released to the shop every 3 minutes. Cancel and the rest comes back. Transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * 180, amount: "12000000" }))) },
-      { merchantId: shop.id, name: "Custom espresso bar build", emoji: "🛠️", description: "Paid in three milestones that release over time: deposit, build, install.", amount: "120000000", kind: "Schedule", scheduleJson: JSON.stringify([{ afterSecs: 0, amount: "30000000" }, { afterSecs: 240, amount: "50000000" }, { afterSecs: 480, amount: "40000000" }]) },
+      { merchantId: shop.id, name: "Pro plan · 1 year", emoji: "📈", description: "Unlimited dashboards and exports for a year. Paid once, held in escrow for a 5-minute refund window.", amount: "18000000", kind: "OneTime", windowSecs: 300 },
+      { merchantId: shop.id, name: "Team plan · prepaid", emoji: "👥", description: "Prepaid plan: 3 billing periods, one released to Acme every 3 minutes. Cancel and the unused periods come back. The plan pass is transferable.", amount: "36000000", kind: "Subscription", scheduleJson: JSON.stringify([0, 1, 2].map((i) => ({ afterSecs: i * 180, amount: "12000000" }))) },
+      { merchantId: shop.id, name: "Onboarding & integration", emoji: "🛠️", description: "A setup project paid in three milestones that release over time: kickoff, integration, launch.", amount: "120000000", kind: "Schedule", scheduleJson: JSON.stringify([{ afterSecs: 0, amount: "30000000" }, { afterSecs: 240, amount: "50000000" }, { afterSecs: 480, amount: "40000000" }]) },
     ],
   });
   const fresh = await db.merchant.findUniqueOrThrow({ where: { id: shop.id } });
-  if (fresh.chainState !== "active") fail("The demo shop could not be registered on the contract", fresh.chainError ?? "");
+  if (fresh.chainState !== "active") fail("The demo merchant could not be registered on the contract", fresh.chainError ?? "");
   const DASHBOARD = dashboardUrl(fresh);
   info(`${shop.name} registered on chain as ${shop.id}`);
   await db.$disconnect();
@@ -193,11 +193,11 @@ async function main() {
 \x1b[1m\x1b[32m✔ Universal Checkout is running (local sandbox, no real money)\x1b[0m
 
   Start here        ${PUBLIC_URL}
-  Demo shop         ${PUBLIC_URL}/shop
-  Seller dashboard  ${DASHBOARD}
+  Demo checkout     ${PUBLIC_URL}/shop
+  Merchant dashboard ${DASHBOARD}
   Dev inbox (emails) ${PUBLIC_URL}/dev/inbox
 
-  Try: buy something in the shop → "Simulate payment" → open the receipt →
+  Try: buy a plan on the demo checkout → "Simulate payment" → open the receipt →
   request a refund → answer the assistant → watch the money go back.
 
   Press Ctrl+C to stop.

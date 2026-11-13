@@ -3,9 +3,9 @@
  * dwell times, scrub targets and the isometric projection that places the coin,
  * pins and receipt card. Kept free of React so it can be unit-tested.
  *
- * The phone is the shopper's wallet: the coin is born on its Pay button, crosses
+ * The phone is the customer's wallet: the coin is born on its Pay button, crosses
  * the bridge (NEAR Intents), lands in the safe (receipt contract) and finally
- * reaches the shop. The camera looks so that the path rises to the right.
+ * reaches the business. The camera looks so that the path rises to the right.
  */
 
 export type CoinKey = "ETH" | "SOL" | "BTC" | "USDT";
@@ -60,7 +60,7 @@ export function sequence(mode: FlowState["mode"], coinKey: CoinKey): Step[] {
       ? `Tap. They pay ${coin.label} from MetaMask on ${coin.chain}.`
       : `Tap. They send ${coin.label} to a one-time deposit address on ${coin.chain}.`;
   const pay: Step[] = [
-    { wp: "phone", vis: false, act: "button", ms: 3200, cap: "A shopper hits the Zap pay button on any site." },
+    { wp: "phone", vis: false, act: "button", ms: 3200, cap: "A customer hits the Zap pay button in your checkout." },
     { wp: "phone", vis: false, act: "button", ms: 3400, cap: `The hosted checkout opens. They pick ${coin.label} on ${coin.chain} and leave a refund address.` },
     { wp: "phone", vis: true, act: "wallet", ms: 2600, cap: dep },
     { wp: "bs", vis: true, act: "bridge", ms: 2400, cap: `NEAR Intents 1Click quotes an exact USDC output for their ${coin.label}.` },
@@ -69,13 +69,13 @@ export function sequence(mode: FlowState["mode"], coinKey: CoinKey): Step[] {
     { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, ms: 2600, cap: "A receipt NFT is minted. The USDC is held inside it, in escrow." },
     // The held breath: the whole product is this pause.
     { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, win: true, ms: 5200, cap: "The refund window is open. Funds sit in a public contract, not with a company." },
-    { wp: "stack", vis: true, usdc: true, act: "shop", ms: 2800, cap: "Window closed. Anyone can trigger the release, and USDC goes to the seller." },
-    { wp: "stack", vis: false, usdc: true, act: "shop", ms: 3600, cap: `Settled in USDC, though the shopper paid in ${coin.label}.` },
+    { wp: "stack", vis: true, usdc: true, act: "shop", ms: 2800, cap: "Window closed. Anyone can trigger the release, and USDC goes to the business." },
+    { wp: "stack", vis: false, usdc: true, act: "shop", ms: 3600, cap: `Settled in USDC, though the customer paid in ${coin.label}.` },
   ];
   if (mode === "pay") return pay;
   return pay.slice(0, 8).concat([
-    { wp: "vault", vis: true, usdc: true, act: "asst", nft: true, win: true, ms: 3000, cap: "Refund requested. The assistant checks the policy and fulfilment status." },
-    { wp: "vault", vis: true, usdc: true, act: "worker", nft: true, ms: 2600, cap: "Within the seller’s caps and veto window, the worker executes the refund." },
+    { wp: "vault", vis: true, usdc: true, act: "asst", nft: true, win: true, ms: 3000, cap: "Refund requested. The assistant checks your policy and the order." },
+    { wp: "vault", vis: true, usdc: true, act: "worker", nft: true, ms: 2600, cap: "Within your caps and veto window, the worker executes the refund." },
     { wp: "be", vis: true, usdc: true, act: "bridge", ms: 2400, cap: "Back through 1Click. The quote ID is logged on chain." },
     { wp: "bs", vis: true, act: "bridge", ms: 2400, cap: `Converted back to ${coin.label}.` },
     { wp: "phone", vis: true, act: "wallet", ms: 3800, cap: `Refunded in ${coin.label} on ${coin.chain}, to the refund address.` },
@@ -181,7 +181,7 @@ export function flowView(s: FlowState) {
     ? {
         rows: [
           ["Assistant review", "Policy and fulfilment checked"],
-          ["Seller protections", "Caps and veto window respected"],
+          ["Business rules", "Caps and veto window respected"],
           ["Refund sent", "Swapped back via 1Click"],
         ] as Array<[string, string]>,
         at: step === 8 ? 0 : step === 9 ? 1 : 2,
@@ -219,7 +219,7 @@ export function flowView(s: FlowState) {
       pin("04", "Settlement worker", "worker", PLACES.worker.x, -150, PLACES.worker.z),
       pin("05", "Receipt contract", "vault", PLACES.vault.x - 150, -40, 30),
       pin("R", "Refund assistant", "asst", PLACES.asst.x, -130, PLACES.asst.z),
-      pin("06", "Seller payout", "shop", PLACES.shop.x, -150, 0),
+      pin("06", "Payout to you", "shop", PLACES.shop.x, -150, 0),
     ],
     puck: {
       wp: cur.wp,
@@ -252,11 +252,11 @@ export function flowView(s: FlowState) {
 }
 
 export const LEGEND: Array<[string, Actor, string, string]> = [
-  ["01", "button", "Pay button", "<pay-button> on any page opens a hosted checkout. Pick a coin, add a refund address."],
+  ["01", "button", "Pay button", "<pay-button> in your app or on your pricing page opens a hosted checkout. Pick a coin, add a refund address."],
   ["02", "wallet", "Deposit", "MetaMask on EVM chains, or a deposit address and QR code for everything else."],
   ["03", "bridge", "NEAR Intents · 1Click", "Swaps to an exact USDC amount, sent straight to the receipt contract."],
   ["04", "worker", "Settlement worker", "Sees the USDC land and calls mint_receipt. Later it runs approved refunds."],
   ["05", "vault", "Receipt contract", "A NEP-171 receipt NFT holds the USDC in escrow until the window closes."],
-  ["06", "shop", "Seller payout", "When the window ends, anyone can trigger the release. USDC goes to the seller."],
-  ["R", "asst", "Refund assistant", "Approves clear cases, denies violations or escalates, inside the seller’s caps, veto window and deadline."],
+  ["06", "shop", "Payout to you", "When the window ends, anyone can trigger the release. USDC goes to the business."],
+  ["R", "asst", "Refund assistant", "Approves clear cases, denies violations or escalates, inside your caps, veto window and deadline."],
 ];

@@ -71,10 +71,10 @@ const messagesOf = (c: RefundCase): ChatMessage[] => JSON.parse(c.messagesJson) 
 async function checkAbuse(merchantId: string, address: string): Promise<number> {
   const merchant = await db.merchant.findUnique({ where: { id: merchantId } });
   const blocked = JSON.parse(merchant?.blockedRefundAddresses || "[]") as string[];
-  if (blocked.includes(address.toLowerCase())) throw new UserError("Refund requests from this address are not accepted by the shop. Contact the shop directly.", 403);
+  if (blocked.includes(address.toLowerCase())) throw new UserError("Refund requests from this address are not accepted by this business. Contact them directly.", 403);
   const since = new Date(Date.now() - 30 * 86_400_000);
   const recent = await db.refundCase.count({ where: { merchantId, refundAddress: address, createdAt: { gte: since }, kind: { not: "merchant" } } });
-  if (recent >= 5) throw new UserError("Too many refund requests from this address recently. Contact the shop directly.", 429);
+  if (recent >= 5) throw new UserError("Too many refund requests from this address recently. Contact the business directly.", 429);
   return recent;
 }
 
@@ -121,7 +121,7 @@ export async function openRequest(id: string, kind: "refund" | "cancel", input: 
   await enqueueWebhook(r.merchantId, kind === "cancel" ? "subscription.cancelled" : "refund.requested", { receiptId: id, orderRef: await orderRefOf(id), amount, reason });
   if (merchant?.aiTriage) await runTriage(c.id);
   else {
-    await addMessage(c.id, msg("system", "Your request was sent to the shop. If they do not answer in time it is approved automatically."));
+    await addMessage(c.id, msg("system", "Your request was sent to the business. If they do not answer in time it is approved automatically."));
     if (merchant?.email)
       await sendEmail({ to: merchant.email, subject: `Refund request: $${fromMinor(amount)}`, lines: [`A customer asked for $${fromMinor(amount)} back on receipt #${id}.`, `Their reason: "${reason}"`, "If you do not decide in time, the refund is approved automatically."], button: { label: "Decide in dashboard", url: dashboardUrl(merchant) } });
   }
@@ -176,10 +176,10 @@ export async function runTriage(caseId: string, forceDecision = false): Promise<
   const transcript = [...messagesOf(c)];
   const summaryHash = sha256(JSON.stringify({ summary: decision.summary, transcript }));
   const text: Record<Decision["decision"], string> = {
-    approve: "Approved. The shop has a short window to object; after that your refund is sent automatically.",
-    partial: "A partial refund was approved. The shop has a short window to object; after that it is sent automatically.",
-    escalate: "I've passed this to the shop with a summary. If they do not answer in time, your refund is approved automatically.",
-    deny: "This request falls outside the shop's refund policy, so I can't approve it. You can appeal once and the shop will review it.",
+    approve: "Approved. The business has a short window to object; after that your refund is sent automatically.",
+    partial: "A partial refund was approved. The business has a short window to object; after that it is sent automatically.",
+    escalate: "I've passed this to the business with a summary. If they do not answer in time, your refund is approved automatically.",
+    deny: "This request falls outside the business's refund policy, so I can't approve it. You can appeal once and the business will review it.",
   };
   await addMessage(caseId, msg("agent", `${text[decision.decision]}\n\n${decision.summary}`), { aiState: "decided", decisionJson: JSON.stringify(decision), summaryHash, customerDeadline: null });
 }
@@ -214,7 +214,7 @@ export async function appealRequest(id: string, auth: HolderAuth) {
   const { signer, sig } = await holderSigner(r, auth);
   const tx = await run(() => getChain().appeal(signer, id, sig));
   const c = await db.refundCase.findFirst({ where: { receiptId: id }, orderBy: { createdAt: "desc" } });
-  if (c) await addMessage(c.id, msg("system", "You appealed. The shop will review this request; if they do not answer in time it is approved automatically."), { closed: false });
+  if (c) await addMessage(c.id, msg("system", "You appealed. The business will review this request; if they do not answer in time it is approved automatically."), { closed: false });
   await db.chainEvent.create({ data: { receiptId: id, event: "appealed", dataJson: "{}", txHash: tx.txHash } });
   await enqueueWebhook(r.merchantId, "refund.escalated", { receiptId: id, orderRef: await orderRefOf(id), amount: r.request?.amount, appealed: true });
   return mustGet(id);
@@ -294,7 +294,7 @@ export async function merchantDecide(id: string, action: "approve" | "reject" | 
   const clean = note.trim().slice(0, 250);
   const tx = await run(() => (action === "approve" ? chain.approveRefund(approver, id) : action === "reject" ? chain.rejectRefund(approver, id, clean) : chain.veto(approver, id, clean)));
   const c = await db.refundCase.findFirst({ where: { receiptId: id, closed: false }, orderBy: { createdAt: "desc" } });
-  const text = { approve: "The shop approved your refund. It is on its way.", reject: "The shop declined this request.", veto: "The shop asked to review this request before it is paid." }[action];
+  const text = { approve: "The business approved your refund. It is on its way.", reject: "The business declined this request.", veto: "The business asked to review this request before it is paid." }[action];
   if (c) await addMessage(c.id, msg("merchant", clean ? `${text}\n\n"${clean}"` : text));
   await db.chainEvent.create({ data: { receiptId: id, event: action === "approve" ? "refund_approved" : action === "reject" ? "refund_rejected" : "vetoed", dataJson: JSON.stringify({ note: clean }), txHash: tx.txHash } });
   if (action !== "veto") await enqueueWebhook(r.merchantId, action === "approve" ? "refund.approved" : "refund.rejected", { receiptId: id, orderRef: await orderRefOf(id), amount: r.request?.amount });
@@ -311,7 +311,7 @@ export async function merchantRefund(id: string, amount?: string) {
   if (!/^\d+$/.test(amt) || BigInt(amt) <= 0n || BigInt(amt) > BigInt(unreleased)) throw new UserError("That amount is not available to refund");
   const tx = await run(() => chain.merchantRefund(approver, id, amt));
   await db.refundCase.create({
-    data: { receiptId: id, merchantId: r.merchantId, kind: "merchant", amount: amt, reason: "Refund started by the shop", refundAddress: r.refundTarget.address, messagesJson: JSON.stringify([msg("merchant", "The shop started a refund for this order.")]) },
+    data: { receiptId: id, merchantId: r.merchantId, kind: "merchant", amount: amt, reason: "Refund started by the business", refundAddress: r.refundTarget.address, messagesJson: JSON.stringify([msg("merchant", "The business started a refund for this order.")]) },
   });
   await db.session.updateMany({ where: { receiptId: id }, data: { status: "refund_requested" } });
   await db.chainEvent.create({ data: { receiptId: id, event: "refund_approved", dataJson: JSON.stringify({ amount: amt, byMerchant: true }), txHash: tx.txHash } });
@@ -494,7 +494,7 @@ export async function emailReceiptLink(id: string, email: string, link: string) 
   const s = await db.session.findFirst({ where: { receiptId: id }, include: { merchant: true } });
   await sendEmail({
     to: email,
-    subject: `Your receipt from ${s?.merchant.name ?? "the shop"}`,
+    subject: `Your receipt from ${s?.merchant.name ?? "Zap"}`,
     lines: [
       `Your receipt #${id} for ${s?.product ?? "your order"}.`,
       "This link is the key to your receipt: with it you can ask for a refund, cancel a pass, or claim the receipt to a NEAR account. Do not share it.",

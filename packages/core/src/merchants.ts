@@ -8,7 +8,7 @@ import { DEFAULT_POLICY, parsePolicy, type RefundPolicy } from "./refund-agent";
 import { custodialAllowed, ensureDemoAccount, getChain, getConfig } from "./runtime";
 
 /**
- * Sellers sign up with a shop name, an email and the NEAR account they want to be paid to.
+ * Merchants sign up with a business name, an email and the NEAR account they want to be paid to.
  * They never sign a transaction: the settlement worker registers them on the receipt
  * contract with `register_merchant_for` (operator registration, see DECISIONS.md).
  * The seller's merchant id IS their payout account, so their snippet reads
@@ -71,7 +71,7 @@ async function resolvePayout(input: string | undefined, name: string): Promise<s
 
 export async function registerMerchant(input: MerchantInput): Promise<Merchant> {
   const name = String(input.name ?? "").trim();
-  if (name.length < 2 || name.length > 60) throw new UserError("Give the shop a name (2–60 characters)");
+  if (name.length < 2 || name.length > 60) throw new UserError("Give your business a name (2–60 characters)");
   const email = input.email?.trim().toLowerCase() || null;
   if (email && !isEmail(email)) throw new UserError("That email address does not look right");
   const cfg: OnChain = {
@@ -89,7 +89,7 @@ export async function registerMerchant(input: MerchantInput): Promise<Merchant> 
   if (input.webhookUrl && !validUrl(input.webhookUrl)) throw new UserError("webhookUrl must be an http(s) URL");
 
   const payout = await resolvePayout(input.payoutAccount, name);
-  if (await db.merchant.findUnique({ where: { id: payout } })) throw new UserError(`${payout} already has a shop here. Open its dashboard link instead.`, 409);
+  if (await db.merchant.findUnique({ where: { id: payout } })) throw new UserError(`${payout} already has a merchant account here. Open its dashboard link instead.`, 409);
   const m = await db.merchant.create({
     data: {
       id: payout,
@@ -110,11 +110,11 @@ export async function registerMerchant(input: MerchantInput): Promise<Merchant> 
   if (email)
     await sendEmail({
       to: email,
-      subject: `Your shop "${name}" is ready`,
+      subject: `"${name}" is ready to take payments`,
       lines: [
-        `Your shop "${name}" is set up.`,
+        `"${name}" is set up on Zap.`,
         `Payments are paid out in USDC to ${payout} on NEAR, after each order's refund period.`,
-        "Keep this email: the button below is your private dashboard link. Anyone with it can manage your shop.",
+        "Keep this email: the button below is your private dashboard link. Anyone with it can manage your merchant account.",
       ],
       button: { label: "Open my dashboard", url: dashboardUrl(m) },
     });
