@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "==> Universal Checkout / NEAR dev setup"
+echo "==> Zap / NEAR dev setup"
 
 if command -v rustc >/dev/null; then
   echo "Rust: $(rustc --version)"

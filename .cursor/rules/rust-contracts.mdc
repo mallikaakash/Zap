@@ -1,13 +1,15 @@
 ---
-description: NEAR Rust smart contract conventions for contract/
-globs: contract/**/*
+description: NEAR Rust smart contract conventions for contracts/
+globs: contracts/**/*
 alwaysApply: false
 ---
 
 # Rust contracts
 
-- Follow patterns in `.agents/skills/near-smart-contracts/` (rules + SKILL.md).
-- Use `#[near(bindgen)]`, `#[payable]`, and storage collections per NEAR SDK docs.
-- Build: `cargo near build non-reproducible-wasm` (artifact: `target/near/auction_contract.wasm`).
-- Test locally with sandbox tests under `contract/tests/` before testnet deploy.
-- For upgrades/migrations, read the upgrade rules in the smart-contracts skill before changing stored state layout.
+- Follow `.agents/skills/near-smart-contracts/` (SKILL.md + `rules/`).
+- Use `#[near(bindgen)]`, `#[payable]`, storage collections, and authorization checks per near-sdk docs.
+- Workspace toolchain: `contracts/rust-toolchain.toml` (channel **1.97.1**, target `wasm32-unknown-unknown`).
+- Build WASM: `bash scripts/build-contracts.sh` or `cargo near build non-reproducible-wasm` per crate.
+- Test: `pnpm test:contracts` / `cd contracts && cargo test --locked` (unit + `near-sandbox` integration).
+- Prebuilt artifacts: `contracts/artifacts/` for `pnpm demo` without local Rust.
+- For upgrades/migrations, read smart-contracts skill upgrade rules before changing stored layout.

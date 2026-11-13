@@ -1,4 +1,4 @@
-# Universal Checkout
+# Zap
 
 **Crypto checkout for SaaS and online businesses**, in the spirit of Stripe Checkout. A merchant adds two lines to their pricing page or app. Customers pay with any coin on any chain through [NEAR Intents](https://docs.near-intents.org), and the merchant receives USDC. Every payment becomes a **receipt NFT that holds the money** until the refund period ends. Refunds go back to the customer's original chain and coin, and a refund assistant answers first, within limits the merchant sets and the contract enforces.
 

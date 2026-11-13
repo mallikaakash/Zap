@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Universal Checkout — pay-button demo</title>
+<title>Zap — pay-button demo</title>
 <!--
   Standalone demo, no backend needed:
     pnpm --filter @uc/sdk build && open packages/sdk/demo.html
@@ -47,7 +47,7 @@
 </head>
 <body>
 <main id="shop" hidden>
-  <h1>Universal Checkout — <code>&lt;pay-button&gt;</code></h1>
+  <h1>Zap — <code>&lt;pay-button&gt;</code></h1>
   <p class="lead">Three modes, one tag. The backend is mocked on this page; open the console/log below to see the exact session request.</p>
 
   <div class="grid">
@@ -132,7 +132,7 @@
     document.getElementById("co-product").textContent = params.get("product") || "Checkout";
     document.getElementById("co-amount").textContent = "$" + (params.get("usd") || "");
     const send = (type, extra) =>
-      window.parent.postMessage(Object.assign({ source: "universal-checkout", type, sessionId }, extra), "*");
+      window.parent.postMessage(Object.assign({ source: "zap", type, sessionId }, extra), "*");
     const resize = () => send("uc:resize", { height: document.getElementById("checkout").offsetHeight });
     resize();
     document.getElementById("co-sim").onclick = () => {
@@ -146,7 +146,7 @@
     document.getElementById("co-cancel").onclick = document.getElementById("co-close").onclick = () => send("uc:close");
     addEventListener("keydown", (e) => e.key === "Escape" && send("uc:close"));
   } else {
-    // ---- demo shop: mock the Universal Checkout backend ----
+    // ---- demo shop: mock the Zap backend ----
     document.getElementById("shop").hidden = false;
     const logEl = document.getElementById("log");
     const log = (title, data) => {
@@ -167,7 +167,7 @@
       const checkout = new URL(location.href.split(/[?#]/)[0]);
       checkout.searchParams.set("checkout", id);
       checkout.searchParams.set("product", body.product || "");
-      checkout.searchParams.set("usd", window.UniversalCheckout.minorToUsd(body.amountUsd));
+      checkout.searchParams.set("usd", window.Zap.minorToUsd(body.amountUsd));
       return new Response(JSON.stringify({ sessionId: id, checkoutUrl: checkout.toString() }), {
         status: 200, headers: { "content-type": "application/json" },
       });
@@ -182,7 +182,7 @@
     document.querySelectorAll("#styler [data-attr]").forEach((el) => { el.addEventListener("input", () => apply(el)); });
 
     addEventListener("DOMContentLoaded", () => {
-      document.getElementById("link").textContent = window.UniversalCheckout.checkoutLink({
+      document.getElementById("link").textContent = window.Zap.checkoutLink({
         api: "https://pay.example", merchant: "shop.testnet", mode: "subscription", months: 3, monthly: "9.99", product: "Pro plan",
       });
     });

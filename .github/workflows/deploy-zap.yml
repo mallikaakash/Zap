@@ -1,4 +1,4 @@
-# Deploy Zap (Universal Checkout) to Cloud Run on every push to main.
+# Deploy Zap (Zap) to Cloud Run on every push to main.
 # Runtime env (NEAR keys) stays on the Cloud Run service — only the image updates here.
 # GCP: github-deploy SA + WIF pool must allow repository mallikaakash/Zap.
 

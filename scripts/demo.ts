@@ -51,7 +51,7 @@ function wasm(name: string): Uint8Array {
 
 async function main() {
   const [major] = process.versions.node.split(".").map(Number);
-  if ((major ?? 0) < 22) fail(`Node ${process.versions.node} is too old`, "Universal Checkout needs Node 22 or newer (`nvm use`).");
+  if ((major ?? 0) < 22) fail(`Node ${process.versions.node} is too old`, "Zap needs Node 22 or newer (`nvm use`).");
 
   const receiptsWasm = wasm("receipts.wasm");
   const usdcWasm = wasm("mock_usdc.wasm");
@@ -190,7 +190,7 @@ async function main() {
   }
 
   console.log(`
-\x1b[1m\x1b[32m✔ Universal Checkout is running (local sandbox, no real money)\x1b[0m
+\x1b[1m\x1b[32m✔ Zap is running (local sandbox, no real money)\x1b[0m
 
   Start here        ${PUBLIC_URL}
   Demo checkout     ${PUBLIC_URL}/shop

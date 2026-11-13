@@ -1,6 +1,8 @@
 # Going live on NEAR mainnet
 
-This takes Universal Checkout from the local demo to real payments: real NEAR Intents swaps, real USDC in the receipt contract, real refunds. **You** run every step that touches money or keys; nothing here sends a transaction without you typing `--yes`.
+**Production host (HTTPS):** `https://zap-2lcs3sivbq-uc.a.run.app` — set `PUBLIC_URL` and embed `pay.js` from this origin. The older VM/`sslip.io` setup is deprecated.
+
+This takes Zap from the local demo to real payments: real NEAR Intents swaps, real USDC in the receipt contract, real refunds. **You** run every step that touches money or keys; nothing here sends a transaction without you typing `--yes`.
 
 Budget: about **5.5 NEAR** (~3.8 NEAR of it is code storage, locked rather than spent; the deploy script prints the exact figure first) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
 
@@ -24,8 +26,8 @@ When asked where to store the key, choose **"Save to the legacy keychain"**. It 
 
 ```bash
 pnpm install
-pnpm deploy:mainnet --operator aakash7777.near --public-url https://34-69-143-151.sslip.io          # shows the plan and cost
-pnpm deploy:mainnet --operator aakash7777.near --public-url https://34-69-143-151.sslip.io --yes    # does it
+pnpm deploy:mainnet --operator aakash7777.near --public-url https://zap-2lcs3sivbq-uc.a.run.app          # shows the plan and cost
+pnpm deploy:mainnet --operator aakash7777.near --public-url https://zap-2lcs3sivbq-uc.a.run.app --yes    # does it
 ```
 
 The script does the following:

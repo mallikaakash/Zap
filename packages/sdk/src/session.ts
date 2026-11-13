@@ -66,7 +66,7 @@ export interface CheckoutConfig {
 }
 
 export interface CreateSessionOptions extends CheckoutConfig {
-  /** Base URL of the Universal Checkout host. Default: origin pay.js was loaded from. */
+  /** Base URL of the Zap host. Default: origin pay.js was loaded from. */
   api?: string;
   signal?: AbortSignal;
 }

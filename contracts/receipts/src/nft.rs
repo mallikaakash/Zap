@@ -116,7 +116,7 @@ impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
-            name: "Universal Checkout Receipts".to_string(),
+            name: "Zap Receipts".to_string(),
             symbol: "UCR".to_string(),
             icon: None,
             base_uri: None,

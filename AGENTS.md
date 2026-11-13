@@ -48,25 +48,33 @@ near contract call-function as-read-only <contract.testnet> <method> json-args '
 ### Build & test contract
 
 ```bash
-npm run build:contract
-npm run test:contract
+pnpm build:contracts
+pnpm test:contracts
 ```
 
 ### Frontend dev server
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
-Requires Node **^22.22.2, ^24.15.0, or ≥26** (see `.nvmrc`). Run `nvm use` in this directory.
+Requires Node **≥ 22** (see `.nvmrc`). Run `nvm use` in this directory.
+
+Before tests: `pnpm --filter @uc/db generate`
 
 ### Deploy (human approves signing)
 
-From `contract/README.md` — deploy WASM + `init` in one transaction. Never auto-import seed phrases into MCP or git.
+See `docs/GO-LIVE.md` and `docs/near/deployment.md`. Never auto-import seed phrases into MCP or git.
+
+## NEAR knowledge base
+
+Structured docs for agents: **`docs/near/`** (start at `docs/near/README.md`).
+
+Project skills (supplements): **`.cursor/skills/`** — fundamentals, wallet auth, deployment, debugging, etc.
 
 ## NEAR CLI (terminal)
 
-Install: `npm run setup` or `npm install -g near-cli-rs@latest`
+Install: `bash scripts/setup.sh` or `npm install -g near-cli-rs@0.31.1`
 
 Faucet (browser): https://near-faucet.io/
 

@@ -1,6 +1,6 @@
-# Universal Checkout — Build Spec (NEAR Hackathon 2026)
+# Zap — Build Spec (NEAR Hackathon 2026)
 
-> One button for every way money moves.
+> Any coin in, USDC out — embed checkout; every payment is a receipt that holds the money until the refund window ends.
 > Customers pay in any coin on any chain (via NEAR Intents); merchants get USDC.
 > Every payment becomes a **receipt NFT that holds the money** during a refund window.
 > Refunds go back to the customer's original chain and coin. Prepaid subscriptions and

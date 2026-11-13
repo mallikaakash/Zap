@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Zap", template: "%s · Zap" },
-  description: "One button for every way money moves. Customers pay in any coin on any chain; merchants get USDC; every payment is a receipt that holds the money.",
+  description: "Any coin in, USDC out. Embed one pay button; every payment is a receipt NFT that holds the money until the refund window ends.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

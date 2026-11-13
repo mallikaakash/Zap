@@ -8,7 +8,7 @@ import { PASS_PERIODS, passTotals, usdc2 } from "./protections";
 import { Head } from "./sections";
 
 const ACCENT = "#FF2D87";
-const GITHUB = "https://github.com/mallikaakash/near-hackathon";
+const GITHUB = "https://github.com/mallikaakash/Zap";
 
 export function Gasless() {
   const items = [

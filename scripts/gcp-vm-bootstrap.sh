@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap Universal Checkout on a Debian/Ubuntu GCP VM (run ON the VM).
+# Bootstrap Zap on a Debian/Ubuntu GCP VM (run ON the VM).
 # Usage:
 #   sudo bash scripts/gcp-vm-bootstrap.sh demo   # HTTPS + local sandbox (no .env)
 #   sudo bash scripts/gcp-vm-bootstrap.sh live   # requires repo-root .env (chmod 600)
@@ -15,7 +15,7 @@ APP_USER="${APP_USER:-violinadoley}"
 echo "==> mode=$MODE repo=$REPO public=$PUBLIC_URL"
 
 # Stop legacy processes
-pkill -f "/opt/universal-checkout" 2>/dev/null || true
+pkill -f "/opt/zap" 2>/dev/null || true
 pkill -f "scripts/demo.ts" 2>/dev/null || true
 sleep 2
 
@@ -58,10 +58,10 @@ if [[ "$MODE" == "live" ]]; then
   fi
   chmod 600 "$REPO/.env"
   EXEC_START="/usr/bin/pnpm start"
-  DESC="Universal Checkout (live mainnet)"
+  DESC="Zap (live mainnet)"
 else
   EXEC_START="/usr/bin/env PUBLIC_URL=${PUBLIC_URL} /usr/bin/pnpm demo"
-  DESC="Universal Checkout (HTTPS sandbox demo)"
+  DESC="Zap (HTTPS sandbox demo)"
 fi
 
 PNPM="$(command -v pnpm)"

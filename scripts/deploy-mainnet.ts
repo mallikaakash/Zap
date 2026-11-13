@@ -1,5 +1,5 @@
 /**
- * `pnpm deploy:mainnet` — set up Universal Checkout on NEAR mainnet. RUN BY THE OPERATOR ONLY.
+ * `pnpm deploy:mainnet` — set up Zap on NEAR mainnet. RUN BY THE OPERATOR ONLY.
  *
  * What it does (idempotent; re-running skips what already exists):
  *   1. creates  checkout.<operator>  (receipt contract),  executor.<operator>  (settlement worker),
@@ -79,7 +79,7 @@ async function main() {
   const exists = Object.fromEntries(await Promise.all(plan.map(async (p) => [p.account, await near.accountExists(p.account)] as const)));
   const needed = plan.filter((p) => !exists[p.account]).reduce((a, p) => a + p.fund, 0n) + yocto(0.05);
 
-  console.log(`\nUniversal Checkout deployment on ${networkId}  (rpc ${rpcUrl})`);
+  console.log(`\nZap deployment on ${networkId}  (rpc ${rpcUrl})`);
   console.log(`  operator   ${operator}   balance ${fmt(opBalance)}`);
   for (const p of plan) console.log(`  ${exists[p.account] ? "exists " : "create "}  ${p.account.padEnd(36)} ${exists[p.account] ? "" : `fund ${fmt(p.fund)}`}  (${p.why})`);
   console.log(`  USDC       ${usdc}`);

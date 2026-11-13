@@ -1,5 +1,5 @@
 /**
- * @uc/sdk — Universal Checkout browser SDK.
+ * @uc/sdk — Zap browser SDK.
  * Importing this module registers `<pay-button>` (no-op under SSR).
  */
 import { minorToUsd, usdToMinor } from "./money";
@@ -44,8 +44,8 @@ export { DEFAULT_LABEL, PayButton, TAG, register, type ErrorDetail } from "./pay
 
 export const VERSION = "0.1.0";
 
-/** The object exposed as `window.UniversalCheckout` by `pay.js`. */
-export const UniversalCheckout = {
+/** The object exposed as `window.Zap` by `pay.js`. */
+export const Zap = {
   version: VERSION,
   createSession,
   openCheckout,
@@ -55,11 +55,11 @@ export const UniversalCheckout = {
   minorToUsd,
   register,
 };
-export type UniversalCheckoutApi = typeof UniversalCheckout;
+export type ZapApi = typeof Zap;
 
 declare global {
   interface Window {
-    UniversalCheckout?: UniversalCheckoutApi;
+    Zap?: ZapApi;
   }
   interface HTMLElementTagNameMap {
     "pay-button": import("./pay-button").PayButton;

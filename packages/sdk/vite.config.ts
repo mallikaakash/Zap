@@ -8,7 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     lib: {
       entry: "src/script.ts",
-      name: "UniversalCheckoutBundle",
+      name: "Zap",
       formats: ["iife"],
       fileName: () => "pay.js",
     },

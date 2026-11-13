@@ -1,4 +1,4 @@
-# @uc/sdk — `<pay-button>` and the Universal Checkout browser client
+# @uc/sdk — `<pay-button>` and the Zap browser client
 
 Drop-in checkout button (custom element, Shadow DOM, no framework, zero runtime
 dependencies) plus a tiny JS client. Money is always **integer USDC minor units
@@ -24,7 +24,7 @@ open packages/sdk/demo.html       # after a build; backend is mocked in the page
 ```
 
 - `dist/pay.js` — self-registering script build. Defines `<pay-button>` and sets
-  `window.UniversalCheckout`. The host app serves it at `/pay.js`.
+  `window.Zap`. The host app serves it at `/pay.js`.
 - `src/index.ts` — source-first module entry (`import { usdToMinor } from "@uc/sdk"`).
   Importing it registers the element in the browser and is a no-op under SSR;
   loading it twice is safe.
@@ -44,7 +44,7 @@ All attributes are reactive: changing one updates the button immediately.
 | `product` | string | Optional display name. |
 | `order-ref` | string | Your order id. Generated per click (`uc_<32 hex>`) when absent. |
 | `metadata` | JSON object string | Passed through to the session. |
-| `api` | URL | Base URL of the Universal Checkout host. Default: the origin `pay.js` was loaded from (`document.currentScript`), else `location.origin`. |
+| `api` | URL | Base URL of the Zap host. Default: the origin `pay.js` was loaded from (`document.currentScript`), else `location.origin`. |
 | `display` | `modal` (default) \| `redirect` | `redirect` navigates to the checkout URL instead of opening the modal. |
 | `label` | string | Default `Pay any way`. |
 | `color` | any CSS colour | Button background. With a hex colour and no `text-color`, the text colour is picked automatically for contrast. |
@@ -141,7 +141,7 @@ fragment preserved) in an iframe. The checkout page talks to the parent with:
 
 ```js
 window.parent.postMessage({
-  source: "universal-checkout",                       // required
+  source: "zap",                       // required
   type: "uc:paid" | "uc:close" | "uc:resize",         // required
   sessionId,                                          // if present must match the session
   receiptId, receiptUrl,                              // uc:paid
@@ -150,7 +150,7 @@ window.parent.postMessage({
 ```
 
 The SDK only accepts a message when `event.origin` equals the origin of
-`checkoutUrl`, `data.source === "universal-checkout"`, the message comes from the
+`checkoutUrl`, `data.source === "zap"`, the message comes from the
 checkout iframe's window, and `sessionId` (when sent) matches.
 
 - `uc:paid` → `uc:paid` DOM event (first one only), button shows "Paid"; modal stays open.
@@ -164,7 +164,7 @@ checkout page should send `uc:close` on Esc itself when `embed=1`.
 
 ## JS client
 
-Exported from `@uc/sdk` and available as `window.UniversalCheckout` after `pay.js`:
+Exported from `@uc/sdk` and available as `window.Zap` after `pay.js`:
 
 ```ts
 usdToMinor("49.99")            // "49990000"  (throws UcError on junk / >6 dp / negatives)

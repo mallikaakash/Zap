@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  window.dispatchEvent(new MessageEvent("message", { data: { source: "universal-checkout", type: "uc:close" }, origin: "https://pay.example" }));
+  window.dispatchEvent(new MessageEvent("message", { data: { source: "zap", type: "uc:close" }, origin: "https://pay.example" }));
   document.body.innerHTML = "";
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -186,7 +186,7 @@ describe("<pay-button> checkout flow", () => {
     const closed = events(document.body, "uc:closed");
     await el.pay();
 
-    const msg = { source: "universal-checkout", type: "uc:paid", sessionId: "sess_1", receiptId: "r_9", receiptUrl: "https://pay.example/r/r_9#secret" };
+    const msg = { source: "zap", type: "uc:paid", sessionId: "sess_1", receiptId: "r_9", receiptUrl: "https://pay.example/r/r_9#secret" };
     post(msg, "https://evil.example");
     post({ ...msg, type: "uc:close" }, "https://evil.example");
     post({ ...msg, source: "someone-else" });
@@ -208,7 +208,7 @@ describe("<pay-button> checkout flow", () => {
     expect(el.state).toBe("success");
     expect(modal()).not.toBeNull(); // stays open so the customer can see the receipt
 
-    post({ source: "universal-checkout", type: "uc:close", sessionId: "sess_1" });
+    post({ source: "zap", type: "uc:close", sessionId: "sess_1" });
     expect(closed).toHaveLength(1);
     expect(closed[0]?.detail).toEqual({ sessionId: "sess_1", paid: true });
     expect(document.documentElement.style.overflow).toBe("");
@@ -250,7 +250,7 @@ describe("<pay-button> checkout flow", () => {
     mockFetch();
     const el = mount({ merchant: "shop.testnet", amount: "49" });
     await el.pay();
-    post({ source: "universal-checkout", type: "uc:resize", sessionId: "sess_1", height: 600 });
+    post({ source: "zap", type: "uc:resize", sessionId: "sess_1", height: 600 });
     const dialog = modal()?.shadowRoot?.querySelector<HTMLElement>(".d");
     expect(dialog?.style.getPropertyValue("--h")).toBe("653px");
   });
@@ -304,9 +304,9 @@ describe("openCheckout (programmatic)", () => {
     const onClose = vi.fn();
     const handle = openCheckout("https://checkout.example/c/abc", { sessionId: "abc", onPaid, onClose });
     expect(handle.display).toBe("modal");
-    post({ source: "universal-checkout", type: "uc:paid", sessionId: "abc", receiptId: "r1" }, "https://pay.example");
+    post({ source: "zap", type: "uc:paid", sessionId: "abc", receiptId: "r1" }, "https://pay.example");
     expect(onPaid).not.toHaveBeenCalled();
-    post({ source: "universal-checkout", type: "uc:paid", sessionId: "abc", receiptId: "r1" }, "https://checkout.example");
+    post({ source: "zap", type: "uc:paid", sessionId: "abc", receiptId: "r1" }, "https://checkout.example");
     expect(onPaid).toHaveBeenCalledWith({ sessionId: "abc", receiptId: "r1", receiptUrl: undefined });
     expect(handle.paid).toBe(true);
     handle.close();

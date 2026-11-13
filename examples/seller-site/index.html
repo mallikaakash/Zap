@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  An ordinary seller's page that knows nothing about Universal Checkout except two lines.
+  An ordinary seller's page that knows nothing about Zap except two lines.
   Host it anywhere (GitHub Pages, Netlify, Carrd custom code, your own server) or just open
   the file. Set HOST and MERCHANT below — or pass ?host=…&merchant=…&product=… in the URL.
 -->
@@ -49,7 +49,7 @@
           <h2>Tea bowl</h2>
           <p>Ash glaze, 250 ml. One of a kind.</p>
           <div class="price">$1.00</div>
-          <!-- Universal Checkout: one tag per product -->
+          <!-- Zap: one tag per product -->
           <pay-button data-slot="one-time" amount="1" product="Tea bowl" label="Pay any way"></pay-button>
         </article>
         <article class="item">
@@ -71,7 +71,7 @@
     <script>
       // ---- the seller's configuration (or ?host=…&merchant=…&pass=<product-id>&item=<product-id>) ----
       const q = new URLSearchParams(location.search);
-      const HOST = q.get("host") || "https://34-69-143-151.sslip.io";
+      const HOST = q.get("host") || "https://zap-2lcs3sivbq-uc.a.run.app";
       const MERCHANT = q.get("merchant") || "your-shop.near";
       // Optional: use dashboard products, so their refund window and pass interval apply.
       const PRODUCT_ITEM = q.get("item");

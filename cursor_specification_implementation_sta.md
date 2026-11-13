@@ -22,7 +22,7 @@ Here is a concise audit against `SPEC.md` (checklist in section 12 is still all 
 
 | Block | Spec intent | Rough completion | Notes |
 |--------|-------------|------------------|--------|
-| **A — Foundation** | Monorepo, mock USDC, prebuilt WASM, `pnpm demo` | **~85%** | Real UC layout (`contracts/`, `apps/web`, `packages/*`, `services/settlement`). Committed `contracts/artifacts/*.wasm`. `pnpm demo` spins sandbox via `near-kit`, SQLite, web + worker. **Gaps:** no CI; sandbox docker fallback is only mentioned in errors, not implemented; root **README is still the old NEAR auction starter**, not Universal Checkout. |
+| **A — Foundation** | Monorepo, mock USDC, prebuilt WASM, `pnpm demo` | **~85%** | Real UC layout (`contracts/`, `apps/web`, `packages/*`, `services/settlement`). Committed `contracts/artifacts/*.wasm`. `pnpm demo` spins sandbox via `near-kit`, SQLite, web + worker. **Gaps:** no CI; sandbox docker fallback is only mentioned in errors, not implemented; root **README is still the old NEAR auction starter**, not Zap. |
 | **B — Receipt contract** | Full escrow NFT + refund state machine | **~95%** | Methods align with `contracts/INTERFACE.md` (binding doc). Sandbox tests cover mint gating, `ft_on_transfer`, release/rollback, AI refund path, signatures, cancel, caps, pause. **Gaps:** no automated “CI rebuild WASM hash” check; spec’s **physical goods → release on delivered + N days** has no `productType` / enforce-on-release in app or contract. |
 | **C — Local payment path** | Mock swaps → worker → UI | **~85%** | `MockAdapter`, sessions/Prisma, settlement worker, checkout + simulate, receipt page + chat, webhooks, `/verify`, direct USDC path, min order, refund blocklist/rate limit, fulfilment for triage. **Gaps:** merchant actions use **demo-custodial keys**, not wallet selector (SPEC §9c #9); refund **photos are filename-only**; physical-goods release rules absent. |
 | **D — Merchant + button** | `<pay-button>`, dashboard, shop | **~90%** | `@uc/sdk` web component (92 tests), dashboard styler + QR/link, demo shop (3 products). **`pay.js` is gitignored** — built via `apps/web`’s `sdk` script, not wired into `pnpm demo` (shop uses in-app loader to `/pay.js`). |
@@ -168,7 +168,7 @@ Most teams should aim for **1 before the hackathon deadline**, then **2** as the
 - Demo-custodial accounts → **NEAR wallet** for merchants (and optional customer NEAR)  
 - Missing `deploy:testnet`, `proof:mainnet`, hosting, monitoring  
 - Stubs: refund **photos**, mock **cross-chain refund delivery**, optional Tidepool  
-- Root **README** still describes the old starter, not Universal Checkout  
+- Root **README** still describes the old starter, not Zap  
 
 The adapter README is explicit: the **non-dry 1Click path is coded but not exercised end-to-end** in the app yet — that’s the main integration gap, not the contract.
 

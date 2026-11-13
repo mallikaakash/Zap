@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Universal Checkout to Cloud Run with automatic HTTPS (*.run.app).
+# Deploy Zap to Cloud Run with automatic HTTPS (*.run.app).
 set -euo pipefail
 
 PROJECT="${GCP_PROJECT:-project-bf77a013-c0b3-413c-a75}"

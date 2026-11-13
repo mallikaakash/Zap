@@ -1,4 +1,4 @@
-# CLAUDE.md — Universal Checkout
+# CLAUDE.md — Zap
 
 Read `SPEC.md` before any work. It is the source of truth; if code and spec disagree, ask before changing the spec.
 

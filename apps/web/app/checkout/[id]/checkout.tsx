@@ -99,7 +99,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
 
   // Talk to the merchant page when shown inside the pay button's modal.
   const post = (type: string, extra: Record<string, unknown> = {}) => {
-    if (embed && window.parent !== window) window.parent.postMessage({ source: "universal-checkout", type, sessionId, ...extra }, "*");
+    if (embed && window.parent !== window) window.parent.postMessage({ source: "zap", type, sessionId, ...extra }, "*");
   };
   useEffect(() => {
     if (!embed || !root.current) return;

@@ -1,4 +1,4 @@
-# Universal Checkout — Cloud Run (HTTPS *.run.app). Web + settlement worker via `pnpm start`.
+# Zap — Cloud Run (HTTPS *.run.app). Web + settlement worker via `pnpm start`.
 FROM node:22-bookworm-slim AS base
 RUN apt-get update -qq && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.32.1 --activate

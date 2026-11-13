@@ -3,7 +3,7 @@ import { CLOSE, LOCK, SPINNER } from "./icons";
 import { resolveCheckoutUrl } from "./session";
 
 /** `data.source` of every message the hosted checkout posts to its parent. */
-export const MESSAGE_SOURCE = "universal-checkout";
+export const MESSAGE_SOURCE = "zap";
 
 export type CheckoutMessageType = "uc:paid" | "uc:close" | "uc:resize";
 
@@ -127,7 +127,7 @@ export function openCheckout(checkoutUrl: string, opts: OpenCheckoutOptions = {}
   try {
     return openModal(url, opts);
   } catch (e) {
-    console.error("[universal-checkout] could not open the checkout modal, redirecting instead", e);
+    console.error("[zap] could not open the checkout modal, redirecting instead", e);
     return redirect(url);
   }
 }

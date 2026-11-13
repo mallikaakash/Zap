@@ -1,5 +1,5 @@
 ---
-description: NEAR Protocol hackathon defaults — networks, safety, and where code lives
+description: NEAR Protocol defaults — networks, safety, layout (Zap)
 alwaysApply: true
 ---
 
@@ -7,24 +7,37 @@ alwaysApply: true
 
 ## Layout
 
-- `contract/` — Rust smart contract (`near-sdk`, `cargo-near`, sandbox tests in `tests/`).
-- `frontend/` — Vite + React dApp with `@hot-labs/near-connect` and `near-api-js`.
-- `.agents/skills/` — Official [NEAR Agent Skills](https://github.com/near/agent-skills); read the relevant `SKILL.md` before CLI, contracts, dApp, Intents, or audits.
+- `contracts/` — Rust smart contracts (`receipts`, `mock-usdc`); `near-sdk` 5.29.x; sandbox tests in `contracts/receipts/tests/`.
+- `packages/chain` — NEAR client + receipt-key signing (`near-kit`).
+- `packages/intents-adapter` — NEAR Intents 1Click (live) + mock (local).
+- `apps/web` — Next.js checkout, dashboard, API.
+- `services/settlement` — executor relayer (holds function-call keys only).
+- `.agents/skills/` — Official [NEAR Agent Skills](https://github.com/near/agent-skills); `.cursor/skills/` — project-specific supplements.
+- `docs/near/` — Searchable NEAR knowledge base for agents and humans.
 
 ## Networks
 
-- Default to **testnet** for development unless the user asks for mainnet.
-- Never commit private keys, seed phrases, or `.env` files with secrets.
-- Fund testnet accounts via the [testnet faucet](https://near-faucet.io/) (browser).
+- **Local**: `pnpm demo` uses NEAR sandbox + simulated Intents (default for dev/tests).
+- **Mainnet**: `pnpm deploy:mainnet` only after human approval; see `docs/GO-LIVE.md`. NEAR Intents has no testnet.
+- Never commit private keys, seed phrases, or `.env` with secrets.
+- Testnet faucet (browser): https://near-faucet.io/
+
+## Grounding (do not invent APIs)
+
+1. Prefer `near-docs` MCP (`search_near_docs`, `query_docs_filesystem_near_docs`) or https://docs.near.org/llms.txt.
+2. Read the relevant `.agents/skills/*/SKILL.md` before CLI, contracts, Intents, or audits.
+3. For this product’s on-chain interface, read `contracts/INTERFACE.md` and `DECISIONS.md`.
 
 ## Agent tooling
 
-1. **Docs**: Prefer the `near-docs` MCP server (`search_near_docs`, `query_docs_filesystem_near_docs`) or https://docs.near.org/llms.txt for grounding.
-2. **Terminal**: Use `near-cli-rs` (`near` command) for accounts, tokens, deploy, and view calls — see `.agents/skills/near-cli-rs/SKILL.md`.
-3. **Contracts**: Build with `cargo near build non-reproducible-wasm` from `contract/`; run `cargo test --locked` before deploy.
-4. **Frontend**: Wallet UX via `NearProvider` in `frontend/src/providers/`; set contract IDs in `frontend/src/config.ts`.
-5. **Security**: Run `.agents/skills/near-contract-audit` guidance before mainnet deploy.
+- **CLI**: `near-cli-rs` (`near` on PATH) — always include `network-config testnet|mainnet` and a terminal action (`now`, etc.).
+- **Contracts**: `pnpm build:contracts`; `pnpm test:contracts` (Rust + sandbox).
+- **TypeScript**: `pnpm test`, `pnpm typecheck`; generate Prisma before core tests: `pnpm --filter @uc/db generate`.
+- **NEAR blockchain MCP**: read-only RPC tools are fine; never `system_import_account` or sign/send without explicit user approval.
 
-## Command completeness
+## Security
 
-When generating `near` CLI commands, include `network-config testnet|mainnet` and a terminal action (`now`, `send`, etc.) so commands are non-interactive.
+- Testnet-first; confirm before mainnet or real funds.
+- Separate **view** calls from state-changing calls; verify receipts and finality after transactions.
+- Run `near-contract-audit` skill guidance before production deploys.
+- Do not fabricate tx hashes, deployment addresses, or test outcomes.

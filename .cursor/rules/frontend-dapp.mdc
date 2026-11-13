@@ -1,13 +1,14 @@
 ---
-description: NEAR dApp frontend patterns for frontend/
-globs: frontend/**/*.{ts,tsx}
+description: NEAR / checkout frontend patterns for apps/web
+globs: apps/web/**/*.{ts,tsx}
 alwaysApply: false
 ---
 
-# NEAR frontend
+# Frontend (Zap)
 
-- Wallet: `@hot-labs/near-connect` via `frontend/src/providers/near-provider.tsx`.
-- Reads: `viewFunction`; writes: `callFunction` (wallet must be signed in).
-- Amounts: yoctoNEAR strings; default gas ~30 TGas unless the contract requires more.
-- Network + contract IDs: `frontend/src/config.ts` — keep testnet/mainnet addresses in sync after deploy.
-- For new UI or wallet flows, follow `.agents/skills/near-dapp/` and `near-api-js` skill references.
+- App: Next.js in `apps/web/`; NEAR access via `@uc/chain` (`near-kit`) and API routes.
+- Checkout uses receipt keys (browser ed25519), not wallet selector for customers — see `packages/chain/src/receipt-key.ts`.
+- Seller flows: operator relayer today; wallet selector planned (README “Planned”).
+- Env/network: follow `scripts/demo.ts` (local sandbox) vs `docs/GO-LIVE.md` (mainnet).
+- For new wallet UX, follow `.agents/skills/near-dapp/` and `.cursor/skills/near-wallet-auth/`.
+- Amounts: USDC 6 decimals on NEAR; gas/deposits via executor, not checkout UI.

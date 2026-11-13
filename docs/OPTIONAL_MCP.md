@@ -10,7 +10,7 @@ This repo enables **NEAR Docs MCP** and **NEAR blockchain MCP** in `.cursor/mcp.
 
 ## NEAR blockchain MCP (enabled by default)
 
-- Package: `@nearai/near-mcp`
+- Package: `@nearai/near-mcp` (pinned **0.0.35** in `.cursor/mcp.json`)
 - Runs **locally**; may store account keys on disk.
 - Remove the `near-mcp` block from `.cursor/mcp.json` if you only want documentation tools.
 

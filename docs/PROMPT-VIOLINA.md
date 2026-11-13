@@ -1,4 +1,4 @@
-# Prompt: frontend and deployment for Universal Checkout
+# Prompt: frontend and deployment for Zap
 
 > Paste this into Claude Code or Codex from the repo root, or read it as a brief.
 > It explains **what** to do and **why**, so you can make sensible calls when something doesn't fit.
@@ -7,7 +7,7 @@
 
 ## Who you are and what this is
 
-You are taking over the **frontend polish and the server deployment** of *Universal Checkout*, a NEAR hackathon project. The deadline is **14 Nov 2026, 23:59 UTC**.
+You are taking over the **frontend polish and the server deployment** of *Zap*, a NEAR hackathon project. The deadline is **14 Nov 2026, 23:59 UTC**.
 
 The product is a payment widget that any seller adds to their site with two lines:
 
@@ -35,7 +35,7 @@ The product is a payment widget that any seller adds to their site with two line
 
 | | |
 |---|---|
-| Code | `main` on GitHub (`mallikaakash/near-hackathon`) |
+| Code | `main` on GitHub (`mallikaakash/Zap`) |
 | Receipt contract | **Live on NEAR mainnet** at `checkout.aakash7777.near`, owned by `aakash7777.near`, $50 per-payment cap |
 | Settlement worker signer | `executor.aakash7777.near` |
 | Web app relayer | `relayer.aakash7777.near` |
