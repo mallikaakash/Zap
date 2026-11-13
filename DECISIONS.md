@@ -66,3 +66,8 @@ Choices made while building that are not spelled out in `SPEC.md`, or that devia
 - **Dark mode** follows `prefers-color-scheme`; the phone and laptop "screenshots" stay light. Code blocks turn font ligatures off so `=>`, `>=` and `<=` read as typed.
 - **Share card:** `og.png` (1200×630) is a still of the hero (`/?still=7`), served by both hosts.
 
+## Fixes from the Cloud Run audit (2026-11-13)
+- **`/api/receipts/[id]/target` was never committed.** The route existed locally, but `.gitignore` had `**/target/` (for Rust build output), which also matched the API folder named `target`, so "Change refund address" got a 404 on every deploy. The rule is now `contracts/target/` and `contracts/**/target/`, and the route is in git. Checked on the sandbox: a signed change is accepted and lands on chain; a replayed signature is rejected.
+- **Live claims need an existing account.** In live mode `prepareClaimAccount` no longer falls through to demo-account creation (which threw and showed "Something went wrong"). It requires a full account id that exists on the network and says what to do otherwise. The receipt page says so up front, and that after claiming, the account's own wallet is needed.
+- **Landing hides "Try the demo shop"** until the server has a shop, so a fresh deploy doesn't link to an empty `/shop`.
+

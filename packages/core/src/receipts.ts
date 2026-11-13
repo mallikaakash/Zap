@@ -5,7 +5,8 @@ import { dashboardUrl, isEmail, sendEmail } from "./email";
 import { UserError } from "./errors";
 import { fromMinor } from "./money";
 import { MAX_ROUNDS, parsePolicy, triage, type ChatMessage, type Decision } from "./refund-agent";
-import { ensureDemoAccount, ensureSigner, getChain, getConfig } from "./runtime";
+import { custodialAllowed, ensureDemoAccount, ensureSigner, getChain, getConfig } from "./runtime";
+import { isFullAccountId, liveClaimAccountError } from "./accounts";
 import { validateAddress } from "./sessions";
 import { enqueueWebhook } from "./webhooks";
 
@@ -227,10 +228,20 @@ export async function confirmReceived(id: string, auth: HolderAuth) {
   return mustGet(id);
 }
 
-/** Resolve the account a claim will go to (so the browser can sign it). Creates a demo account when given a plain name. */
+/**
+ * Resolve the account a claim will go to (so the browser can sign it).
+ * Live: must be an existing full account id. Local/testnet: a plain name creates a demo account.
+ */
 export async function prepareClaimAccount(name: string): Promise<string> {
   const account = String(name ?? "").trim().toLowerCase();
-  if (account.includes(".") && (await getChain().accountExists(account))) return account;
+  const chain = getChain();
+  if (!custodialAllowed()) {
+    const exists = isFullAccountId(account) && (await chain.accountExists(account));
+    const problem = liveClaimAccountError(account, exists, chain.networkId);
+    if (problem) throw new UserError(problem);
+    return account;
+  }
+  if (account.includes(".") && (await chain.accountExists(account))) return account;
   return ensureDemoAccount(account);
 }
 

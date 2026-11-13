@@ -31,7 +31,9 @@ npm-debug.log*
 # Universal Checkout
 **/node_modules/
 **/dist/
-**/target/
+# Rust build output only. A bare **/target/ also hid apps/web/app/api/receipts/[id]/target.
+contracts/target/
+contracts/**/target/
 !contracts/artifacts/
 .next/
 *.db

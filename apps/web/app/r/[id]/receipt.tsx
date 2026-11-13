@@ -175,7 +175,7 @@ export default function ReceiptPage({ id }: { id: string }) {
             <NameForm
               busy={busy}
               label={panel === "claim" ? "NEAR account" : "Send to NEAR account"}
-              hint={panel === "claim" ? `Moves this receipt into an account as an NFT. From then on that account controls it${r.transferable ? " and can transfer it" : ""}, and this link stops working.${v.mode !== "live" ? " In this demo, a plain name creates a throwaway account for you." : ""}` : "The new owner gets every right this receipt carries, including refunds of what has not been paid out."}
+              hint={panel === "claim" ? `Moves this receipt into an account as an NFT. From then on that account controls it${r.transferable ? " and can transfer it" : ""}, and this link stops working.${v.mode !== "live" ? " In this demo, a plain name creates a throwaway account for you." : " Use an account you already have, like alice.near. After claiming, refunds and transfers need that account's own wallet; this page can't act for it any more."}` : "The new owner gets every right this receipt carries, including refunds of what has not been paid out."}
               cta={panel === "claim" ? "Claim receipt" : "Transfer"}
               onSubmit={(name) =>
                 act(panel === "claim" ? "Receipt claimed." : "Receipt transferred.", async () => {

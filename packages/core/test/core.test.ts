@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isFullAccountId, liveClaimAccountError } from "../src/accounts";
 import { fromMinor, toMinor, usd } from "../src/money";
 import { classifyByRules, DEFAULT_POLICY, enforce, parsePolicy, triage, type ChatMessage, type TriageInput } from "../src/refund-agent";
 import { signWebhook, verifyWebhook } from "../src/webhooks";
@@ -118,3 +119,20 @@ describe("refund triage agent", () => {
     expect(parsePolicy('{"refundableCategories":["damaged","bogus"],"escalateAlways":true}')).toMatchObject({ refundableCategories: ["damaged"], escalateAlways: true });
   });
 });
+
+describe("live claim accounts", () => {
+  it("accepts only full account ids", () => {
+    expect(isFullAccountId("alice.near")).toBe(true);
+    expect(isFullAccountId("shop_1.alice.near")).toBe(true);
+    expect(isFullAccountId("a".repeat(64).replace(/a/g, "f"))).toBe(true);
+    expect(isFullAccountId("alice")).toBe(false);
+    expect(isFullAccountId("Alice.near")).toBe(false);
+    expect(isFullAccountId("alice..near")).toBe(false);
+  });
+  it("explains what to do instead of failing generically", () => {
+    expect(liveClaimAccountError("alice", false, "mainnet")).toMatch(/full NEAR account/);
+    expect(liveClaimAccountError("ghost.near", false, "mainnet")).toMatch(/doesn't exist on NEAR mainnet/);
+    expect(liveClaimAccountError("alice.near", true, "mainnet")).toBeNull();
+  });
+});
+

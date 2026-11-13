@@ -1,4 +1,5 @@
 export * from "./errors";
+export * from "./accounts";
 export * from "./money";
 export * from "./webhooks";
 export * from "./refund-agent";

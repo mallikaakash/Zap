@@ -406,9 +406,11 @@ export function Cta() {
         <a href={href("/dashboard")} className="z-btn ink">
           <Bolt /> Get the button
         </a>
-        <a href={href("/shop")} className="z-btn">
-          Try the demo shop
-        </a>
+        {merchant ? (
+          <a href={href("/shop")} className="z-btn">
+            Try the demo shop
+          </a>
+        ) : null}
         <a href={GITHUB} className="z-btn">
           Read the code on GitHub
         </a>
