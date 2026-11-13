@@ -43,7 +43,7 @@ export async function sendEmail(m: Mail): Promise<void> {
   const { text, html } = render(m);
   const row = await db.email.create({ data: { to: m.to, subject: m.subject.slice(0, 200), text, html, status: "queued" } }).catch(() => null);
   if (!row) return;
-  const key = env().RESEND_API_KEY;
+  const key = env().RESEND_API_KEY || env().RESEND;
   if (!key) {
     await db.email.update({ where: { id: row.id }, data: { status: "dev" } }).catch(() => {});
     return;
