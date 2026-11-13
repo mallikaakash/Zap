@@ -165,8 +165,11 @@ export async function updateMerchant(id: string, u: MerchantUpdate): Promise<Mer
   });
 }
 
-/** NEAR prepaid into each new seller's receipt storage by the operator (executor). */
-export const SELLER_STORAGE_PREPAY = "0.1 NEAR";
+/** NEAR the operator (executor) prepays into a new seller's receipt storage (~0.014 NEAR per receipt). */
+export const SELLER_STORAGE_PREPAY = "0.15 NEAR";
+/** Top up when a seller has room for fewer than this many receipts. */
+const STORAGE_LOW_RECEIPTS = 4n;
+const STORAGE_TOPUP = "0.15 NEAR";
 
 /** Worker step: put pending sellers (new, or with changed limits) on chain. */
 export async function tickMerchants(executor: string, log: (m: string) => void = () => {}): Promise<void> {
@@ -187,6 +190,24 @@ export async function tickMerchants(executor: string, log: (m: string) => void =
       const msg = e instanceof Error ? e.message : String(e);
       await db.merchant.update({ where: { id: m.id }, data: { chainError: msg } });
       log(`seller ${m.id}: registration failed: ${msg}`);
+    }
+  }
+}
+
+/** Worker step: keep every active seller's prepaid receipt storage topped up, so payments are never returned for lack of it. */
+export async function tickStorage(executor: string, log: (m: string) => void = () => {}): Promise<void> {
+  const chain = getChain();
+  const sellers = await db.merchant.findMany({ where: { chainState: "active" }, take: 50 });
+  if (sellers.length === 0) return;
+  const cost = BigInt((await chain.getConfig()).receiptStorageCost);
+  for (const s of sellers) {
+    try {
+      const m = await chain.getMerchant(s.id);
+      if (!m || BigInt(m.storageBalance) >= cost * STORAGE_LOW_RECEIPTS) continue;
+      await chain.fundStorage(executor, s.id, STORAGE_TOPUP);
+      log(`seller ${s.id}: receipt storage topped up (${STORAGE_TOPUP})`);
+    } catch (e) {
+      log(`seller ${s.id}: storage top-up failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }

@@ -93,6 +93,8 @@ export interface ContractConfig {
   receiptCount: number;
   /** yoctoNEAR charged to the merchant per receipt. */
   receiptStorageCost: string;
+  /** Per-payment cap, USDC minor units. */
+  maxReceiptAmount: string;
 }
 
 export interface ChainEventLog {

@@ -292,7 +292,7 @@ export class Chain {
   }
 
   async getConfig(): Promise<ContractConfig> {
-    const c = await this.view<{ usdc: string; executor: string; owner: string; allocated: string; in_flight_total: string; mint_lock: boolean; paused: boolean; receipt_count: number; receipt_storage_cost: string }>(
+    const c = await this.view<{ usdc: string; executor: string; owner: string; allocated: string; in_flight_total: string; mint_lock: boolean; paused: boolean; receipt_count: number; receipt_storage_cost: string; max_receipt_amount: string }>(
       this.receipts,
       "get_config",
     );
@@ -306,6 +306,7 @@ export class Chain {
       paused: c.paused,
       receiptCount: c.receipt_count,
       receiptStorageCost: c.receipt_storage_cost,
+      maxReceiptAmount: c.max_receipt_amount,
     };
   }
 
@@ -370,6 +371,11 @@ export class Chain {
       },
       { deposit: storageNear },
     );
+  }
+
+  /** Add NEAR to a seller's prepaid receipt storage (anyone may). */
+  fundStorage(signer: string, merchantId: string, near: string) {
+    return this.call(signer, this.receipts, "fund_storage", { merchant_id: merchantId }, { deposit: near });
   }
 
   /** Primary path: the swap already paid the contract; attribute that money to an order. Executor only. */

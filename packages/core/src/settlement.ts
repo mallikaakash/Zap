@@ -18,7 +18,7 @@ import { getAdapter, getChain, getConfig, getMockAdapter } from "./runtime";
 import { mintArgsFor } from "./sessions";
 import { deliverPendingWebhooks, enqueueWebhook } from "./webhooks";
 import { dashboardUrl, sendEmail } from "./email";
-import { tickMerchants } from "./merchants";
+import { tickMerchants, tickStorage } from "./merchants";
 import { fromMinor } from "./money";
 
 const dollars = (minor: string) => `$${fromMinor(minor)}`;
@@ -283,8 +283,14 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
   }
 }
 
+let lastStorageCheck = 0;
+
 export async function tickAll(log: Log = () => {}): Promise<void> {
   await tickMerchants(getConfig().executor, log);
+  if (Date.now() - lastStorageCheck > 60_000) {
+    lastStorageCheck = Date.now();
+    await tickStorage(getConfig().executor, log);
+  }
   await tickPayments(log);
   await tickCases(log);
   await tickReleases(log);

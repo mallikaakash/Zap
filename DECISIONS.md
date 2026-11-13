@@ -46,3 +46,10 @@ Choices made while building that are not spelled out in `SPEC.md`, or that devia
 - **Demo timing is real time:** products carry their own refund window and subscription interval (minutes for the demo).
 - **"Collect payout" button** in the dashboard: anyone may call `release`; the contract enforces the rules.
 - **Cut:** WooCommerce, MCP server, Shopify, CronCat. The trust extra (payout changes signed by the seller) is out of scope.
+
+## Contract details for mainnet (2026-11-13)
+- **Seller storage:** a receipt costs about 1,060–1,300 bytes, so the contract charges 0.014 NEAR per receipt from the seller's prepaid `storage_balance`. The operator's executor prepays 0.15 NEAR per new seller and tops sellers up automatically when fewer than 4 receipts are left.
+- **`self_managed` sellers:** a seller that registered itself with `register_merchant` cannot be changed by `register_merchant_for`. This stops the executor key from redirecting such a seller's payouts.
+- **Rejected direct payments** count as USDC that left the contract (`settled_total`) in the balance checks for `mint_receipt` and `withdraw_unassigned`. The worst case is a spurious "insufficient" error, followed by a retry.
+- **No upgrade in place:** the state layout changed, so contracts from older builds cannot be upgraded; deploy to a fresh account.
+- **Per-payment cap:** `max_receipt_amount` defaults to $1,000; the deploy script sets $50.
