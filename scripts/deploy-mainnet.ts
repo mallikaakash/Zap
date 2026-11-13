@@ -18,7 +18,7 @@
  *
  * Rehearse on the local sandbox first (no real money):
  *   pnpm deploy:mainnet --operator test.near --rpc http://127.0.0.1:PORT --network-id localnet \
- *     --usdc usdc.test.near --credentials .uc/creds --public-url http://localhost:3000 --yes --env-file .uc/rehearsal.env
+ *     --usdc usdc.test.near --credentials .uc/creds --public-url http://localhost:3000 --yes --write-env .uc/rehearsal.env
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -46,7 +46,7 @@ const rpcUrl = arg("rpc", networkId === "mainnet" ? "https://rpc.mainnet.fastnea
 const usdc = arg("usdc", networkId === "mainnet" ? MAINNET_USDC : undefined) ?? die("Pass --usdc <token account> outside mainnet");
 const publicUrl = (arg("public-url") ?? die("Pass --public-url https://<your-host> (HTTPS is required in browsers for receipt keys)")).replace(/\/$/, "");
 const credsDir = path.resolve(arg("credentials", path.join(os.homedir(), ".near-credentials"))!.replace(/^~/, os.homedir()));
-const envFile = path.resolve(ROOT, arg("env-file", ".env")!);
+const envFile = path.resolve(ROOT, arg("write-env", ".env")!);
 const maxUsd = Number(arg("max-usd", "50"));
 const go = flag("yes");
 
@@ -87,6 +87,8 @@ async function main() {
   console.log(`  .env  →    ${path.relative(ROOT, envFile) || envFile}`);
   console.log(`  needs about ${fmt(needed)} from ${operator}\n`);
   if (opBalance < needed) die(`${operator} has ${fmt(opBalance)}; it needs about ${fmt(needed)}. Fund it and run again.`);
+  // Fail before touching anything if an existing account's key is missing.
+  for (const p of plan) if (exists[p.account] && !(await keyStore.get(p.account))) die(`${p.account} already exists but its key is not in ${credsDir}/${networkId}/. Restore that key file, or use another operator account.`);
   if (!go) {
     console.log("Plan only. Re-run with --yes to execute.\n");
     return;
