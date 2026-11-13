@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { db, type Session } from "@uc/db";
 import type { Kind } from "@uc/chain";
 import type { Token } from "@uc/intents-adapter";
+import { isEmail } from "./email";
 import { UserError } from "./errors";
 import { fromMinor, isMinor, sumMinor } from "./money";
 import { env, getAdapter, getChain, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
@@ -13,6 +14,8 @@ export interface ScheduleItem {
 
 export interface CreateSessionInput {
   merchantId: string;
+  /** A product from the seller's dashboard: its price, kind, schedule and refund window are authoritative. */
+  productId?: string;
   amountUsd: string;
   kind?: Kind;
   schedule?: ScheduleItem[];
@@ -57,9 +60,20 @@ export function checkoutUrl(sessionId: string): string {
 }
 
 export async function createSession(input: CreateSessionInput): Promise<Session> {
+  input = { ...input };
   const merchantId = String(input.merchantId ?? "");
   const merchant = await db.merchant.findUnique({ where: { id: merchantId } });
   if (!merchant) throw new UserError(`Unknown merchant "${merchantId}"`, 404);
+  if (merchant.chainState !== "active") throw new UserError("This shop is still being set up. Try again in a minute.", 409);
+  // A dashboard product overrides what the page sent, so a visitor cannot edit the price in the browser.
+  const productId = input.productId ?? (typeof input.metadata?.productId === "string" ? input.metadata.productId : undefined);
+  let windowSecs: number | null = null;
+  if (productId) {
+    const p = await db.product.findFirst({ where: { id: productId, merchantId, active: true } });
+    if (!p) throw new UserError("That product is no longer available", 404);
+    input = { ...input, amountUsd: p.amount, kind: p.kind as Kind, schedule: JSON.parse(p.scheduleJson) as ScheduleItem[], product: p.name };
+    windowSecs = p.windowSecs;
+  }
   if (!isMinor(input.amountUsd) || BigInt(input.amountUsd) <= 0n) throw new UserError("amountUsd must be a positive integer string in USDC minor units (6 dp)");
   if (BigInt(input.amountUsd) > MAX_AMOUNT) throw new UserError("Amount is above the per-payment limit");
   if (BigInt(input.amountUsd) < BigInt(merchant.minOrder)) throw new UserError(`This shop's minimum order is $${fromMinor(merchant.minOrder)}`);
@@ -76,7 +90,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
     }
     if (sumMinor(schedule.map((t) => t.amount)) !== input.amountUsd) throw new UserError("schedule amounts must add up to amountUsd");
     // Demo clock: on the local sandbox "30 days" can be squeezed into a minute so releases are watchable.
-    const scale = timeScale();
+    const scale = productId ? 1 : timeScale();
     if (scale > 1) schedule = schedule.map((t) => ({ ...t, afterSecs: Math.ceil(t.afterSecs / scale) }));
     schedule.sort((a, b) => a.afterSecs - b.afterSecs);
   }
@@ -97,6 +111,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
       amount: input.amountUsd,
       kind,
       scheduleJson: JSON.stringify(schedule),
+      windowSecs,
       metadataJson: JSON.stringify(input.metadata ?? {}),
     },
   });
@@ -121,6 +136,8 @@ function formatUnits(minor: string, decimals: number): string {
 }
 
 export interface QuoteInput {
+  /** Optional: we email the seller's notices about this order here. The receipt link itself is emailed only on request. */
+  email?: string;
   /** A token's `assetId`, or `DIRECT_ASSET` to pay with USDC on NEAR. */
   originAsset: string;
   refundAddress: string;
@@ -135,6 +152,8 @@ export async function quoteSession(id: string, input: QuoteInput): Promise<Sessi
   if (!/^[0-9a-f]{64}$/.test(String(input.receiptKey))) throw new UserError("receiptKey must be a 64-character hex ed25519 public key");
   const refundAddress = String(input.refundAddress ?? "").trim();
   const c = getConfig();
+  const customerEmail = input.email?.trim().toLowerCase() || null;
+  if (customerEmail && !isEmail(customerEmail)) throw new UserError("That email address does not look right");
 
   if (input.originAsset === DIRECT_ASSET) {
     const bad = validateAddress("near", refundAddress);
@@ -144,6 +163,7 @@ export async function quoteSession(id: string, input: QuoteInput): Promise<Sessi
       data: {
         status: "quoted",
         direct: true,
+        customerEmail,
         originAsset: c.usdc,
         originSymbol: "USDC",
         originChain: "near",
@@ -183,6 +203,7 @@ export async function quoteSession(id: string, input: QuoteInput): Promise<Sessi
     data: {
       status: "quoted",
       direct: false,
+      customerEmail,
       originAsset: token.assetId,
       originSymbol: token.symbol,
       originChain: token.chain,
@@ -208,6 +229,7 @@ export function mintArgsFor(s: Session, now: Date) {
     amount: s.amount,
     kind: s.kind as Kind,
     schedule,
+    windowSecs: s.kind === "OneTime" && s.windowSecs !== null ? s.windowSecs : undefined,
     refundTarget: { chain: s.originChain ?? "", asset: s.originAsset ?? "", address: s.refundAddress ?? "" },
     receiptKey: s.receiptKey ?? undefined,
   };
@@ -247,6 +269,19 @@ export async function simulatePayment(id: string): Promise<Session> {
   return db.session.findUniqueOrThrow({ where: { id } });
 }
 
+/**
+ * The customer's wallet sent the deposit (e.g. MetaMask). Telling the swap provider the
+ * transaction hash speeds up detection; the worker still waits for the provider's SUCCESS.
+ */
+export async function submitDeposit(id: string, txHash: string): Promise<Session> {
+  const s = await db.session.findUnique({ where: { id } });
+  if (!s) throw new UserError("Session not found", 404);
+  if (!s.depositAddress) throw new UserError("This order has no deposit address", 409);
+  if (!/^(0x[0-9a-fA-F]{64}|[1-9A-HJ-NP-Za-km-z]{32,100}|[0-9a-fA-F]{64})$/.test(txHash)) throw new UserError("That does not look like a transaction hash");
+  await getAdapter().submitDeposit?.(s.depositAddress, txHash, s.depositMemo ? { memo: s.depositMemo } : undefined).catch(() => {});
+  return db.session.update({ where: { id }, data: { status: s.status === "quoted" ? "deposit_detected" : s.status, metadataJson: JSON.stringify({ ...(JSON.parse(s.metadataJson) as object), depositTx: txHash }) } });
+}
+
 /** What the checkout page polls. Never includes secrets. */
 export function sessionView(s: Session & { merchant?: { name: string } | null }) {
   return {
@@ -277,6 +312,7 @@ export function sessionView(s: Session & { merchant?: { name: string } | null })
     mode: getConfig().mode,
     canSimulate: simulationAllowed(),
     directAsset: DIRECT_ASSET,
+    depositTx: (JSON.parse(s.metadataJson) as { depositTx?: string }).depositTx ?? null,
   };
 }
 

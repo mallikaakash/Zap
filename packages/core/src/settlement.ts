@@ -17,6 +17,41 @@ import type { Decision } from "./refund-agent";
 import { getAdapter, getChain, getConfig, getMockAdapter } from "./runtime";
 import { mintArgsFor } from "./sessions";
 import { deliverPendingWebhooks, enqueueWebhook } from "./webhooks";
+import { dashboardUrl, sendEmail } from "./email";
+import { tickMerchants } from "./merchants";
+import { fromMinor } from "./money";
+
+const dollars = (minor: string) => `$${fromMinor(minor)}`;
+
+/** Tell the seller (and the customer, when they left an email) what happened. Never throws. */
+async function notify(receiptId: string, what: "paid" | "released" | "refund_sent" | "escalated", amount: string, extra = ""): Promise<void> {
+  try {
+    const s = await db.session.findFirst({ where: { receiptId }, include: { merchant: true } });
+    if (!s) return;
+    const m = s.merchant;
+    const item = s.product ?? "an order";
+    const dash = { label: "Open dashboard", url: dashboardUrl(m) };
+    const receiptPage = { label: "View receipt", url: `${getConfig().publicUrl}/r/${receiptId}` };
+    if (m.email) {
+      const mail = {
+        paid: { subject: `New payment: ${dollars(amount)} for ${item}`, lines: [`You received ${dollars(amount)} for ${item}.`, `The USDC is held in receipt #${receiptId} and is paid out to ${m.payoutAccount} when the refund period ends${s.kind === "OneTime" ? "" : ", period by period"}.`, `Order reference: ${s.orderRef}`] },
+        released: { subject: `Payout sent: ${dollars(amount)}`, lines: [`${dollars(amount)} USDC was paid out to ${m.payoutAccount}.`, `From receipt #${receiptId} (${item}).`] },
+        refund_sent: { subject: `Refund sent: ${dollars(amount)} for ${item}`, lines: [`${dollars(amount)} from receipt #${receiptId} was refunded to the customer.`, extra] },
+        escalated: { subject: `Refund request needs your decision: ${dollars(amount)}`, lines: [`A customer asked for ${dollars(amount)} back on ${item} (receipt #${receiptId}).`, extra, "If you do not decide in time, the refund is approved automatically."] },
+      }[what];
+      await sendEmail({ to: m.email, subject: mail.subject, lines: mail.lines.filter(Boolean), button: dash });
+    }
+    if (s.customerEmail && (what === "paid" || what === "refund_sent")) {
+      await sendEmail(
+        what === "paid"
+          ? { to: s.customerEmail, subject: `Payment received by ${m.name}`, lines: [`${m.name} received your ${dollars(amount)} payment for ${item}.`, `Your money is held in receipt #${receiptId} by a public contract until the refund period ends. Use the receipt link you saved at checkout to ask for a refund.`], button: receiptPage }
+          : { to: s.customerEmail, subject: `Refund on its way from ${m.name}`, lines: [`Your refund for ${item} left escrow.`, extra], button: receiptPage },
+      );
+    }
+  } catch {
+    /* notifications never break settlement */
+  }
+}
 
 export type Log = (msg: string) => void;
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -26,6 +61,7 @@ async function recordPaid(sessionId: string, receipt: Receipt, txHash?: string):
   const mismatch = receipt.amount !== s.amount ? `Paid ${receipt.amount} but the order was ${s.amount}` : null;
   await db.session.update({ where: { id: s.id }, data: { status: "paid", receiptId: receipt.id, mintTxHash: txHash ?? s.mintTxHash, paidAt: new Date(), error: mismatch } });
   await db.chainEvent.create({ data: { receiptId: receipt.id, event: "receipt_minted", dataJson: JSON.stringify({ amount: receipt.amount, direct: s.direct }), txHash } });
+  await notify(receipt.id, "paid", receipt.amount);
   await enqueueWebhook(s.merchantId, "payment.succeeded", { sessionId: s.id, receiptId: receipt.id, orderRef: s.orderRef, amount: receipt.amount, expectedAmount: s.amount, kind: s.kind, product: s.product });
 }
 
@@ -102,6 +138,7 @@ export async function tickReleases(log: Log = () => {}): Promise<void> {
       const paid = (BigInt(after.released) - BigInt(r.released)).toString();
       if (paid === "0") continue;
       await db.chainEvent.create({ data: { receiptId: r.id, event: "released", dataJson: JSON.stringify({ amount: paid }), txHash: tx.txHash } });
+      await notify(r.id, "released", paid);
       await enqueueWebhook(r.merchantId, "receipt.released", { receiptId: r.id, orderRef: s.orderRef, amount: paid, totalReleased: after.released });
       await syncSessionStatus(after);
       log(`receipt #${r.id}: released ${paid} to the merchant`);
@@ -139,6 +176,7 @@ async function payOut(c: RefundCase, r: Receipt, log: Log): Promise<void> {
     await note(c, `Refund sent: ${formatOut(amount, 6)} USDC to ${to} on NEAR.`, { payoutState: "delivered", depositAddress: to, quoteId: "direct-usdc", amountOut: amount, amountOutFormatted: `${formatOut(amount, 6)} USDC`, txHash: tx.txHash, error: null, closed: true });
     await db.chainEvent.create({ data: { receiptId: r.id, event: "refund_executed", dataJson: JSON.stringify({ amount, depositAccount: to, quoteId: "direct-usdc" }), txHash: tx.txHash } });
     await enqueueWebhook(r.merchantId, "refund.executed", { receiptId: r.id, orderRef, amount, refundTarget: r.refundTarget, txHash: tx.txHash });
+    await notify(r.id, "refund_sent", amount, `${formatOut(amount, 6)} USDC was sent to ${to} on NEAR.`);
     log(`receipt #${r.id}: refunded ${amount} USDC directly to ${to}`);
     return;
   }
@@ -182,6 +220,7 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
           await note(c, `Refund delivered: ${c.amountOutFormatted} to ${r.refundTarget.address}.`, { payoutState: "delivered", closed: true });
           await db.chainEvent.create({ data: { receiptId: r.id, event: "refund_delivered", dataJson: JSON.stringify({ amountOut: c.amountOutFormatted, target: r.refundTarget }) } });
           await enqueueWebhook(r.merchantId, "refund.executed", { receiptId: r.id, orderRef: await orderRef(), amount: c.amount, refundTarget: r.refundTarget, txHash: c.txHash });
+          await notify(r.id, "refund_sent", c.amount, `${c.amountOutFormatted} was delivered to ${r.refundTarget.address}.`);
           await syncSessionStatus(r);
           log(`receipt #${r.id}: refund delivered to ${r.refundTarget.address}`);
         } else if (isTerminalStatus(status)) {
@@ -210,7 +249,10 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
           await db.chainEvent.create({ data: { receiptId: r.id, event: "ai_decided", dataJson: JSON.stringify({ decision: d.decision, amount: d.amount, engine: d.engine }), txHash: tx.txHash } });
           log(`receipt #${r.id}: triage → ${d.decision}`);
           const after = await chain.getReceipt(r.id);
-          if (after?.request?.state === "Escalated") await enqueueWebhook(r.merchantId, "refund.escalated", { receiptId: r.id, orderRef: await orderRef(), amount: q.amount, summary: d.summary, recommendation: d.decision });
+          if (after?.request?.state === "Escalated") {
+            await enqueueWebhook(r.merchantId, "refund.escalated", { receiptId: r.id, orderRef: await orderRef(), amount: q.amount, summary: d.summary, recommendation: d.decision });
+            await notify(r.id, "escalated", q.amount, `Assistant's summary: ${d.summary}`);
+          }
         }
         await db.refundCase.update({ where: { id: c.id }, data: { aiState: "submitted" } });
         continue;
@@ -242,6 +284,7 @@ export async function tickCases(log: Log = () => {}): Promise<void> {
 }
 
 export async function tickAll(log: Log = () => {}): Promise<void> {
+  await tickMerchants(getConfig().executor, log);
   await tickPayments(log);
   await tickCases(log);
   await tickReleases(log);

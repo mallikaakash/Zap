@@ -347,6 +347,31 @@ export class Chain {
     );
   }
 
+  /**
+   * Operator registration (owner or executor): a seller signs up with just a payout account and never signs anything.
+   * `storageNear` is added to that seller's prepaid receipt storage.
+   */
+  registerMerchantFor(signer: string, merchantId: string, m: MerchantConfig, storageNear?: string) {
+    return this.call(
+      signer,
+      this.receipts,
+      "register_merchant_for",
+      {
+        merchant_id: merchantId,
+        payout: m.payout,
+        approver: m.approver,
+        guard_threshold: m.guardThreshold,
+        default_window_secs: m.defaultWindowSecs,
+        response_secs: m.responseSecs,
+        daily_refund_cap: m.dailyRefundCap,
+        ai_triage: m.aiTriage,
+        auto_approve_max: m.autoApproveMax,
+        veto_secs: m.vetoSecs,
+      },
+      { deposit: storageNear },
+    );
+  }
+
   /** Primary path: the swap already paid the contract; attribute that money to an order. Executor only. */
   mintReceipt(executor: string, a: MintArgs) {
     return this.call<number>(executor, this.receipts, "mint_receipt", { args: mintArgsJson(a, true) }, { gas: GAS.mint });

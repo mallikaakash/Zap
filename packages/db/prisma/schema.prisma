@@ -12,8 +12,12 @@ datasource db {
 }
 
 model Merchant {
-  id                String   @id // NEAR account id
+  id                String   @id // NEAR account id (= the payout account for operator-registered sellers)
   name              String
+  email             String?
+  dashboardToken    String   @unique @default(cuid()) // secret dashboard link; the seller's login for now
+  chainState        String   @default("pending") // pending | active | failed — registration on the contract (done by the worker)
+  chainError        String?
   payoutAccount     String
   approverAccount   String
   guardThreshold    String   // minor units; above this even AI approvals go to the merchant
@@ -23,7 +27,7 @@ model Merchant {
   aiTriage          Boolean  @default(true)
   autoApproveMax    String   @default("20000000")
   vetoSecs          Int      @default(43200)
-  minOrder          String   @default("5000000")
+  minOrder          String   @default("1000000")
   blockedRefundAddresses String @default("[]")
   webhookUrl        String?
   webhookSecret     String
@@ -44,6 +48,8 @@ model Product {
   amount       String   // minor units, total
   kind         String   // OneTime | Subscription | Schedule
   scheduleJson String   @default("[]") // [{ afterSecs, amount }]
+  windowSecs   Int?     // OneTime refund window; null = the shop default
+  active       Boolean  @default(true)
   createdAt    DateTime @default(now())
 }
 
@@ -56,6 +62,8 @@ model Session {
   amount        String   // minor units
   kind          String   // OneTime | Subscription | Schedule
   scheduleJson  String   @default("[]") // [{ afterSecs, amount }]
+  windowSecs    Int?     // OneTime refund window for this order; null = the shop default
+  customerEmail String?
   metadataJson  String   @default("{}")
   // created → quoted → deposit_detected → paid → released | refund_requested → refunded ; failed | expired
   status        String   @default("created")
@@ -146,6 +154,21 @@ model ChainEvent {
   createdAt DateTime @default(now())
 
   @@index([receiptId])
+}
+
+// Every email we send (or would send): the dev inbox in local mode, an audit log in live mode.
+model Email {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  text      String
+  html      String
+  status    String   @default("queued") // queued | sent | failed | dev
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 model Kv {

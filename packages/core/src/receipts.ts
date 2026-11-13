@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { db, type RefundCase } from "@uc/db";
-import { ACTIVE_REQUEST_STATES, ChainError, isSignature, verifyReceiptAction, type Receipt, type RefundTarget } from "@uc/chain";
+import { ACTIVE_REQUEST_STATES, ChainError, isSignature, receiptPublicKey, verifyReceiptAction, type Receipt, type RefundTarget } from "@uc/chain";
+import { dashboardUrl, isEmail, sendEmail } from "./email";
 import { UserError } from "./errors";
+import { fromMinor } from "./money";
 import { MAX_ROUNDS, parsePolicy, triage, type ChatMessage, type Decision } from "./refund-agent";
 import { ensureDemoAccount, ensureSigner, getChain, getConfig } from "./runtime";
 import { validateAddress } from "./sessions";
@@ -117,7 +119,11 @@ export async function openRequest(id: string, kind: "refund" | "cancel", input: 
   await db.chainEvent.create({ data: { receiptId: id, event: kind === "cancel" ? "cancelled" : "refund_requested", dataJson: JSON.stringify({ amount }), txHash: tx.txHash } });
   await enqueueWebhook(r.merchantId, kind === "cancel" ? "subscription.cancelled" : "refund.requested", { receiptId: id, orderRef: await orderRefOf(id), amount, reason });
   if (merchant?.aiTriage) await runTriage(c.id);
-  else await addMessage(c.id, msg("system", "Your request was sent to the shop. If they do not answer in time it is approved automatically."));
+  else {
+    await addMessage(c.id, msg("system", "Your request was sent to the shop. If they do not answer in time it is approved automatically."));
+    if (merchant?.email)
+      await sendEmail({ to: merchant.email, subject: `Refund request: $${fromMinor(amount)}`, lines: [`A customer asked for $${fromMinor(amount)} back on receipt #${id}.`, `Their reason: "${reason}"`, "If you do not decide in time, the refund is approved automatically."], button: { label: "Decide in dashboard", url: dashboardUrl(merchant) } });
+  }
   return caseView(await db.refundCase.findUniqueOrThrow({ where: { id: c.id } }));
 }
 
@@ -440,4 +446,50 @@ export async function verifyView(id: string) {
       };
     }),
   };
+}
+
+/**
+ * "Collect payout": anyone may ask the contract to release money that is already due.
+ * The contract checks the window, open requests and the destination; we only pay the gas.
+ */
+export async function collectPayout(id: string) {
+  const r = await mustGet(id);
+  const tx = await run(() => getChain().release(getConfig().relayer, id));
+  const after = await mustGet(id);
+  const paid = (BigInt(after.released) - BigInt(r.released)).toString();
+  if (paid === "0") throw new UserError(tx.value === false ? "The payout transfer failed and was rolled back. Try again shortly." : "Nothing is due yet on this receipt.", 409);
+  await db.chainEvent.create({ data: { receiptId: id, event: "released", dataJson: JSON.stringify({ amount: paid, manual: true }), txHash: tx.txHash } });
+  await enqueueWebhook(r.merchantId, "receipt.released", { receiptId: id, orderRef: await orderRefOf(id), amount: paid, totalReleased: after.released });
+  await syncSessionStatus(after);
+  return { receipt: after, paid };
+}
+
+/**
+ * Email the customer their receipt link. The link carries the receipt key, so this only
+ * happens when the customer asks, and only for a link whose key matches the receipt.
+ */
+export async function emailReceiptLink(id: string, email: string, link: string) {
+  if (!isEmail(email)) throw new UserError("That email address does not look right");
+  const r = await mustGet(id);
+  let url: URL | null = null;
+  try {
+    url = new URL(link);
+  } catch {
+    url = null;
+  }
+  const key = url?.hash.match(/k=([0-9a-f]{64})/)?.[1];
+  if (!url || url.origin !== new URL(getConfig().publicUrl).origin || url.pathname !== `/r/${id}` || !key) throw new UserError("That is not this receipt's link");
+  if (r.claimed || !r.receiptKey || (await receiptPublicKey(key)) !== r.receiptKey) throw new UserError("That link's key does not match this receipt", 403);
+  const s = await db.session.findFirst({ where: { receiptId: id }, include: { merchant: true } });
+  await sendEmail({
+    to: email,
+    subject: `Your receipt from ${s?.merchant.name ?? "the shop"}`,
+    lines: [
+      `Your receipt #${id} for ${s?.product ?? "your order"}.`,
+      "This link is the key to your receipt: with it you can ask for a refund, cancel a pass, or claim the receipt to a NEAR account. Do not share it.",
+    ],
+    button: { label: "Open my receipt", url: link },
+  });
+  await db.session.updateMany({ where: { receiptId: id }, data: { customerEmail: email.toLowerCase() } });
+  return { sent: true };
 }

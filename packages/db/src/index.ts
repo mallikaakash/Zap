@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import { loadEnv } from "./env";
+
+loadEnv();
 
 export * from "@prisma/client";
+export { loadEnv, repoRoot } from "./env";
 
 const globalForPrisma = globalThis as unknown as { __ucPrisma?: PrismaClient };
 

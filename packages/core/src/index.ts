@@ -7,3 +7,4 @@ export * from "./sessions";
 export * from "./merchants";
 export * from "./receipts";
 export * from "./settlement";
+export * from "./email";

@@ -1,7 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
 import { Chain, generateKey } from "@uc/chain";
-import { db, kvGet, kvSet } from "@uc/db";
+import { db, kvGet, kvSet, loadEnv } from "@uc/db";
 import { createAdapter, isMockAdapter, parseMode, type IntentsAdapter, type MockAdapter, type MockRecord, type UcMode } from "@uc/intents-adapter";
 
 export interface Config {
@@ -19,25 +17,6 @@ export interface Config {
   accountParent: string;
 }
 
-function repoRoot(): string {
-  let dir = process.cwd();
-  for (let i = 0; i < 8; i++) {
-    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
-    dir = path.dirname(dir);
-  }
-  return process.cwd();
-}
-
-/** `pnpm demo` writes the sandbox addresses and throwaway keys to `.uc/runtime.json`; env vars win over it. */
-function runtimeFile(): Record<string, string> {
-  try {
-    const file = path.join(repoRoot(), ".uc", "runtime.json");
-    return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
 let cached: { config: Config; env: Record<string, string | undefined> } | undefined;
 
 export function env(): Record<string, string | undefined> {
@@ -47,11 +26,12 @@ export function env(): Record<string, string | undefined> {
 
 export function getConfig(): Config {
   if (cached) return cached.config;
-  const e: Record<string, string | undefined> = { ...runtimeFile(), ...process.env };
+  loadEnv();
+  const e: Record<string, string | undefined> = { ...process.env };
   const mode = parseMode(e.UC_MODE);
   const need = (k: string): string => {
     const v = e[k];
-    if (!v) throw new Error(`${k} is not set. Run \`pnpm demo\` for a local sandbox, or see .env.example.`);
+    if (!v) throw new Error(`${k} is not set. Run \`pnpm demo\` for a local sandbox, or \`pnpm deploy:mainnet\` for live mode (see .env.example).`);
     return v;
   };
   const executor = need("UC_EXECUTOR_ACCOUNT");
