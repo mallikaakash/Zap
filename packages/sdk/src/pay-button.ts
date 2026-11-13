@@ -66,7 +66,7 @@ const Base: typeof HTMLElement =
 
 export class PayButton extends Base {
   static readonly observedAttributes = [
-    "merchant", "amount", "product", "order-ref", "mode", "months", "monthly", "tranches",
+    "merchant", "amount", "product", "product-id", "order-ref", "mode", "months", "monthly", "tranches",
     "api", "metadata", "display", "label", "color", "text-color", "radius", "size", "icon", "disabled",
   ];
 
@@ -139,6 +139,7 @@ export class PayButton extends Base {
     set("monthly", a("monthly"));
     set("tranches", a("tranches"));
     set("orderRef", a("order-ref"));
+    set("productId", a("product-id"));
     set("metadata", a("metadata"));
     set("api", a("api"));
     return cfg;

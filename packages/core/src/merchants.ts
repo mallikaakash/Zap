@@ -59,8 +59,10 @@ function checkOnChain(c: OnChain): void {
 async function resolvePayout(input: string | undefined, name: string): Promise<string> {
   const raw = (input ?? "").trim().toLowerCase();
   const chain = getChain();
-  if (raw && isValidAccountId(raw) && (raw.includes(".") || /^[0-9a-f]{64}$/.test(raw))) {
-    if (!(await chain.accountExists(raw))) throw new UserError(`${raw} does not exist on NEAR ${getConfig().networkId}. Create it in any NEAR wallet first.`);
+  // Implicit accounts (64 hex, what most wallets create) can receive USDC before they hold any NEAR.
+  if (/^[0-9a-f]{64}$/.test(raw)) return raw;
+  if (raw && isValidAccountId(raw) && raw.includes(".")) {
+    if (!(await chain.accountExists(raw))) throw new UserError(`${raw} does not exist on NEAR ${getConfig().networkId}. Create it in any NEAR wallet first, or paste your wallet's 64-character address.`);
     return raw;
   }
   if (custodialAllowed() && getConfig().mode === "local") return ensureDemoAccount(raw || name);

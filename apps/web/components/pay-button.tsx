@@ -23,6 +23,7 @@ export interface PayButtonProps {
   merchant: string;
   amount?: string;
   product?: string;
+  productId?: string;
   mode?: "one-time" | "subscription" | "schedule";
   months?: string;
   monthly?: string;
@@ -49,6 +50,7 @@ export function PayButton({ onPaid, ...attrs }: PayButtonProps) {
     el.addEventListener("uc:paid", h);
     return () => el.removeEventListener("uc:paid", h);
   }, [onPaid]);
-  const clean = Object.fromEntries(Object.entries(attrs).filter(([, v]) => v !== undefined && v !== ""));
+  const { productId, ...rest } = attrs;
+  const clean = Object.fromEntries(Object.entries({ ...rest, "product-id": productId }).filter(([, v]) => v !== undefined && v !== ""));
   return createElement("pay-button", { ref, ...clean });
 }

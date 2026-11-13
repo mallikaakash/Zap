@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       monthly: get("monthly"),
       tranches: get("tranches"),
       orderRef: get("orderRef"),
+      productId: get("product-id") ?? get("productId"),
       metadata: get("metadata"),
     } as never);
     const s = await createSession(sessionBody as never);

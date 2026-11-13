@@ -1,0 +1,95 @@
+<!doctype html>
+<!--
+  An ordinary seller's page that knows nothing about Universal Checkout except two lines.
+  Host it anywhere (GitHub Pages, Netlify, Carrd custom code, your own server) or just open
+  the file. Set HOST and MERCHANT below — or pass ?host=…&merchant=…&product=… in the URL.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maple &amp; Clay — handmade ceramics</title>
+    <style>
+      :root { --ink: #1c1917; --muted: #78716c; --line: #e7e5e4; --bg: #fafaf9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Georgia, "Times New Roman", serif; color: var(--ink); background: var(--bg); }
+      header { border-bottom: 1px solid var(--line); background: #fff; }
+      .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+      header .wrap { display: flex; justify-content: space-between; align-items: center; height: 64px; }
+      .brand { font-size: 22px; letter-spacing: 0.02em; }
+      nav a { color: var(--muted); text-decoration: none; margin-left: 18px; font-family: system-ui, sans-serif; font-size: 14px; }
+      .hero { padding: 48px 0 24px; }
+      h1 { font-size: 40px; margin: 0 0 8px; font-weight: normal; }
+      .lead { color: var(--muted); font-size: 18px; max-width: 560px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; padding: 16px 0 56px; }
+      .item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+      .art { height: 150px; border-radius: 10px; background: linear-gradient(135deg, #e7d8c9, #c9b39c); display: grid; place-items: center; font-size: 56px; }
+      .item h2 { font-size: 20px; font-weight: normal; margin: 14px 0 4px; }
+      .item p { color: var(--muted); font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.5; margin: 0 0 14px; }
+      .price { font-family: system-ui, sans-serif; font-weight: 600; margin-bottom: 12px; }
+      footer { border-top: 1px solid var(--line); color: var(--muted); font-family: system-ui, sans-serif; font-size: 13px; padding: 20px 0 40px; }
+      code { background: #f5f5f4; padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <span class="brand">Maple &amp; Clay</span>
+        <nav><a href="#">Shop</a><a href="#">About</a><a href="#">Contact</a></nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="hero">
+        <h1>Small-batch ceramics</h1>
+        <p class="lead">Thrown and glazed by hand. Pay with whatever crypto you hold; if it arrives broken, you get your money back on the same chain.</p>
+      </section>
+      <section class="grid" id="products">
+        <article class="item">
+          <div class="art">🍵</div>
+          <h2>Tea bowl</h2>
+          <p>Ash glaze, 250 ml. One of a kind.</p>
+          <div class="price">$1.00</div>
+          <!-- Universal Checkout: one tag per product -->
+          <pay-button data-slot="one-time" amount="1" product="Tea bowl" label="Pay any way"></pay-button>
+        </article>
+        <article class="item">
+          <div class="art">📦</div>
+          <h2>Seconds box · pass</h2>
+          <p>A prepaid pass: three surprise boxes, released over time. Cancel any time and the rest comes back.</p>
+          <div class="price">3 × $1.00</div>
+          <pay-button data-slot="pass" mode="subscription" months="3" monthly="1" product="Seconds box pass" label="Get the pass"></pay-button>
+        </article>
+      </section>
+    </main>
+    <footer>
+      <div class="wrap">
+        This page is plain HTML. The payment buttons are the only integration:
+        <code>&lt;script src="…/pay.js"&gt;</code> + <code>&lt;pay-button …&gt;</code>.
+      </div>
+    </footer>
+
+    <script>
+      // ---- the seller's configuration (or ?host=…&merchant=…&pass=<product-id>&item=<product-id>) ----
+      const q = new URLSearchParams(location.search);
+      const HOST = q.get("host") || "https://34-69-143-151.sslip.io";
+      const MERCHANT = q.get("merchant") || "your-shop.near";
+      // Optional: use dashboard products, so their refund window and pass interval apply.
+      const PRODUCT_ITEM = q.get("item");
+      const PRODUCT_PASS = q.get("pass");
+
+      for (const b of document.querySelectorAll("pay-button")) {
+        b.setAttribute("merchant", MERCHANT);
+        b.setAttribute("api", HOST);
+        const id = b.dataset.slot === "pass" ? PRODUCT_PASS : PRODUCT_ITEM;
+        if (id) b.setAttribute("product-id", id);
+        b.addEventListener("uc:paid", (e) => console.log("paid", e.detail));
+      }
+      // This is line 1 of the integration; with fixed values it is simply
+      //   <script src="https://YOUR-HOST/pay.js" defer></script>
+      const s = document.createElement("script");
+      s.src = `${HOST}/pay.js`;
+      s.defer = true;
+      document.head.appendChild(s);
+    </script>
+  </body>
+</html>

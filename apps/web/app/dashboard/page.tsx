@@ -554,7 +554,24 @@ interface Product {
   windowSecs: number | null;
 }
 
+function ProductSnippet({ m, p }: { m: Merchant; p: Product }) {
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const snippet = `<script src="${origin}/pay.js" defer></script>\n<pay-button merchant="${m.id}" product-id="${p.id}" product="${p.name.replace(/"/g, "&quot;")}"></pay-button>`;
+  const link = `${origin}/pay?merchant=${encodeURIComponent(m.id)}&product-id=${p.id}&product=${encodeURIComponent(p.name)}`;
+  return (
+    <div className="rise mt-2 grid gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_auto]">
+      <div className="min-w-0 space-y-2">
+        <pre className="mono overflow-x-auto rounded-lg bg-slate-950 p-3 text-[12px] leading-relaxed text-slate-100">{snippet}</pre>
+        <div className="flex flex-wrap gap-2"><CopyButton text={snippet} label="Copy snippet" /><CopyButton text={link} label="Copy pay link" /></div>
+      </div>
+      {origin ? <QR value={link} size={104} /> : null}
+    </div>
+  );
+}
+
 function ProductsTab({ m }: { m: Merchant }) {
+  const [shown, setShown] = useState<string | null>(null);
   const { data, refresh } = usePoll(() => api<{ products: Product[] }>(`/api/merchants/${m.id}/products`), 15000, [m.id]);
   const [f, setF] = useState({ kind: "OneTime", name: "", price: "1", window: "300", periods: "3", interval: "180", emoji: "🛍️", description: "" });
   const [busy, setBusy] = useState(false);
@@ -617,7 +634,8 @@ function ProductsTab({ m }: { m: Merchant }) {
         {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.products.length === 0 ? <p className="mt-3 text-sm text-muted">No products yet. You can also skip products and set the price on the button itself.</p> : (
           <ul className="mt-3 divide-y divide-line">
             {data.products.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+              <li key={p.id} className="py-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
                 <span className="min-w-0">
                   <span className="font-semibold">{p.emoji} {p.name}</span>
                   <span className="block text-xs text-muted">
@@ -626,8 +644,11 @@ function ProductsTab({ m }: { m: Merchant }) {
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="font-semibold tabular-nums">{usd(p.amount)}</span>
+                  <button className="text-xs font-semibold text-accent hover:underline" onClick={() => setShown(shown === p.id ? null : p.id)}>{shown === p.id ? "Hide" : "Embed"}</button>
                   <button className="text-xs font-semibold text-bad hover:underline" onClick={async () => { await api(`/api/merchants/${m.id}/products`, { method: "DELETE", body: { productId: p.id } }); refresh(); }}>Remove</button>
                 </span>
+                </div>
+                {shown === p.id ? <ProductSnippet m={m} p={p} /> : null}
               </li>
             ))}
           </ul>

@@ -32,6 +32,8 @@ export interface SessionRequestBody {
   schedule?: ScheduleItem[];
   orderRef: string;
   product?: string;
+  /** Dashboard product: price, kind, schedule and refund window come from it on the server. */
+  productId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -54,6 +56,11 @@ export interface CheckoutConfig {
   /** schedule: array (or JSON string) of `{ afterDays, amount }`. */
   tranches?: TrancheInput[] | string;
   orderRef?: string;
+  /**
+   * A product from the seller's dashboard. The server uses that product's price, kind,
+   * schedule and refund window, so `amount`/`mode` may be omitted.
+   */
+  productId?: string;
   /** Object or JSON string of an object. */
   metadata?: Record<string, unknown> | string;
 }
@@ -184,6 +191,17 @@ export function buildSessionBody(cfg: CheckoutConfig): SessionRequestBody {
   const merchantId = typeof cfg.merchant === "string" ? cfg.merchant.trim() : "";
   if (!merchantId || /\s/.test(merchantId) || merchantId.length > 128) {
     bad("`merchant` is required (the merchant id, e.g. \"shop.testnet\")");
+  }
+  const productId = (cfg.productId ?? "").trim();
+  if (productId) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(productId)) bad("`product-id` must be the id shown in your dashboard");
+    // The server fills in the stored price, kind and schedule; "1" is a placeholder it replaces.
+    const body: SessionRequestBody = { merchantId, amountUsd: "1", kind: "OneTime", productId, orderRef: (cfg.orderRef ?? "").trim() || generateOrderRef() };
+    const product = (cfg.product ?? "").trim();
+    if (product) body.product = product;
+    const metadata = parseMetadata(cfg.metadata);
+    body.metadata = { ...(metadata ?? {}), productId };
+    return body;
   }
   const mode: Mode = cfg.mode ?? "one-time";
   if (!(mode in KIND)) bad(`\`mode\` must be "one-time", "subscription" or "schedule", got ${JSON.stringify(mode)}`);
