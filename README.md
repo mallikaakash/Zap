@@ -26,9 +26,10 @@
 | **Repo** | https://github.com/mallikaakash/Zap |
 | **Live app (NEAR mainnet, real money)** | https://zap-2lcs3sivbq-uc.a.run.app |
 | **Receipt contract (mainnet)** | [`checkout.aakash7777.near`](https://nearblocks.io/address/checkout.aakash7777.near) |
-| **Demo video** | _coming — see [Demo video](#demo-video)_ |
-| **Demo post on X** | _coming — link lands here once posted_ |
+| **Demo video** | [`zap-payments-demo-v3.mp4`](zap-payments-demo-v3.mp4) (also attached to the X post) |
+| **Demo post on X** | https://x.com/malliktwts/status/2121712060342186235 |
 | **Try it live (mainnet, ~$0.10)** | [Hosted checkout for a $0.10 test product](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i) — see [Try it live](#try-it-live-on-mainnet-real-money) |
+| **Demo shop, seller dashboard** | Log in as the demo seller — see [Demo shop for judges](#demo-shop-for-judges) |
 | **Try it locally, no keys** | `pnpm install && pnpm demo` — see [Try it](#try-it) |
 
 Live on mainnet. Receipt NFT as escrow. Funds are held by a public contract, not by a company.
@@ -62,9 +63,9 @@ Cool, but who is this actually for? Three people:
 
 ## Demo video
 
-> 🎥 **[Demo video — placeholder, link goes here]**
+> 🎥 **[Watch the demo video (`zap-payments-demo-v3.mp4`)](zap-payments-demo-v3.mp4)** · also on X: https://x.com/malliktwts/status/2121712060342186235
 >
-> The story in the video: a seller adds Zap to a plain HTML shop by pasting one prompt into a coding agent, a customer pays $1 with USDT on Polygon via MetaMask, the money lands in a receipt on NEAR mainnet, the customer reports a broken feature, the refund assistant approves it, and the USDT comes back to MetaMask.
+> The video walks through a seller adding Zap to a shop, a live payment on NEAR mainnet, the money held in escrow against a receipt, and a refund that goes back to the customer's original coin and chain.
 
 ---
 
@@ -153,6 +154,28 @@ The hosted app runs on NEAR mainnet with real NEAR Intents swaps. It stays up th
    **See:** the refund assistant asks a question or approves under the shop's rules; once approved, the refund leaves escrow and arrives in the **same coin on the same chain** you paid from.
 4. **Do:** open `https://zap-2lcs3sivbq-uc.a.run.app/verify/<receipt id>`.
    **See:** the receipt read straight from the contract: amount, refunded, refund target, and that the contract's USDC covers every open receipt.
+
+### Demo shop for judges
+
+A real shop on the live app, so you can see both sides: pay as a customer, then log in as the seller.
+
+| | |
+|---|---|
+| **Shop** | AAKASHS SAAS (NEAR account `wrongzebra7564.near`) |
+| **Product** | Saas Pro Subscription · $0.10 one-time · 7-day refund window |
+| **Buy it (customer)** | [Hosted checkout](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i) |
+| **Seller login** | https://zap-2lcs3sivbq-uc.a.run.app/login |
+| **NEAR account (username)** | `wrongzebra7564.near` |
+| **Password** | `password` |
+
+1. **Do:** log in and open **Orders**.
+   **See:** every receipt for this shop: amount in escrow, paid out, refunded, the refund window, the refund conversation, and **Verify on chain**.
+2. **Do:** pay for the product yourself (steps above), then request a refund from your receipt link.
+   **See:** the request appear under **Orders**; press **Approve refund** and watch it leave escrow back to your coin and chain.
+3. **Do:** open **Your button**.
+   **See:** the two-line snippet, framework guides, **Copy prompt for your AI**, and the share link and QR code this checkout came from.
+
+This is a shared demo account. Please leave **Settings** (payout account, webhook URL) as they are, so the demo keeps working for the next judge.
 
 ### Mainnet proof (a full payment and refund, already done)
 
