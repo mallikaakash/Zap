@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Zap Payments" width="100%" />
+  <img src="docs/assets/banner-hero.png" alt="Zap Payments" width="100%" />
 </p>
 
 <h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The receipt holds the money.</h1>
@@ -20,8 +20,6 @@
 </p>
 
 > Built solo at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
-
-<img src="docs/assets/mascot.png" alt="Zap mascot — a penguin running with a charged card" width="220" align="right" />
 
 | | |
 |---|---|
