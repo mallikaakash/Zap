@@ -437,6 +437,32 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
   );
 }
 
+function TestWebhook({ m }: { m: Merchant }) {
+  const [state, setState] = useState<"idle" | "busy" | "sent" | string>("idle");
+  return (
+    <span className="flex items-center gap-2">
+      {state !== "idle" && state !== "busy" ? <span className={`text-xs ${state === "sent" ? "text-good" : "text-bad"}`}>{state === "sent" ? "Queued. It appears below in a few seconds." : state}</span> : null}
+      <button
+        type="button"
+        className="btn-ghost"
+        disabled={state === "busy" || !m.webhookUrl}
+        title={m.webhookUrl ? `POST a signed webhook.test event to ${m.webhookUrl}` : "Set a webhook URL in Settings first"}
+        onClick={async () => {
+          setState("busy");
+          try {
+            await api(`/api/merchants/${m.id}/webhooks`, { method: "POST", body: {} });
+            setState("sent");
+          } catch (e) {
+            setState(e instanceof Error ? e.message : "Could not send");
+          }
+        }}
+      >
+        {state === "busy" ? <Spinner /> : null} Send test event
+      </button>
+    </span>
+  );
+}
+
 function WebhooksTab({ m }: { m: Merchant }) {
   const { data } = usePoll(
     () =>
@@ -477,7 +503,10 @@ if (!fresh || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
         )}
       </div>
       <div className="card p-6">
-        <h2 className="font-semibold">Webhook deliveries</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Webhook deliveries</h2>
+          <TestWebhook m={m} />
+        </div>
         {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.deliveries.length === 0 ? <p className="mt-3 text-sm text-muted">Nothing sent yet. Events appear here after the first payment.</p> : (
           <ul className="mt-3 divide-y divide-line">
             {data.deliveries.map((d) => (

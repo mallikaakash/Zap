@@ -3,57 +3,63 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pixel &amp; Pine · design assets</title>
+    <title>SuperSaaaS · Pricing</title>
     <link rel="stylesheet" href="/style.css" />
 
-    <!-- ── Zap, line 1 of 2: load the button once per page (copied from the dashboard) ── -->
+    <!-- ── Zap, line 1 of 2: load the button once per page (copied from the Zap dashboard) ── -->
     <script src="https://zap-2lcs3sivbq-uc.a.run.app/pay.js" defer></script>
   </head>
   <body>
     <header class="top">
       <div class="wrap row">
-        <a class="brand" href="/">Pixel <span>&amp;</span> Pine</a>
-        <nav><a href="/">Assets</a><a href="/orders.html">Orders</a></nav>
+        <a class="brand" href="/"><span class="mark">S</span> SuperSaaaS</a>
+        <nav><a href="/">Pricing</a><a href="/orders.html">Orders</a></nav>
       </div>
     </header>
 
     <main class="wrap">
       <section class="hero">
-        <p class="kicker">Hand-made design assets</p>
-        <h1>Icons and textures for people who ship.</h1>
-        <p class="lead">Pay with whatever crypto you hold, on whatever chain. If something is wrong, you get your money back in the same coin.</p>
+        <p class="kicker">Pricing</p>
+        <h1>Ship reports your team actually reads.</h1>
+        <p class="lead">Start free. Upgrade when you need more. Pay with any coin on any chain, and get your money back in the same coin if it isn't for you.</p>
       </section>
 
-      <section class="grid">
-        <article class="item">
-          <div class="art a1" aria-hidden="true">◆</div>
-          <h2>Starter icon pack</h2>
-          <p>120 line icons in SVG and Figma. Lifetime updates.</p>
-          <p class="price">$1.00</p>
-
-          <!-- ── Zap, line 2 of 2: one tag per product (copied from the dashboard, "Your button" tab) ──
-               Replace this tag with the product-id snippet once you have saved the product. -->
-          <pay-button merchant="aakashsaasowner.near" amount="1" product="Starter icon pack" label="Buy now"></pay-button>
+      <section class="plans">
+        <article class="plan">
+          <h2>Free</h2>
+          <p class="price">$0 <span>forever</span></p>
+          <ul>
+            <li>3 dashboards</li>
+            <li>Weekly email digest</li>
+            <li>Community support</li>
+          </ul>
+          <a class="ghost" href="#">Current plan</a>
         </article>
 
-        <article class="item">
-          <div class="art a2" aria-hidden="true">▤</div>
-          <h2>Paper textures</h2>
-          <p>40 scanned paper textures, 6000 px, commercial licence.</p>
-          <p class="price">$2.00</p>
+        <article class="plan pro">
+          <p class="tag">Most popular</p>
+          <h2>SuperSaaaS Pro</h2>
+          <p class="price">$1 <span>one-time · 7-day refund window</span></p>
+          <ul>
+            <li>Unlimited dashboards</li>
+            <li>Live alerts and exports</li>
+            <li>Priority support</li>
+          </ul>
 
-          <pay-button merchant="aakashsaasowner.near" amount="2" product="Paper textures" label="Buy now"></pay-button>
+          <!-- ── Zap, line 2 of 2: one tag per product (copied from the Zap dashboard, "Your button" tab).
+               The price comes from Zap's server for this product-id, so it cannot be edited here. ── -->
+          <pay-button merchant="aakashsaasowner.near" product-id="cmwg1bh1q0002s654xkmaqg1d" label="Upgrade to Pro"></pay-button>
         </article>
       </section>
     </main>
 
     <footer class="wrap foot">
-      This page is plain HTML. The checkout is the two Zap lines above; everything else is the shop's own code.
+      Demo shop for Zap. This page is plain HTML: the checkout is the two lines marked “Zap”; everything else is the shop's own code.
     </footer>
 
     <script>
-      // The shop's own code: after the customer pays, show a thank-you page.
-      // zap-paid is NOT proof of payment; the thank-you page waits for the signed webhook.
+      // The shop's own code: after the customer pays, go to the thank-you page.
+      // zap-paid is NOT proof of payment; thanks.html waits for the signed webhook.
       let done = false;
       const onPaid = (e) => {
         if (done) return;
