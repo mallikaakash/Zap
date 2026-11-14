@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SuperSaaaS · Pricing</title>
     <link rel="stylesheet" href="/style.css" />
-
-    <!-- ── Zap, line 1 of 2: load the button once per page (copied from the Zap dashboard) ── -->
-    <script src="https://zap-2lcs3sivbq-uc.a.run.app/pay.js" defer></script>
   </head>
   <body>
     <header class="top">
@@ -46,29 +43,14 @@
             <li>Priority support</li>
           </ul>
 
-          <!-- ── Zap, line 2 of 2: one tag per product (copied from the Zap dashboard, "Your button" tab).
-               The price comes from Zap's server for this product-id, so it cannot be edited here. ── -->
-          <pay-button merchant="executor.aakash7777.near" product-id="cmwg5c4b20004s65payw0ucls" label="Upgrade to Pro"></pay-button>
+          <!-- Checkout goes here: the "Upgrade to Pro" button for this plan. -->
         </article>
       </section>
     </main>
 
     <footer class="wrap foot">
-      Demo shop for Zap. This page is plain HTML: the checkout is the two lines marked “Zap”; everything else is the shop's own code.
+      SuperSaaaS · a demo SaaS shop.
     </footer>
 
-    <script>
-      // The shop's own code: after the customer pays, go to the thank-you page.
-      // zap-paid is NOT proof of payment; thanks.html waits for the signed webhook.
-      let done = false;
-      const onPaid = (e) => {
-        if (done) return;
-        done = true;
-        const { receiptId } = e.detail;
-        setTimeout(() => (location.href = `/thanks.html?receipt=${encodeURIComponent(receiptId ?? "")}`), 1200);
-      };
-      document.addEventListener("zap-paid", onPaid);
-      document.addEventListener("uc:paid", onPaid); // same event; older pay.js versions only send this name
-    </script>
   </body>
 </html>

@@ -32,6 +32,12 @@ export async function handle(fn: () => Promise<unknown>): Promise<NextResponse> 
     return json(await fn());
   } catch (e) {
     if (e instanceof UserError) return json({ error: e.message }, e.status);
+    // NEAR RPC rate limit (HTTP 429): say so plainly instead of "something went wrong".
+    const err = e as { name?: string; statusCode?: number; data?: { statusCode?: number }; message?: string } | null;
+    if (err?.name === "RpcBusyError" || err?.statusCode === 429 || err?.data?.statusCode === 429 || /too many requests/i.test(String(err?.message ?? ""))) {
+      console.warn("[api] NEAR RPC rate limited (429)");
+      return json({ error: "The NEAR network is busy right now. Nothing was changed. Try again in a minute." }, 503);
+    }
     console.error("[api]", e);
     const message = e instanceof Error ? e.message : "Unexpected error";
     return json({ error: /is not set/.test(message) ? message : "Something went wrong on our side. Please try again." }, 500);
