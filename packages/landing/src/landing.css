@@ -428,15 +428,13 @@
   object-fit: contain;
 }
 .z-logo-mark {
-  object-fit: cover;
-  object-position: left center;
-  border-radius: 8px;
+  object-fit: contain;
   flex: none;
 }
 .z-logo-wordmark-header {
-  height: 58px !important;
+  height: 32px !important;
   width: auto !important;
-  max-width: min(340px, 58vw) !important;
+  max-width: min(200px, 48vw) !important;
 }
 .z-mark {
   width: 34px;
@@ -511,8 +509,8 @@
     display: none;
   }
   .z-logo-wordmark-header {
-    height: 46px !important;
-    max-width: 240px !important;
+    height: 28px !important;
+    max-width: min(168px, 44vw) !important;
   }
 }
 .z-sim {
@@ -591,10 +589,16 @@
   top: 0;
   transform-origin: 0 0;
 }
+.z-h1 .z-h1-line {
+  display: block;
+}
+.z-poster .z-h1 .z-h1-line {
+  white-space: nowrap;
+}
 .z-poster .z-h1 {
   position: absolute;
   z-index: 3;
-  font-size: 100px;
+  font-size: 68px;
   /* legible where the words sit over the phone */
   paint-order: stroke fill;
   -webkit-text-stroke: 6px var(--z-bg);

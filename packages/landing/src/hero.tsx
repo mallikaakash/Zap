@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { useApp, v } from "./context";
+import { v } from "./context";
 import { DEMO } from "./demo";
 import { advance, COIN_KEYS, COINS, dwell, flowView, INITIAL_FLOW, PLACES, sceneWaypoint, USDC_COLOR, type Actor, type CoinKey, type FlowState, type Pt } from "./flow";
-import { Arrow, Bolt, Check, Mark } from "./icons";
-import { LandingModeKicker } from "./landing-mode-kicker";
+import { Bolt, Check, Mark } from "./icons";
 import { SiteHeader } from "./site-header";
 
 const ACCENT = "#FF2D87";
@@ -15,7 +14,7 @@ const W = 1360;
 const H = 700;
 const SX = 840; // scene origin
 const SY = 480;
-const PHONE = { left: 70, top: 168, scale: 0.8 };
+const PHONE = { left: 68, top: 162, scale: 0.86 };
 /** Unscaled phone shell + shadow stack in the poster (see `.z-ph` / `.z-ph-shadow`). */
 const PHONE_STACK_H = 612 + (-18 + 46);
 /* Stacked layout (narrow screens): crop of the same stage around the scene. */
@@ -124,7 +123,6 @@ function FlowCaption({ f, go, reduced }: { f: View; go: Go; reduced: boolean }) 
 }
 
 export function HeroFlow() {
-  const { href } = useApp();
   const { s, setS, go, reduced, still } = useFlow();
   // The "try it" hint: shown until the visitor first touches the phone, never in stills.
   const [touched, setTouched] = useState(false);
@@ -142,7 +140,7 @@ export function HeroFlow() {
   const captionTop = posterScale > 0 ? Math.round(phoneBottomY * posterScale - captionBarH / 2) : 0;
 
   return (
-    <section id="top" className="z-hero" aria-label="Zap: any coin in, USDC out">
+    <section id="top" className="z-hero" aria-label="Zap: accept payments across 35+ chains, NFT receipts, refunds with ease">
       <div ref={boxRef} className="z-posterbox">
         {width === 0 ? (
           <div style={{ height: 600 }} />
@@ -158,38 +156,16 @@ export function HeroFlow() {
         ) : null}
       </div>
 
-      <div
-        className="z-wrap"
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 22,
-          marginTop: poster ? 20 : 16,
-        }}
-      >
-        <div className="z-col" style={{ flex: "1 1 280px", maxWidth: 460, gap: 20 }}>
-          <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--z-body)", margin: 0 }}>
-            Checkout for SaaS and online businesses. Customers pay in the assets they already hold; you receive USDC in escrow until the refund window closes.{" "}
-            <a href="#refunds" style={{ color: "var(--z-fg)", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>
-              How refunds work
-            </a>
-          </p>
-          <div className="z-col" style={{ gap: 12, alignItems: "flex-start" }}>
-            <a href={href("/dashboard")} className="z-btn ink">
-              Get started <Arrow />
-            </a>
-            <LandingModeKicker />
-          </div>
+      {!poster && width > 0 ? (
+        <div className="z-wrap" style={{ marginTop: 16 }}>
+          <FlowCaption f={f} go={go} reduced={reduced} />
           {reduced ? (
-            <p className="z-muted" style={{ fontSize: 13, margin: 0 }}>
+            <p className="z-muted" style={{ fontSize: 13, margin: "12px 0 0" }}>
               Walkthrough paused — your system prefers reduced motion.
             </p>
           ) : null}
         </div>
-        {!poster && width > 0 ? <FlowCaption f={f} go={go} reduced={reduced} /> : null}
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -197,9 +173,10 @@ export function HeroFlow() {
 function Headline({ style }: { style?: React.CSSProperties }) {
   return (
     <h1 className="z-h1" style={style}>
-      Any coin in.
-      <br />
-      <span className="z-acc">USDC</span> out.
+      <span className="z-h1-line">Accept payments across 35+ chains.</span>
+      <span className="z-h1-line">
+        Issue <span className="z-acc">NFT receipts.</span> Refund with ease.
+      </span>
     </h1>
   );
 }
@@ -266,7 +243,7 @@ function Poster({ s, f, go, width, fitHeight, hint }: { s: FlowState; f: View; g
     <div style={{ height: H * scale, position: "relative", overflow: "hidden" }}>
       <div ref={stageRef} className="z-poster" style={{ width: W, height: H, transform: `translate(${offsetX}px,0) scale(${scale})` }}>
         <Floor x={0} y={160} w={W} h={H - 160} />
-        <Headline style={{ left: 40, top: 6, maxWidth: 720 }} />
+        <Headline style={{ left: 40, top: 52, maxWidth: 720 }} />
         {/* scale and perspective live on separate elements: combined, Chromium mis-hit-tests the tilted screen */}
         <div
           style={{ position: "absolute", left: PHONE.left, top: PHONE.top, zIndex: 2, transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}
@@ -294,7 +271,7 @@ function Stacked({ s, f, go, width, hint }: { s: FlowState; f: View; go: Go; wid
   const anchorRef = useRef<HTMLSpanElement>(null);
   return (
     <div className="z-wrap z-col" style={{ gap: 28, paddingTop: 12 }}>
-      <Headline style={{ fontSize: "clamp(44px, 13vw, 80px)" }} />
+      <Headline style={{ fontSize: "clamp(36px, 10vw, 56px)" }} />
       <TryHint hint={hint} compact />
       <div className="z-phw" style={{ alignSelf: "center", maxWidth: "100%" }} onPointerDown={hint.touch}>
         <Phone s={s} f={f} go={go} anchorRef={anchorRef} flat={width < 420} />

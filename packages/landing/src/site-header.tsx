@@ -15,7 +15,7 @@ export function SiteHeader({ section = "home" }: { section?: SiteSection }) {
   return (
     <header className="z-header">
       <a href={section === "home" ? "#top" : home} className="z-brand">
-        <LogoWordmark height={58} className="z-logo-wordmark-header" />
+        <LogoWordmark height={32} className="z-logo-wordmark-header" />
       </a>
       <nav aria-label="Primary" className="z-nav">
         <a className={`z-navlink${section === "docs" ? " on" : ""}`} href={href("/docs")} aria-current={section === "docs" ? "page" : undefined}>
