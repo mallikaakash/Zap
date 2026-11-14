@@ -128,17 +128,6 @@ An honest status as of the submission (2026-11-14). "Tested on mainnet" means we
 | `/verify/<id>`: receipt state and solvency read from the contract | [`/verify/1`](https://zap-2lcs3sivbq-uc.a.run.app/verify/1) |
 | Database persistence across deploys (SQLite replicated with Litestream) | Data survived several redeploys |
 
-**Implemented, not yet exercised on mainnet** (covered by tests and/or the local `pnpm demo`)
-
-| Feature | Notes |
-|---|---|
-| Automatic payout to the seller when the refund window ends | Works in the sandbox (`+1 min`). The first mainnet window (receipt #2) ends 2026-11-21. |
-| Other coins and chains (ETH, USDT, SOL, BTC, …) | The checkout lists every 1Click asset; only POL on Polygon was paid live. MetaMask covers EVM chains; other chains show an address and amount to send. |
-| Prepaid passes (subscriptions) and milestone schedules, cancel with partial refund | Contract + sandbox demo (step 4 of [Try it](#try-it)). |
-| Claim a receipt into a NEAR account (it becomes a normal NFT) | Contract + sandbox demo. |
-| Seller-initiated refund without a buyer request (`merchant_refund`) | Contract + dashboard. |
-| Refund assistant on NEAR AI Cloud | Code path exists (`packages/core/src/refund-agent.ts`); the live app runs the deterministic rules. |
-| Buyer emailed their private receipt link when they give an email | Sent from the buyer's browser when the payment confirms, so only if the checkout page is still open then; the success screen also has Copy and "Email me this link". |
 
 **Not built yet / known limits**
 
@@ -284,7 +273,7 @@ Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md),
 
 - **Everything here was written in the window.** First commit 2026-11-11. No pre-hackathon code, no prior product on another chain.
 - **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, nodemailer (Gmail SMTP) for email with Resend as a fallback. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006).
-- **AI code:** Claude Code and Cursor were used throughout; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are ours - [Violina](https://github.com/violinadoley) and [Aakash](https://github.com/mallikaakash) .
+- **AI code:** Claude Code and Cursor were used in building the project; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are ours - [Violina](https://github.com/violinadoley) and [Aakash](https://github.com/mallikaakash) .
 - **License:** MIT — see [LICENSE](LICENSE).
 - **Other submissions by me:** none.
 
