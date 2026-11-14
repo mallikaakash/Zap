@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, chainName, fromMinor, setSellerToken, short, toMinor, until, usd } from "@/lib/client";
 import { receiptStatus } from "@/lib/labels";
 import type { DashReceipt } from "@/lib/types";
-import { CopyButton, DurationInput, Field, Logo, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { CopyButton, DurationInput, Field, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
 import { SellTab } from "./sell-tab";
+import { SiteHeader, rememberDashboard } from "@/components/site-header";
 
 interface Merchant {
   id: string;
@@ -58,13 +59,10 @@ export default function Dashboard() {
 
 function Page({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <main className="mx-auto max-w-6xl px-5 py-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <a href="/"><Logo /></a>
-        <div className="flex items-center gap-2 text-sm">{right}</div>
-      </header>
-      {children}
-    </main>
+    <>
+      <SiteHeader right={right} />
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-5">{children}</main>
+    </>
   );
 }
 
@@ -135,7 +133,13 @@ function MerchantDash({ id }: { id: string }) {
   const [m, setM] = useState<Merchant | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { data: dev, refresh: refreshDev } = usePoll(() => api<DevState>("/api/dev/state"), 4000);
-  const reload = () => api<Merchant>(`/api/merchants/${id}`).then(setM).catch((e: Error) => setError(e.message));
+  const reload = () =>
+    api<Merchant>(`/api/merchants/${id}`)
+      .then((r) => {
+        setM(r);
+        rememberDashboard(window.location.pathname + window.location.search);
+      })
+      .catch((e: Error) => setError(e.message));
   useEffect(() => void reload(), [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (m?.chainState === "active") return;

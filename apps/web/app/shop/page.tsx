@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, duration, usd } from "@/lib/client";
 import { PayButton } from "@/components/pay-button";
+import { SiteHeader } from "@/components/site-header";
 import { Logo, Notice, SimBadge, Spinner } from "@/components/ui";
 
 interface Product {
@@ -61,28 +62,11 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <a href="/shop" className="flex items-center gap-3">
-            <span className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-              {merchant?.name ?? "Demo checkout"}
-            </span>
-            <span className="pill bg-accent-soft text-muted">powered by Zap</span>
-          </a>
-          <nav className="flex flex-wrap items-center gap-4 text-sm text-muted">
-            <SimBadge mode={mode} />
-            <a className="hover:text-ink" href={merchant ? `/dashboard?m=${merchant.id}` : "/dashboard"}>
-              Merchant dashboard
-            </a>
-            <a className="hover:text-ink" href="/">
-              About Zap
-            </a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader right={<SimBadge mode={mode} />} />
 
       <main className="mx-auto max-w-5xl px-5 py-10">
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Plans and pricing</h1>
+        <p className="mono text-xs font-semibold tracking-wider text-muted uppercase">{merchant?.name ?? "Demo checkout"} · demo storefront</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">Plans and pricing</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-muted">
           An ordinary pricing page. Each button below is one <code className="mono text-sm text-ink">&lt;pay-button&gt;</code> tag. Customers pay with any coin on any chain; the business receives USDC, and the money waits in a receipt the customer controls until the refund period ends.
         </p>

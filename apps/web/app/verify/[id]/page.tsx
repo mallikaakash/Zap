@@ -2,7 +2,8 @@
 
 import { use } from "react";
 import { api, short, usd } from "@/lib/client";
-import { Logo, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { SiteHeader } from "@/components/site-header";
 import type { Receipt } from "@/lib/types";
 
 interface Verify {
@@ -28,8 +29,9 @@ export default function VerifyPage({ params }: { params: Promise<{ id: string }>
   const { data: v, error } = usePoll(() => api<Verify>(`/api/verify/${id}`), 5000, [id]);
   const covered = v ? BigInt(v.contractTotals.usdcBalance) >= BigInt(v.contractTotals.allocated) : true;
   return (
-    <main className="mx-auto max-w-xl space-y-4 px-4 py-10">
-      <div className="flex justify-center"><a href="/"><Logo /></a></div>
+    <>
+    <SiteHeader variant="customer" />
+    <main className="mx-auto max-w-xl space-y-4 px-4 py-8">
       {error && !v ? <Notice tone="bad">{error}</Notice> : null}
       {!v && !error ? <p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Checking the chain…</p> : null}
       {v ? (
@@ -87,5 +89,6 @@ export default function VerifyPage({ params }: { params: Promise<{ id: string }>
         </>
       ) : null}
     </main>
+    </>
   );
 }

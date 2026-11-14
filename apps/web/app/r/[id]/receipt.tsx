@@ -5,7 +5,8 @@ import { receiptPublicKey, signReceiptAction, type ReceiptAction } from "@uc/cha
 import { api, chainName, fromMinor, keyFromFragment, sha256Hex, short, toMinor, until, usd } from "@/lib/client";
 import { EVENT_LABELS, receiptStatus } from "@/lib/labels";
 import type { CaseView, ReceiptView } from "@/lib/types";
-import { Field, Logo, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { Field, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { SiteHeader } from "@/components/site-header";
 
 type Panel = null | "refund" | "cancel" | "claim" | "transfer" | "address";
 
@@ -236,12 +237,10 @@ export default function ReceiptPage({ id }: { id: string }) {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-xl space-y-4 px-4 py-10">
-      <div className="flex justify-center pb-1">
-        <a href="/"><Logo /></a>
-      </div>
-      {children}
-    </main>
+    <>
+      <SiteHeader variant="customer" />
+      <main className="mx-auto max-w-xl space-y-4 px-4 py-8">{children}</main>
+    </>
   );
 }
 
