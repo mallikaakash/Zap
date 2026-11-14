@@ -34,6 +34,7 @@ button[aria-busy=true]{cursor:progress;filter:none;transform:none}
 .ck{animation:uc-pop .35s cubic-bezier(.2,.9,.3,1.4)}
 .e{display:none;width:0;min-width:100%;margin-top:6px;font-size:12px;line-height:1.3;color:var(--uc-error-color,#dc2626);text-align:center}
 .e:not(:empty){display:block}
+.e.n{color:var(--uc-hint-color,#525252)}
 @keyframes uc-spin{to{transform:rotate(360deg)}}
 @keyframes uc-pop{from{transform:scale(.3);opacity:0}}
 @media(prefers-reduced-motion:reduce){button{transition:none}button:hover,button:active{transform:none}.sp{animation-duration:1.6s}.ck{animation:none}}
@@ -67,7 +68,7 @@ const Base: typeof HTMLElement =
 export class PayButton extends Base {
   static readonly observedAttributes = [
     "merchant", "amount", "product", "product-id", "order-ref", "mode", "months", "monthly", "tranches",
-    "api", "metadata", "display", "label", "color", "text-color", "radius", "size", "icon", "disabled",
+    "api", "metadata", "display", "label", "color", "text-color", "radius", "size", "icon", "disabled", "preview",
   ];
 
   #btn: HTMLButtonElement;
@@ -155,6 +156,18 @@ export class PayButton extends Base {
     if (this.#state === "loading" || this.#state === "open" || this.#handle) return;
     this.#validate();
     if (this.#invalid || this.hasAttribute("disabled")) return;
+    // Dashboard previews: look and feel only, never a real checkout.
+    if (this.hasAttribute("preview")) {
+      this.#set("idle");
+      this.#err.textContent = this.getAttribute("preview") || "Preview only. Paste the snippet on your site to take payments.";
+      this.#err.classList.add("n");
+      this.#later(() => {
+        this.#err.textContent = "";
+        this.#err.classList.remove("n");
+      }, 3500);
+      this.#emit("uc:preview", { config: this.config });
+      return;
+    }
 
     this.#set("loading");
     try {
@@ -196,6 +209,9 @@ export class PayButton extends Base {
 
   #emit(type: string, detail: unknown): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
+    // Same event without the colon (zap-paid, zap-closed, zap-error, zap-preview): Angular's
+    // (event) binding and some template compilers cannot bind names containing ":".
+    this.dispatchEvent(new CustomEvent(type.replace(/^uc:/, "zap-"), { detail, bubbles: true, composed: true }));
   }
 
   #later(fn: () => void, ms: number): void {
@@ -210,6 +226,7 @@ export class PayButton extends Base {
     else if (this.#state === "idle" && this.#btn.offsetWidth) this.#btn.style.minWidth = `${this.#btn.offsetWidth}px`;
     this.#state = state;
     this.#err.textContent = message;
+    this.#err.classList.remove("n");
     this.#render();
   }
 
