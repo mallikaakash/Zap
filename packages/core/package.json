@@ -17,10 +17,12 @@
   "dependencies": {
     "@uc/chain": "workspace:*",
     "@uc/db": "workspace:*",
-    "@uc/intents-adapter": "workspace:*"
+    "@uc/intents-adapter": "workspace:*",
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/nodemailer": "^6.4.24",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   }
