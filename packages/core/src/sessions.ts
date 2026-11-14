@@ -4,7 +4,7 @@ import type { Kind } from "@uc/chain";
 import type { Token } from "@uc/intents-adapter";
 import { isEmail } from "./email";
 import { UserError } from "./errors";
-import { fromMinor, isMinor, sumMinor } from "./money";
+import { formatUnits, fromMinor, isMinor, sumMinor } from "./money";
 import { env, getAdapter, getChain, getConfig, getMockAdapter, simulationAllowed } from "./runtime";
 
 export interface ScheduleItem {
@@ -127,14 +127,6 @@ export async function listTokens(): Promise<Token[]> {
   const tokens = await getAdapter().listTokens();
   tokenCache = { at: Date.now(), tokens };
   return tokens;
-}
-
-function formatUnits(minor: string, decimals: number): string {
-  const s = fromMinor(minor, decimals, 0).replace(/,/g, "");
-  const [w, f = ""] = s.split(".");
-  // keep it readable: at most 8 significant fraction digits
-  const frac = f.slice(0, 8).replace(/0+$/, "");
-  return frac ? `${w}.${frac}` : (w ?? "0");
 }
 
 export interface QuoteInput {

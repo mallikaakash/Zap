@@ -47,7 +47,7 @@ And refunds? In crypto, refunds are a DM and a prayer.
 <pay-button merchant="your-shop.near" product-id="PRODUCT_ID" product="Pro plan"></pay-button>
 ```
 
-The customer pays with **whatever coin they already hold, on whatever chain it lives on** — USDT on Polygon, ETH on Arbitrum, SOL, BTC. **NEAR Intents** swaps it into USDC on NEAR. The USDC does not go to the seller yet — it goes into a **receipt NFT** (NEP-171) that *holds the money* for the refund window. When the window closes, the seller gets paid. If something went wrong, an AI refund assistant (running on **NEAR AI Cloud**, private inference) looks at the complaint and the receipt and proposes a refund — and the refund goes back out through Intents to the **same coin and the same chain** the customer paid with.
+The customer pays with **whatever coin they already hold, on whatever chain it lives on** — USDT on Polygon, ETH on Arbitrum, SOL, BTC. **NEAR Intents** swaps it into USDC on NEAR. The USDC does not go to the seller yet — it goes into a **receipt NFT** (NEP-171) that *holds the money* for the refund window. When the window closes, the seller gets paid. If something went wrong, a refund assistant looks at the complaint and the receipt and proposes a refund — and the refund goes back out through Intents to the **same coin and the same chain** the customer paid with.
 
 So the receipt is not a JPEG. The receipt *is* the escrow. The receipt *is* the refund policy. Ownership with behaviour — which is, not coincidentally, what the NFT track asked for. And "merchant payments a normal company could use tomorrow" is the Real-World Money brief almost word for word.
 
@@ -79,7 +79,7 @@ Let's walk a single dollar through the system.
 
 **4. Release.** The refund window ends. The worker calls `release`. Seller gets USDC. Done — the boring path, which is the path 95% of payments should take.
 
-**5. Refund.** Customer opens the receipt page and writes "the export feature doesn't work". The **refund agent** (NEAR AI Cloud, `DeepSeek-V3.1` by default — swappable) reads the complaint, asks for a screenshot if it needs one, and *proposes* a decision. Proposing is all it can do — hard limits (max amount, window, daily cap) come from the merchant's **on-chain** config, not from the model. The decision is signed and relayed to the contract. Only once the contract has approved a refund, and only for the approved amount, can the worker push USDC back out through Intents to the original coin and chain.
+**5. Refund.** Customer opens the receipt page and writes "the export feature doesn't work". The **refund assistant** reads the complaint, asks for a screenshot if it needs one, and *proposes* a decision using deterministic triage rules. Proposing is all it can do — hard limits (max amount, window, daily cap) come from the merchant's **on-chain** config, not from the assistant. The decision is signed and relayed to the contract. Only once the contract has approved a refund, and only for the approved amount, can the worker push USDC back out through Intents to the original coin and chain.
 
 Say hello to the part I'm most proud of — every action on an unclaimed receipt is a **signed receipt-key action**:
 
@@ -136,7 +136,7 @@ The terminal prints four URLs when the app is up. Use those URLs. Then:
 
 `pnpm test` runs the TypeScript tests. `pnpm test:contracts` runs the Rust tests (needs Rust). Stop the demo with Ctrl+C.
 
-The demo shop is **Tallyfox**. It has a one-time plan, a prepaid pass, and a milestone project. Swaps are simulated. The refund assistant runs in deterministic `rules` mode when no NEAR AI key is set — same outputs, no network. The receipt contract on the sandbox is the **real contract**, not a stub.
+The demo shop is **Tallyfox**. It has a one-time plan, a prepaid pass, and a milestone project. Swaps are simulated. The refund assistant runs on deterministic rules — no network, no API key. The receipt contract on the sandbox is the **real contract**, not a stub.
 
 ### Seller onboarding (the two-line thing)
 
@@ -158,7 +158,7 @@ Mainnet payments are capped per receipt (default $50). The owner can pause new p
 
 - Intents delivers USDC with no order id. The settlement worker attributes the deposit and calls `mint_receipt`. The contract will not assign the same USDC to two receipts. `/verify/:id` shows that attribution.
 - The worker can send a refund only after the contract has approved it, only for the approved amount, and only inside the daily cap. `/verify/:id` compares the quoted recipient with the refund address on the receipt.
-- The AI only proposes. Amounts, windows and caps are read from on-chain merchant config and enforced before anything is signed. If the model's answer fails validation, the request escalates to the merchant — it never silently approves.
+- The refund assistant only proposes. Amounts, windows and caps are read from on-chain merchant config and enforced before anything is signed. If a proposal fails validation, the request escalates to the merchant — it never silently approves.
 - For a shop registered by the operator, refund approvals in the dashboard are signed by the app's relayer. A merchant can take over by calling `register_merchant` from their own account.
 - The contract is unaudited. This is a hackathon build. Threat model and open items: [docs/near/security.md](docs/near/security.md).
 
@@ -189,7 +189,7 @@ Mainnet payments are capped per receipt (default $50). The owner can pause new p
 Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md), Q-001 to Q-005):
 
 - **Everything here was written in the window.** First commit 2026-11-11. No pre-hackathon code, no prior product on another chain.
-- **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, Resend for email. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006). NEAR AI Cloud for inference.
+- **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, Resend for email. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006).
 - **AI code:** Claude Code and Cursor were used throughout; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are ours - [Violina](https://github.com/violinadoley) and [Aakash](https://github.com/mallikaakash) .
 - **License:** MIT — see [LICENSE](LICENSE).
 - **Other submissions by me:** none.
@@ -208,7 +208,7 @@ Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md),
 
 ## TL;DR
 
-Two lines of HTML give any seller a checkout that takes any coin on any chain. NEAR Intents turns it into USDC, a NEP-171 receipt NFT *holds* that USDC through the refund window, and an AI assistant on NEAR AI Cloud triages refunds inside limits the contract enforces — refunds go back to the customer's original coin and chain. Customers never touch a wallet; sellers never touch a contract. `pnpm demo` shows the whole thing locally with no keys.
+Two lines of HTML give any seller a checkout that takes any coin on any chain. NEAR Intents turns it into USDC, a NEP-171 receipt NFT *holds* that USDC through the refund window, and a refund assistant triages refunds inside limits the contract enforces — refunds go back to the customer's original coin and chain. Customers never touch a wallet; sellers never touch a contract. `pnpm demo` shows the whole thing locally with no keys.
 
 <p align="center">
   <img src="docs/assets/mascot.png" alt="Zap mascot" width="160" /><br/>
