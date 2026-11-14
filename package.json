@@ -17,6 +17,7 @@
     "deploy:mainnet": "tsx scripts/deploy-mainnet.ts",
     "litestream:bootstrap": "bash scripts/litestream-bootstrap.sh",
     "litestream:seed": "bash scripts/litestream-seed.sh",
+    "smtp:cloudrun": "bash scripts/smtp-cloudrun.sh",
     "start": "tsx scripts/start.ts"
   },
   "engines": {

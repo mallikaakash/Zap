@@ -58,7 +58,8 @@ Both are optional; without them the app still works.
 
 | Feature | Env vars | Without it |
 |---|---|---|
-| Emails to shoppers and sellers (receipt links, refund updates) | `RESEND_API_KEY` (or `RESEND`), `EMAIL_FROM` | Emails are stored in the database only. Without a verified domain, Resend delivers only to your own account's address. |
+| Emails to anyone (dashboard link, payment/refund notices) | `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` (Gmail app password is typical) | Prefer SMTP on Cloud Run; see `.env.smtp.example` and `pnpm smtp:cloudrun`. |
+| Emails via Resend (fallback if SMTP unset) | `RESEND_API_KEY` (or `RESEND`), `EMAIL_FROM` | Without a verified domain, Resend only delivers to the Resend account owner's address. |
 | Refund assistant on NEAR AI Cloud | `NEARAI_API_KEY`, optional `NEARAI_BASE_URL`, `NEARAI_MODEL` | A deterministic rule engine with the same output shape answers instead. |
 
 Set them with `gcloud run services update zap --update-env-vars=KEY=value` (or Secret Manager for keys). See `.env.example` for details.

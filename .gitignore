@@ -10,6 +10,8 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+!.env.smtp.example
+.env.smtp
 *.key
 *.key.json
 **/credentials.json
