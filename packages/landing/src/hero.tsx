@@ -11,12 +11,13 @@ const ACCENT = "#FF2D87";
 
 /* Poster coordinate system (desktop). Everything in the hero is laid out here and scaled as one picture. */
 const W = 1360;
-const H = 700;
 const SX = 840; // scene origin
 const SY = 480;
-const PHONE = { left: 68, top: 162, scale: 0.86 };
+const PHONE = { left: 68, top: 140, scale: 0.9 };
 /** Unscaled phone shell + shadow stack in the poster (see `.z-ph` / `.z-ph-shadow`). */
 const PHONE_STACK_H = 612 + (-18 + 46);
+/** Poster height: room for phone + shadow so the floor oval isn't clipped. */
+const H = PHONE.top + Math.ceil(PHONE_STACK_H * PHONE.scale) + 20;
 /* Stacked layout (narrow screens): crop of the same stage around the scene. */
 const CROP = { x: 450, y: 150, w: 900, h: 560 };
 const STACK_PHONE_POINT: Pt = [500, 610];
@@ -105,16 +106,19 @@ type Go = (patch: Partial<FlowState>) => void;
 
 function FlowCaption({ f, go, reduced }: { f: View; go: Go; reduced: boolean }) {
   return (
-    <div className="z-caption" aria-label="How it works">
+    <div className="z-caption" aria-label="Walkthrough">
       <span className="z-caption-step z-mono">{f.stepNo}</span>
-      <p aria-live="polite" className="z-caption-text z-display">
+      <p aria-live="polite" className="z-caption-text">
         {f.cur.cap}
       </p>
-      <div className="z-caption-actions z-row">
-        <button type="button" className="z-btn sm" aria-pressed={!f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 0, paused: reduced })}>
+      <div className="z-caption-modes" role="group" aria-label="Switch story">
+        <button type="button" className="z-caption-mode" aria-pressed={!f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 0, paused: reduced })}>
           Payment
         </button>
-        <button type="button" className="z-btn sm" aria-pressed={f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 1, paused: reduced })}>
+        <span className="z-caption-sep" aria-hidden="true">
+          /
+        </span>
+        <button type="button" className="z-caption-mode" aria-pressed={f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 1, paused: reduced })}>
           Refund
         </button>
       </div>
@@ -127,7 +131,12 @@ export function HeroFlow() {
   // The "try it" hint: shown until the visitor first touches the phone, never in stills.
   const [touched, setTouched] = useState(false);
   const [near, setNear] = useState(false);
-  const hint: HintState = { hidden: touched || still, near, touch: () => setTouched(true), hover: setNear };
+  const hint: HintState = {
+    hidden: touched || still,
+    near,
+    touch: () => setTouched(true),
+    hover: setNear,
+  };
   const f = flowView(s);
   const boxRef = useRef<HTMLDivElement>(null);
   const width = useWidth(boxRef);
@@ -136,8 +145,9 @@ export function HeroFlow() {
   const posterScale = poster && width > 0 ? Math.max(0.5, Math.min(0.92, width / W, fitHeight / H)) : 0;
   /* Walkthrough bar: vertically centered on the phone’s bottom edge (poster space × scale). */
   const phoneBottomY = PHONE.top + PHONE_STACK_H * PHONE.scale;
-  const captionBarH = 38;
-  const captionTop = posterScale > 0 ? Math.round(phoneBottomY * posterScale - captionBarH / 2) : 0;
+  const captionBarH = 52;
+  const captionLift = 32;
+  const captionTop = posterScale > 0 ? Math.round(phoneBottomY * posterScale - captionBarH / 2 - captionLift) : 0;
 
   return (
     <section id="top" className="z-hero" aria-label="Zap: accept payments across 35+ chains, NFT receipts, refunds with ease">
@@ -150,14 +160,14 @@ export function HeroFlow() {
           <Stacked s={s} f={f} go={go} width={width} hint={hint} />
         )}
         {poster && width > 0 ? (
-          <div className="z-caption-anchor" style={{ top: captionTop }}>
+          <div className="z-caption-anchor z-enter-item z-enter-caption" style={{ top: captionTop, ["--enter-i" as string]: 7 }}>
             <FlowCaption f={f} go={go} reduced={reduced} />
           </div>
         ) : null}
       </div>
 
       {!poster && width > 0 ? (
-        <div className="z-wrap" style={{ marginTop: 16 }}>
+        <div className="z-wrap z-enter-item z-enter-caption" style={{ marginTop: 16, ["--enter-i" as string]: 4 }}>
           <FlowCaption f={f} go={go} reduced={reduced} />
           {reduced ? (
             <p className="z-muted" style={{ fontSize: 13, margin: "12px 0 0" }}>
@@ -170,11 +180,15 @@ export function HeroFlow() {
   );
 }
 
-function Headline({ style }: { style?: React.CSSProperties }) {
+function Headline({ style, stacked }: { style?: React.CSSProperties; stacked?: boolean }) {
+  const a = stacked ? 1 : 2;
+  const b = stacked ? 2 : 3;
   return (
     <h1 className="z-h1" style={style}>
-      <span className="z-h1-line">Accept payments across 35+ chains.</span>
-      <span className="z-h1-line">
+      <span className="z-h1-line z-enter-item" style={v({ "--enter-i": String(a) })}>
+        Accept payments across 35+ chains.
+      </span>
+      <span className="z-h1-line z-enter-item" style={v({ "--enter-i": String(b) })}>
         Issue <span className="z-acc">NFT receipts.</span> Refund with ease.
       </span>
     </h1>
@@ -189,10 +203,11 @@ interface HintState {
 }
 
 /** A small floating nudge beside the phone: it is a real checkout you can tap. Fades for good after the first touch. */
-function TryHint({ hint, style, compact }: { hint: HintState; style?: React.CSSProperties; compact?: boolean }) {
+function TryHint({ hint, style, compact, className }: { hint: HintState; style?: React.CSSProperties; compact?: boolean; className?: string }) {
+  if (hint.hidden) return null;
   if (compact)
     return (
-      <p className={`z-hint-pill${hint.hidden ? " gone" : ""}`} aria-hidden={hint.hidden || undefined}>
+      <p className={`z-hint-pill${className ? ` ${className}` : ""}`} style={style}>
         <span className="z-hint-spark" aria-hidden="true" />
         Tap the phone to try it
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -201,10 +216,10 @@ function TryHint({ hint, style, compact }: { hint: HintState; style?: React.CSSP
       </p>
     );
   return (
-    <div className={`z-hint${hint.hidden ? " gone" : ""}${hint.near ? " near" : ""}`} style={style} aria-hidden={hint.hidden || undefined}>
-      <svg className="z-hint-arrow" width="90" height="120" viewBox="0 0 90 120" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M86 30 C 50 26, 22 52, 14 104" strokeDasharray="2 6" />
-        <path d="M9.7 94.8 L14 106 L21.5 96.6" />
+    <div className={`z-hint${hint.near ? " near" : ""}${className ? ` ${className}` : ""}`} style={style} role="note">
+      <svg className="z-hint-arrow" width="76" height="112" viewBox="0 0 76 112" fill="none" aria-hidden="true">
+        <path className="z-hint-arrow-line" d="M72 16 L72 22 C 72 22, 48 24, 28 52 C 16 68, 10 88, 8 102" strokeLinecap="round" strokeLinejoin="round" />
+        <path className="z-hint-arrow-head" d="M5 94 L8 106 L18 96" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <div className="z-hint-card" role="note">
         <b>
@@ -242,21 +257,38 @@ function Poster({ s, f, go, width, fitHeight, hint }: { s: FlowState; f: View; g
   return (
     <div style={{ height: H * scale, position: "relative", overflow: "hidden" }}>
       <div ref={stageRef} className="z-poster" style={{ width: W, height: H, transform: `translate(${offsetX}px,0) scale(${scale})` }}>
-        <Floor x={0} y={160} w={W} h={H - 160} />
-        <Headline style={{ left: 40, top: 52, maxWidth: 720 }} />
+        <Floor x={0} y={160} w={W} h={H - 160} enter />
+        <Headline style={{ left: 40, top: 44, maxWidth: 720 }} />
         {/* scale and perspective live on separate elements: combined, Chromium mis-hit-tests the tilted screen */}
         <div
-          style={{ position: "absolute", left: PHONE.left, top: PHONE.top, zIndex: 2, transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}
+          className={`z-enter-item z-enter-phone z-phone-hero${hint.near ? " near" : ""}${hint.hidden ? " engaged" : ""}`}
+          style={v({ "--enter-i": "4", left: `${PHONE.left}px`, top: `${PHONE.top}px`, position: "absolute", zIndex: 4 })}
           onPointerDown={hint.touch}
+          onClick={hint.touch}
           onPointerEnter={() => hint.hover(true)}
           onPointerLeave={() => hint.hover(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Try the interactive checkout on the phone"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              hint.touch();
+              go({ step: 1, mode: "pay" });
+            }
+          }}
         >
-          <div className="z-phw">
-            <Phone s={s} f={f} go={go} anchorRef={anchorRef} />
+          <span className="z-phone-live-shine" aria-hidden="true" />
+          <div className="z-phone-scale" style={{ transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}>
+            <div className="z-phw z-phone-live">
+              <Phone s={s} f={f} go={go} anchorRef={anchorRef} onEngage={hint.touch} />
+            </div>
           </div>
         </div>
-        <TryHint hint={hint} style={{ left: 300, top: 292 }} />
-        <SceneLayer s={s} f={f} phone={anchor} />
+        <TryHint hint={hint} className="z-enter-item z-enter-hint" style={{ left: 300, top: 262, ["--enter-i" as string]: 6 }} />
+        <div className="z-enter-item z-enter-scene z-scene-pass" style={v({ "--enter-i": "5", position: "absolute", inset: 0 })} aria-hidden="true">
+          <SceneLayer s={s} f={f} phone={anchor} />
+        </div>
       </div>
     </div>
   );
@@ -271,14 +303,34 @@ function Stacked({ s, f, go, width, hint }: { s: FlowState; f: View; go: Go; wid
   const anchorRef = useRef<HTMLSpanElement>(null);
   return (
     <div className="z-wrap z-col" style={{ gap: 28, paddingTop: 12 }}>
-      <Headline style={{ fontSize: "clamp(36px, 10vw, 56px)" }} />
-      <TryHint hint={hint} compact />
-      <div className="z-phw" style={{ alignSelf: "center", maxWidth: "100%" }} onPointerDown={hint.touch}>
-        <Phone s={s} f={f} go={go} anchorRef={anchorRef} flat={width < 420} />
+      <Headline stacked style={{ fontSize: "clamp(36px, 10vw, 56px)" }} />
+      <TryHint hint={hint} compact className="z-enter-item z-enter-hint" style={{ ["--enter-i" as string]: 2 }} />
+      <div
+        className={`z-phone-hero z-enter-item z-enter-phone${hint.near ? " near" : ""}${hint.hidden ? " engaged" : ""}`}
+        style={{ alignSelf: "center", maxWidth: "100%", ["--enter-i" as string]: 3 }}
+        onPointerDown={hint.touch}
+        onClick={hint.touch}
+        onPointerEnter={() => hint.hover(true)}
+        onPointerLeave={() => hint.hover(false)}
+        role="button"
+        tabIndex={0}
+        aria-label="Try the interactive checkout on the phone"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            hint.touch();
+            go({ step: 1, mode: "pay" });
+          }
+        }}
+      >
+        <span className="z-phone-live-shine" aria-hidden="true" />
+        <div className="z-phw z-phone-live">
+          <Phone s={s} f={f} go={go} anchorRef={anchorRef} flat={width < 420} onEngage={hint.touch} />
+        </div>
       </div>
       <div ref={sceneRef} aria-hidden="true" style={{ height: CROP.h * k, position: "relative", overflow: "hidden" }}>
         {seen ? (
-          <div className="z-poster" style={{ width: W, height: H, transform: `scale(${k}) translate(${-CROP.x}px, ${-CROP.y}px)` }}>
+          <div className="z-poster z-scene-pass" style={{ width: W, height: H, transform: `scale(${k}) translate(${-CROP.x}px, ${-CROP.y}px)` }}>
             <Floor x={CROP.x} y={CROP.y} w={CROP.w} h={CROP.h} />
             <SceneLayer s={s} f={f} phone={STACK_PHONE_POINT} />
           </div>
@@ -288,9 +340,9 @@ function Stacked({ s, f, go, width, hint }: { s: FlowState; f: View; go: Go; wid
   );
 }
 
-function Floor({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+function Floor({ x, y, w, h, enter }: { x: number; y: number; w: number; h: number; enter?: boolean }) {
   return (
-    <svg className="z-floor" aria-hidden="true" style={{ left: x, top: y, width: w, height: h }} viewBox={`${x} ${y} ${w} ${h}`}>
+    <svg className={`z-floor${enter ? " z-enter-item z-enter-floor" : ""}`} aria-hidden="true" style={enter ? v({ "--enter-i": "1", left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` }) : { left: x, top: y, width: w, height: h }} viewBox={`${x} ${y} ${w} ${h}`}>
       <defs>
         <pattern id="z-iso" width="80" height="40" patternUnits="userSpaceOnUse" patternTransform={`translate(${SX} ${SY})`}>
           <path d="M0 0 L80 40 M0 40 L80 0" stroke="var(--z-floor)" strokeWidth="1.2" fill="none" />
@@ -303,16 +355,35 @@ function Floor({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
 
 /* ---------------- the phone ---------------- */
 
-function Phone({ s, f, go, anchorRef, flat }: { s: FlowState; f: View; go: Go; anchorRef: RefObject<HTMLSpanElement | null>; flat?: boolean }) {
+function Phone({
+  s,
+  f,
+  go,
+  anchorRef,
+  flat,
+  onEngage,
+}: {
+  s: FlowState;
+  f: View;
+  go: Go;
+  anchorRef: RefObject<HTMLSpanElement | null>;
+  flat?: boolean;
+  onEngage?: () => void;
+}) {
+  const engage = onEngage;
+  const act = (fn: () => void) => () => {
+    engage?.();
+    fn();
+  };
   return (
     <>
-      <div className="z-ph" style={flat ? { transform: "none" } : undefined}>
+      <div className="z-ph" style={flat ? { transform: "none" } : undefined} onPointerDown={engage}>
         <div className="z-ph-body">
           <div className="z-ph-screen">
             <div style={{ height: 34, display: "flex", justifyContent: "center", alignItems: "flex-end", flex: "none" }}>
               <span style={{ width: 92, height: 24, background: "#0E0E0E", borderRadius: 999 }} />
             </div>
-            <PhoneScreen key={f.screen} s={s} f={f} go={go} />
+            <PhoneScreen key={f.screen} s={s} f={f} go={go} act={act} />
             {/* where the Pay button sits: the coin is born here */}
             <span ref={anchorRef} aria-hidden="true" style={{ position: "absolute", left: "50%", bottom: 46, width: 2, height: 2 }} />
             <div aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: 40, pointerEvents: "none", background: "linear-gradient(118deg, rgba(255,255,255,0) 52%, rgba(255,255,255,.22) 58%, rgba(255,255,255,0) 66%)" }} />
@@ -333,7 +404,7 @@ function PayCta({ onClick, children, primary }: { onClick: () => void; children:
   );
 }
 
-function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
+function PhoneScreen({ s, f, go, act }: { s: FlowState; f: View; go: Go; act: (fn: () => void) => () => void }) {
   const coin = f.coin;
   const muted = { fontSize: 13, color: "#5C5C5C" } as const;
   if (f.screen === "shop")
@@ -367,7 +438,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             $24.00
           </span>
         </div>
-        <PayCta onClick={() => go({ step: 1, mode: "pay" })}>
+        <PayCta onClick={act(() => go({ step: 1, mode: "pay" }))}>
           <Bolt /> Pay with Zap
         </PayCta>
         <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · you receive USDC</span>
@@ -394,7 +465,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             {COIN_KEYS.map((k) => {
               const on = s.coin === k;
               return (
-                <button key={k} type="button" aria-pressed={on} onClick={() => go({ coin: k, step: 1, mode: "pay" })} style={{ minHeight: 52, borderRadius: 14, border: `1.5px solid ${on ? "#111111" : "#E2E2DD"}`, background: on ? "#F4F4F1" : "#FFFFFF", color: "#111111", display: "flex", alignItems: "center", gap: 10, padding: "0 12px", textAlign: "left" }}>
+                <button key={k} type="button" aria-pressed={on} onClick={act(() => go({ coin: k, step: 1, mode: "pay" }))} style={{ minHeight: 52, borderRadius: 14, border: `1.5px solid ${on ? "#111111" : "#E2E2DD"}`, background: on ? "#F4F4F1" : "#FFFFFF", color: "#111111", display: "flex", alignItems: "center", gap: 10, padding: "0 12px", textAlign: "left" }}>
                   <span className="z-coin" style={{ background: COINS[k].color }} />
                   <span className="z-col" style={{ gap: 1 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{COINS[k].label}</span>
@@ -412,7 +483,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             {coin.addr}
           </span>
         </div>
-        <PayCta primary onClick={() => go({ step: 2, mode: "pay", run: 0 })}>
+        <PayCta primary onClick={act(() => go({ step: 2, mode: "pay", run: 0 }))}>
           Pay in {coin.label}
         </PayCta>
       </div>
@@ -461,7 +532,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
           Paid. Here&apos;s your receipt.
         </span>
         <ReceiptCard f={f} big />
-        <button type="button" onClick={() => go({ mode: "refund", step: 8 })} style={{ marginTop: "auto", minHeight: 52, borderRadius: 16, border: "1.5px solid #111111", background: "#FFFFFF", color: "#111111", fontWeight: 600, fontSize: 15, flex: "none" }}>
+        <button type="button" onClick={act(() => go({ mode: "refund", step: 8 }))} style={{ marginTop: "auto", minHeight: 52, borderRadius: 16, border: "1.5px solid #111111", background: "#FFFFFF", color: "#111111", fontWeight: 600, fontSize: 15, flex: "none" }}>
           Request refund
         </button>
       </div>

@@ -31,7 +31,7 @@ export function Problem() {
       <Head eyebrow="WHY ZAP" lead="Customers shouldn’t bridge, swap, or learn your stack just to pay you.">
         Checkout they can finish. <span className="z-acc">Refunds</span> that work.
       </Head>
-      <div className="z-grid" style={{ ["--min" as string]: "320px" }}>
+      <div className="z-grid z-stagger-children" style={{ ["--min" as string]: "320px" }}>
         <div className="z-card soft" style={{ borderRadius: 28, gap: 26 }}>
           <span className="z-eyebrow" style={{ letterSpacing: 0 }}>
             THE USUAL CRYPTO CHECKOUT

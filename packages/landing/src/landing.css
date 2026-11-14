@@ -1,12 +1,27 @@
 /* Zap landing page. Everything is scoped under .z so it can sit inside the
    Tailwind app (apps/web) or the bare static site (apps/site).
-   Colour rule for the hero: pink appears only where money moves. */
+   Colour rule for the hero: pink appears only where money moves.
+   Chromium silver marks visitor focus — CTAs, pressed toggles, keyboard focus. */
 
 /* Logo lockup uses true black #000000 — marketing/docs use the same canvas. */
 .z {
   --z-accent: #ff2d87;
   --z-usdc: #2f7bff;
   --z-good: #1f9d57;
+  --z-chrome-hi: #f0f2f5;
+  --z-chrome: #c4c9d1;
+  --z-chrome-mid: #a7aeb8;
+  --z-chrome-lo: #7d8691;
+  --z-chrome-fg: #0a0a0a;
+  --z-chrome-fill: linear-gradient(
+    165deg,
+    var(--z-chrome-hi) 0%,
+    var(--z-chrome) 44%,
+    var(--z-chrome-mid) 72%,
+    var(--z-chrome-lo) 100%
+  );
+  --z-chrome-edge: rgba(255, 255, 255, 0.38);
+  --z-chrome-glow: rgba(196, 204, 214, 0.42);
   --z-bg: #000000;
   --z-fg: #f5f5f5;
   --z-muted: #a6a6a2;
@@ -22,7 +37,7 @@
   --z-panel-muted: #b0b0ac;
   --z-panel-line: #2a2a2a;
   --z-btn: #f2f2ee;
-  --z-btn-fg: #000000;
+  --z-btn-fg: var(--z-chrome-fg);
   --z-good-bg: #0f2418;
   --z-stroke: #6a6a66;
   /* Isometric hero floor — soft grid vignette on black (not full-bleed) */
@@ -78,8 +93,18 @@
   opacity: 0.45;
 }
 .z :focus-visible {
-  outline: 2.5px solid var(--z-accent);
+  outline: 2.5px solid var(--z-chrome);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--z-chrome-glow);
+}
+.z-fill-chrome {
+  background: var(--z-chrome-fill);
+  color: var(--z-chrome-fg);
+  border-color: var(--z-chrome-hi);
+  box-shadow: inset 0 1px 0 var(--z-chrome-edge), 0 1px 2px rgba(0, 0, 0, 0.42);
+}
+.z-chrome-txt {
+  color: var(--z-chrome-hi);
 }
 .z-sr {
   position: absolute;
@@ -345,9 +370,15 @@
 .z-btn.ink,
 .z-btn[aria-pressed="true"],
 .z-btn[aria-selected="true"] {
-  background: var(--z-btn);
-  color: var(--z-btn-fg);
-  border-color: var(--z-btn);
+  background: var(--z-chrome-fill);
+  color: var(--z-chrome-fg);
+  border-color: var(--z-chrome-hi);
+  box-shadow: inset 0 1px 0 var(--z-chrome-edge), 0 1px 2px rgba(0, 0, 0, 0.42);
+}
+.z-btn.ink:hover,
+.z-btn[aria-pressed="true"]:hover,
+.z-btn[aria-selected="true"]:hover {
+  filter: brightness(1.04);
 }
 .z-btn.acc {
   background: var(--z-accent);
@@ -373,9 +404,10 @@
   font-weight: 600;
 }
 .z-seg[aria-pressed="true"] {
-  border-color: var(--z-btn);
-  background: var(--z-btn);
-  color: var(--z-btn-fg);
+  border-color: var(--z-chrome-hi);
+  background: var(--z-chrome-fill);
+  color: var(--z-chrome-fg);
+  box-shadow: inset 0 1px 0 var(--z-chrome-edge);
 }
 .z-swatch {
   width: 44px;
@@ -486,10 +518,11 @@
   border-color: var(--z-edge);
 }
 .z-navlink.on {
-  color: var(--z-fg);
+  color: var(--z-chrome-hi);
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--z-edge);
+  background: rgba(196, 201, 209, 0.12);
+  border-color: var(--z-chrome-mid);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .z-header .z-btn.sm,
 .z-header .z-nav-cta {
@@ -597,7 +630,8 @@
 }
 .z-poster .z-h1 {
   position: absolute;
-  z-index: 3;
+  /* Above scene overlays (.z-pk, .z-hint, floating receipt) so the tagline stays legible */
+  z-index: 8;
   font-size: 68px;
   /* legible where the words sit over the phone */
   paint-order: stroke fill;
@@ -609,6 +643,12 @@
   pointer-events: none;
   -webkit-mask-image: radial-gradient(ellipse 62% 58% at 52% 58%, #000 22%, rgba(0, 0, 0, 0.55) 48%, transparent 72%);
   mask-image: radial-gradient(ellipse 62% 58% at 52% 58%, #000 22%, rgba(0, 0, 0, 0.55) 48%, transparent 72%);
+}
+
+/* Decorative hero scene — never steal clicks from the phone */
+.z-scene-pass,
+.z-scene-pass * {
+  pointer-events: none;
 }
 
 /* isometric scene */
@@ -756,9 +796,10 @@
   height: 56px;
   margin: -28px 0 0 -28px;
   border-radius: 50%;
-  border: 2px solid var(--z-accent);
+  border: 2px solid var(--z-chrome-hi);
   pointer-events: none;
   z-index: 5;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 14px var(--z-chrome-glow);
   animation: z-tap 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 @keyframes z-tap {
@@ -840,12 +881,65 @@
 }
 
 /* phone */
+.z-phone-hero {
+  position: relative;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform-origin: 0 0;
+  outline: none;
+  border-radius: 48px;
+  transition: filter 0.35s ease;
+}
+.z-phone-hero:focus-visible {
+  filter: drop-shadow(0 0 18px var(--z-chrome-glow));
+}
+.z-phone-live-shine {
+  position: absolute;
+  inset: 8% 6% 18% 8%;
+  border-radius: 42px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse 70% 55% at 50% 40%, rgba(196, 204, 214, 0.22), transparent 68%);
+  transition: opacity 0.4s ease;
+  z-index: 0;
+}
+.z-enter-ready .z-phone-hero .z-phone-live {
+  animation: z-phone-idle 4.6s ease-in-out infinite;
+}
+.z-phone-hero.near .z-phone-live,
+.z-phone-hero:hover .z-phone-live {
+  animation-duration: 3.2s;
+}
+.z-phone-hero.engaged .z-phone-live {
+  animation-duration: 5.8s;
+}
+@keyframes z-phone-idle {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -7px;
+  }
+}
+.z-phone-hero.near .z-phone-live-shine,
+.z-phone-hero:hover .z-phone-live-shine,
+.z-phone-hero:focus-visible .z-phone-live-shine {
+  opacity: 1;
+}
+.z-phone-hero:active .z-phone-live {
+  animation-play-state: paused;
+  translate: 0 3px;
+  transition: translate 0.12s ease;
+}
 .z-phw {
   perspective: 1600px;
   perspective-origin: 70% 30%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 /* One flat, tilted plane (no preserve-3d): nested 3D contexts break click targets on the screen. */
 .z-ph {
@@ -853,6 +947,17 @@
   width: 296px;
   height: 612px;
   transform: rotateX(8deg) rotateY(-18deg) rotateZ(2deg);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), filter 0.4s ease;
+}
+.z-phone-hero.near .z-ph,
+.z-phone-hero:hover .z-ph,
+.z-phone-hero:focus-visible .z-ph {
+  transform: rotateX(5deg) rotateY(-12deg) rotateZ(2deg) scale(1.025);
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 28px var(--z-chrome-glow));
+}
+.z-phone-hero:active .z-ph {
+  transform: rotateX(9deg) rotateY(-20deg) rotateZ(2deg) scale(0.99);
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.5));
 }
 .z-ph-back {
   position: absolute;
@@ -886,6 +991,17 @@
   padding: 10px;
   /* the phone's thickness, drawn as an offset edge */
   box-shadow: inset 0 0 0 1.5px #4a4a4a, -9px 5px 0 #2b2b2b, -10px 6px 0 1px #4a4a4a;
+  transition: box-shadow 0.4s ease;
+}
+.z-phone-hero.near .z-ph-body,
+.z-phone-hero:hover .z-ph-body,
+.z-phone-hero:focus-visible .z-ph-body {
+  box-shadow:
+    inset 0 0 0 1.5px #5a5a5a,
+    -9px 5px 0 #2b2b2b,
+    -10px 6px 0 1px #4a4a4a,
+    0 0 0 2px rgba(196, 204, 214, 0.35),
+    0 0 36px rgba(196, 204, 214, 0.18);
 }
 .z-ph-screen {
   position: relative;
@@ -906,6 +1022,17 @@
   border-radius: 50%;
   background: radial-gradient(closest-side, var(--z-shadow), transparent);
   transform: translateX(-30px);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+.z-phone-hero.near .z-ph-shadow,
+.z-phone-hero:hover .z-ph-shadow,
+.z-phone-hero:focus-visible .z-ph-shadow {
+  transform: translateX(-30px) scale(1.12);
+  opacity: 0.92;
+}
+.z-phone-hero:active .z-ph-shadow {
+  transform: translateX(-30px) scale(0.94);
+  opacity: 0.75;
 }
 .z-scr {
   padding: 14px 18px 18px;
@@ -932,9 +1059,10 @@
 /* "try it" hint beside the phone */
 .z-hint {
   position: absolute;
-  z-index: 4;
+  z-index: 9;
   display: flex;
   align-items: flex-start;
+  gap: 0;
   color: var(--z-fg);
   pointer-events: none;
   transition: opacity 0.5s ease, transform 0.5s ease;
@@ -948,24 +1076,55 @@
 }
 .z-hint-arrow {
   flex: none;
-  margin-top: 6px;
-  transition: transform 0.3s ease;
+  margin: 10px 0 0 0;
+  overflow: visible;
+  filter: drop-shadow(0 0 8px var(--z-chrome-glow)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+.z-hint-arrow-line {
+  stroke: var(--z-chrome-hi);
+  stroke-width: 2.75;
+  stroke-dasharray: 5 7;
+  paint-order: stroke fill;
+}
+.z-hint-arrow-head {
+  stroke: var(--z-accent);
+  stroke-width: 3;
+  fill: none;
 }
 .z-hint.near .z-hint-arrow {
   animation: z-nudge 0.55s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 16px rgba(255, 45, 135, 0.35)) drop-shadow(0 0 12px var(--z-chrome-glow));
+}
+.z-hint.near .z-hint-arrow-head {
+  stroke: #ff6eb0;
 }
 .z-hint-card {
+  position: relative;
   width: 230px;
-  margin-left: -6px;
+  margin: 0 0 0 -10px;
   padding: 12px 15px 13px;
   border-radius: 16px;
-  border: 1.5px solid var(--z-edge);
+  border: 1.5px solid var(--z-chrome-mid);
   background: var(--z-bg);
-  box-shadow: 0 14px 28px -16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 28px -16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   gap: 3px;
   transform: rotate(-3deg);
+  transform-origin: 0 28px;
+}
+.z-hint-card::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--z-chrome-hi);
+  box-shadow: 0 0 0 3px var(--z-bg), 0 0 10px var(--z-chrome-glow);
+  pointer-events: none;
 }
 .z-hint-card b {
   display: flex;
@@ -985,9 +1144,14 @@
   width: 8px;
   height: 8px;
   border-radius: 99px;
-  background: var(--z-accent);
+  background: var(--z-chrome-fill);
+  box-shadow: inset 0 1px 0 var(--z-chrome-edge);
   flex: none;
   animation: z-ping 1.8s ease-out infinite;
+}
+.z-hint.near .z-hint-card {
+  border-color: var(--z-chrome-hi);
+  box-shadow: 0 14px 28px -16px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--z-chrome-glow);
 }
 .z-hint-pill {
   align-self: center;
@@ -996,7 +1160,7 @@
   gap: 8px;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1.5px solid var(--z-edge);
+  border: 1.5px solid var(--z-chrome-mid);
   background: var(--z-bg);
   font-size: 13px;
   font-weight: 600;
@@ -1019,20 +1183,174 @@
 }
 @keyframes z-ping {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 45, 135, 0.55);
+    box-shadow: inset 0 1px 0 var(--z-chrome-edge), 0 0 0 0 var(--z-chrome-glow);
   }
   100% {
-    box-shadow: 0 0 0 9px rgba(255, 45, 135, 0);
+    box-shadow: inset 0 1px 0 var(--z-chrome-edge), 0 0 0 9px rgba(196, 204, 214, 0);
   }
 }
 
-/* walkthrough bar (hero only) */
+/* ---------- boot preloader (minimal) ---------- */
+.z-preload {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: var(--z-bg);
+}
+.z-preload-mark {
+  opacity: 0.7;
+  animation: z-preload-pulse 1.4s ease-in-out infinite;
+}
+@keyframes z-preload-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+.z-preload.exiting {
+  animation: z-preload-out 0.42s ease forwards;
+  pointer-events: none;
+}
+@keyframes z-preload-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.z-boot-pending {
+  pointer-events: none;
+}
+
+/* ---------- page enter & scroll reveal ---------- */
+.z:not(.z-enter-ready) .z-enter-item {
+  opacity: 0;
+}
+.z-enter-ready .z-enter-item {
+  animation: z-enter-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(50ms + var(--enter-i, 0) * 90ms);
+}
+.z-enter-ready .z-enter-floor {
+  animation-name: z-enter-fade;
+  animation-duration: 1.05s;
+}
+.z-enter-ready .z-enter-phone {
+  animation-name: z-enter-phone;
+  animation-duration: 1.05s;
+}
+.z-enter-ready .z-enter-scene {
+  animation-name: z-enter-scene;
+  animation-duration: 1.2s;
+}
+.z-enter-ready .z-enter-hint {
+  animation-name: z-enter-pop;
+  animation-duration: 0.85s;
+}
+.z-enter-ready .z-enter-caption {
+  animation-name: z-enter-slide;
+  animation-duration: 0.8s;
+}
+@keyframes z-enter-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+@keyframes z-enter-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes z-enter-phone {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 36px, 0) scale(0.94);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes z-enter-scene {
+  from {
+    opacity: 0;
+    transform: translate3d(36px, 10px, 0);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+@keyframes z-enter-pop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes z-enter-slide {
+  from {
+    opacity: 0;
+    transform: translate3d(20px, 0, 0);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+.z-reveal:not(.in) {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+}
+.z-reveal.in {
+  animation: z-enter-rise 0.88s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.z-reveal:not(.in) .z-stagger-children > * {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+.z-reveal.in .z-stagger-children > * {
+  animation: z-enter-rise 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.z-reveal.in .z-stagger-children > *:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.z-reveal.in .z-stagger-children > *:nth-child(2) {
+  animation-delay: 0.22s;
+}
+.z-reveal.in .z-stagger-children > *:nth-child(3) {
+  animation-delay: 0.34s;
+}
+
+/* walkthrough caption (hero) — flat, editorial */
 .z-caption-anchor {
   position: absolute;
-  right: clamp(12px, 3vw, 36px);
+  right: clamp(20px, 4vw, 48px);
   z-index: 5;
   width: max-content;
-  max-width: min(720px, calc(100% - 28px));
+  max-width: min(520px, calc(100% - 40px));
   pointer-events: none;
 }
 .z-caption-anchor > * {
@@ -1041,51 +1359,71 @@
 .z-caption {
   position: relative;
   z-index: 4;
-  flex: 0 1 auto;
-  width: max-content;
-  max-width: min(720px, calc(100vw - 40px));
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 10px 12px;
-  padding: 8px 12px 8px 13px;
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items: baseline;
+  max-width: min(520px, calc(100vw - 40px));
   margin: 0;
-  border: 1px solid var(--z-edge);
-  border-radius: 999px;
-  background: var(--z-bg);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
 }
 .z-wrap .z-caption {
   align-self: flex-end;
 }
 .z-caption-step {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--z-btn);
-  color: var(--z-btn-fg);
-  flex: none;
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--z-muted);
 }
 .z-caption-text {
-  flex: 1 1 auto;
-  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.015em;
+  color: var(--z-fg);
 }
-.z-caption-actions {
-  flex: none;
+.z-caption-modes {
+  grid-column: 2;
+  grid-row: 2;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
-.z-caption .z-btn.sm {
-  min-height: 34px;
-  padding: 0 13px;
+.z-caption-sep {
+  font-size: 12px;
+  color: var(--z-line);
+  user-select: none;
+}
+.z-caption-mode {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--z-sans);
   font-size: 13px;
+  font-weight: 500;
+  color: var(--z-muted);
+  transition: color 0.15s ease;
+}
+.z-caption-mode:hover {
+  color: var(--z-body);
+}
+.z-caption-mode[aria-pressed="true"] {
+  color: var(--z-fg);
+  text-decoration: underline;
+  text-decoration-color: var(--z-chrome-mid);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
 }
 .z-legend {
   display: grid;
@@ -1112,8 +1450,9 @@
   border-color: var(--z-muted);
 }
 .z-legend button[aria-current="step"] {
-  border-color: var(--z-edge);
+  border-color: var(--z-chrome-mid);
   background: var(--z-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .z-legend .n {
   align-self: flex-start;
@@ -1125,8 +1464,9 @@
   background: var(--z-soft);
 }
 .z-legend button[aria-current="step"] .n {
-  background: var(--z-btn);
-  color: var(--z-btn-fg);
+  background: var(--z-chrome-fill);
+  color: var(--z-chrome-fg);
+  box-shadow: inset 0 1px 0 var(--z-chrome-edge);
 }
 @media (max-width: 860px) {
   .z-legend {
@@ -1274,8 +1614,9 @@
   color: var(--z-muted);
 }
 .z-input:focus {
-  outline: 2.5px solid var(--z-accent);
+  outline: 2.5px solid var(--z-chrome);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--z-chrome-glow);
 }
 .z-skel {
   border-radius: 8px;
@@ -1341,9 +1682,10 @@
   background: var(--z-soft);
 }
 .z-docs-sidenav a.on {
-  background: var(--z-soft);
-  color: var(--z-fg);
+  background: rgba(196, 201, 209, 0.1);
+  color: var(--z-chrome-hi);
   font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--z-chrome);
 }
 .z-docs-main {
   min-width: 0;
@@ -1438,6 +1780,33 @@ a.z-docs-card:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .z-preload {
+    display: none;
+  }
+  .z-boot-pending {
+    pointer-events: auto;
+  }
+  .z:not(.z-enter-ready) .z-enter-item,
+  .z-reveal:not(.in),
+  .z-reveal:not(.in) .z-stagger-children > * {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .z-enter-item,
+  .z-reveal.in,
+  .z-reveal.in .z-stagger-children > * {
+    animation: none;
+  }
+  .z-enter-ready .z-phone-hero .z-phone-live {
+    animation: none;
+  }
+  .z-phone-hero.near .z-ph,
+  .z-phone-hero:hover .z-ph,
+  .z-phone-hero:focus-visible .z-ph {
+    transform: rotateX(8deg) rotateY(-18deg) rotateZ(2deg);
+    filter: none;
+  }
   .z-hint,
   .z-hint-pill,
   .z-hint-spark,
