@@ -20,7 +20,7 @@ export function SiteHeader({ section = "home" }: { section?: SiteSection }) {
       <nav aria-label="Primary" className="z-nav">
         <a className="z-navlink z-nav-live" href={href(LIVE_DEMO_PATH)} title="A real $0.10 checkout on NEAR mainnet: pay with any coin, then ask for a refund">
           <span className="z-live-dot" aria-hidden="true" />
-          Live demo · $0.10
+          Check Live Demo
         </a>
         <a className={`z-navlink${section === "docs" ? " on" : ""}`} href={href("/docs")} aria-current={section === "docs" ? "page" : undefined}>
           <IconDocs size={15} />

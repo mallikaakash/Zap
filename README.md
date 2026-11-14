@@ -2,7 +2,7 @@
   <img src="docs/assets/banner-hero.png" alt="Zap Payments" width="100%" />
 </p>
 
-<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The NFT receipt holds the money.</h1>
+<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The money waits in escrow behind an NFT receipt.</h1>
 
 <p align="center">
   <a href="https://nearhackathon.com/"><img alt="NEAR HACKATHON 2026" src="https://img.shields.io/badge/NEAR%20HACKATHON-2026-00EC97?style=for-the-badge&logo=near&logoColor=black" /></a>
@@ -49,15 +49,15 @@ And refunds? In crypto, refunds are a DM and a prayer.
 <pay-button merchant="your-shop.near" product-id="PRODUCT_ID" product="Pro plan"></pay-button>
 ```
 
-The customer pays with **whatever coin they already hold, on whatever chain it lives on** — USDT on Polygon, ETH on Arbitrum, SOL, BTC. **NEAR Intents** swaps it into USDC on NEAR. The USDC does not go to the seller yet — it goes into a **receipt NFT** (NEP-171) that *holds the money* for the refund window. When the window closes, the seller gets paid. If something went wrong, a refund assistant looks at the complaint and the receipt and proposes a refund — and the refund goes back out through Intents to the **same coin and the same chain** the customer paid with.
+The customer pays with **whatever coin they already hold, on whatever chain it lives on** — USDT on Polygon, ETH on Arbitrum, SOL, BTC. **NEAR Intents** swaps it into USDC on NEAR. The USDC does not go to the seller yet — it is locked in the receipt contract's escrow, earmarked to a **receipt NFT** (NEP-171) minted for that payment, for the refund window. When the window closes, the seller gets paid. If something went wrong, a refund assistant looks at the complaint and the receipt and proposes a refund — and the refund goes back out through Intents to the **same coin and the same chain** the customer paid with.
 
-So the receipt is not a JPEG. The receipt *is* the escrow. The receipt *is* the refund policy. Ownership with behaviour — which is, not coincidentally, what the NFT track asked for. And "merchant payments a normal company could use tomorrow" is the Real-World Money brief almost word for word.
+So the receipt is not a JPEG. It is the claim on the escrowed money: the contract releases or refunds that money only by the receipt's rules (window, caps, refund target), and only the receipt's holder can ask for it back. Ownership with behaviour — which is, not coincidentally, what the NFT track asked for. And "merchant payments a normal company could use tomorrow" is the Real-World Money brief almost word for word.
 
 Cool, but who is this actually for? Three people:
 
 - **The seller** — gives a payout address, gets a button, gets emails and a dashboard. No wallet popups, no contract deploys. The operator registers the shop on chain for them.
 - **The customer** — pays with what they have. No new wallet, no bridging, no "switch network". If the thing is broken they ask for a refund in a chat box, not a Discord ticket.
-- **The judge / screener** — runs `pnpm demo` and sees all of it in ~2 minutes with no API keys. (_That's you. Scroll to [Try it](#try-it)._)
+- **The judge / screener** — runs `pnpm demo` and sees all of it in ~2 minutes with no API keys, or tries the live mainnet checkout for $0.10. (_That's you. Scroll to [Try it](#try-it), and see [What is live and what is not](#what-is-live-and-what-is-not)._)
 
 ---
 
@@ -81,7 +81,7 @@ Let's walk a single dollar through the system.
 
 **4. Release.** The refund window ends. The worker calls `release`. Seller gets USDC. Done — the boring path, which is the path 95% of payments should take.
 
-**5. Refund.** Customer opens the receipt page and writes "the export feature doesn't work". The **refund assistant** reads the complaint, asks for a screenshot if it needs one, and *proposes* a decision using deterministic triage rules. Proposing is all it can do — hard limits (max amount, window, daily cap) come from the merchant's **on-chain** config, not from the assistant. The decision is signed and relayed to the contract. Only once the contract has approved a refund, and only for the approved amount, can the worker push USDC back out through Intents to the original coin and chain.
+**5. Refund.** Customer opens the receipt page and writes "the export feature doesn't work". The **refund assistant** reads the complaint, asks for a screenshot if it needs one, and *proposes* a decision using deterministic triage rules. (The code also has an optional model path on NEAR AI Cloud, enabled by `NEARAI_API_KEY`, with the same output shape and the same hard limits; the live app runs the rules.) Proposing is all it can do — hard limits (max amount, window, daily cap) come from the merchant's **on-chain** config, not from the assistant. The decision is signed and relayed to the contract. Only once the contract has approved a refund, and only for the approved amount, can the worker push USDC back out through Intents to the original coin and chain.
 
 Say hello to the part I'm most proud of — every action on an unclaimed receipt is a **signed receipt-key action**:
 
@@ -103,10 +103,51 @@ The server relays it and pays gas (**meta-transaction** style). The contract ver
 | NEAR piece | Where it's used | Why it matters |
 |---|---|---|
 | **NEAR Intents / 1Click** ([docs](https://docs.near-intents.org/)) | `packages/intents-adapter` | Pay-in from any chain → USDC on NEAR, and refund-out back to the same chain. Intents has no testnet, so the local demo uses a mock adapter; mainnet uses the real one. |
-| **NEP-171 receipt NFT** | `contracts/receipts` (Rust, near-sdk 5.29) | The NFT *is* the escrow. It holds USDC, owns the refund state machine, enforces the window. |
-| **`ft_on_transfer` (NEP-141)** | `contracts/receipts` | USDC arriving at the contract is what mints a receipt — no separate "deposit then mint" dance. |
-| **ed25519 receipt keys + relayer** | `packages/chain`, `apps/web` | Walletless customers. Browser signs, server relays and pays gas, contract verifies. |
-| **Function-call keys per role** | `executor.*`, `relayer.*` sub-accounts | The settlement worker is the only process with the executor key. The web app's relayer can approve refunds but cannot move money. |
+| **NEP-171 receipt NFT + escrow contract** | `contracts/receipts` (Rust, near-sdk 5.29) | One contract holds the USDC and mints the receipts. Each receipt carries its amount, window, refund target and refund state; the contract moves a receipt's money only by those rules. |
+| **`ft_on_transfer` (NEP-141)** | `contracts/receipts` | A customer paying USDC on NEAR directly (`ft_transfer_call`) gets the receipt minted in the same transaction. Intents deliveries carry no order id, so the settlement worker attributes them and calls `mint_receipt`. |
+| **ed25519 receipt keys + relayer** | `packages/chain`, `apps/web` | Walletless customers. Browser signs, server relays and pays gas (meta-transaction style), contract verifies. |
+| **Separate role accounts** | `executor.*`, `relayer.*` | The contract checks the caller's role: only the executor can mint, release and execute refunds, and the settlement worker is the only process with its key. The relayer relays customer actions and approves refunds for operator-registered shops; it cannot move money. Both use full-access keys in this build. |
+
+---
+
+## What is live and what is not
+
+An honest status as of the submission (2026-11-14). "Tested on mainnet" means we did it with real money on the hosted app; the [Mainnet proof](#mainnet-proof-a-full-payment-and-refund-already-done) table has transactions for the full round trip.
+
+**Live and tested on NEAR mainnet**
+
+| Feature | Evidence |
+|---|---|
+| Pay with POL on Polygon via MetaMask → 1Click swap → USDC escrowed against a receipt NFT | Receipts #1–#4 on [`checkout.aakash7777.near`](https://nearblocks.io/address/checkout.aakash7777.near) |
+| Buyer refund request signed with the receipt key, relayed (no buyer wallet on NEAR) | `request_refund` from `relayer.aakash7777.near` |
+| Seller approval in the dashboard, then the refund paid out through 1Click in the original coin on the original chain | 0.1193 POL back on Polygon ([tx](https://polygonscan.com/tx/0xd8be9a75f4ae92f0bf8c79437a41a2d7a9ae973bc84711586ea318256a138f8b)) |
+| Hosted checkout link and QR for a saved product (no seller website needed) | [The $0.10 demo product](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i) |
+| `<pay-button>` on a seller's own page, with HMAC-signed webhooks (`payment.succeeded`, `refund.requested`, `refund.approved`, `refund.executed`) | `examples/demo-store` verified the refund webhooks for receipt #1 on mainnet; every event uses the same signing |
+| Seller sign-up, password login, dashboard (orders, settings, button builder, "Copy prompt for your AI") | [Demo shop for judges](#demo-shop-for-judges) |
+| Emails to seller and buyer over SMTP | Payment and refund notices |
+| `/verify/<id>`: receipt state and solvency read from the contract | [`/verify/1`](https://zap-2lcs3sivbq-uc.a.run.app/verify/1) |
+| Database persistence across deploys (SQLite replicated with Litestream) | Data survived several redeploys |
+
+**Implemented, not yet exercised on mainnet** (covered by tests and/or the local `pnpm demo`)
+
+| Feature | Notes |
+|---|---|
+| Automatic payout to the seller when the refund window ends | Works in the sandbox (`+1 min`). The first mainnet window (receipt #2) ends 2026-11-21. |
+| Other coins and chains (ETH, USDT, SOL, BTC, …) | The checkout lists every 1Click asset; only POL on Polygon was paid live. MetaMask covers EVM chains; other chains show an address and amount to send. |
+| Prepaid passes (subscriptions) and milestone schedules, cancel with partial refund | Contract + sandbox demo (step 4 of [Try it](#try-it)). |
+| Claim a receipt into a NEAR account (it becomes a normal NFT) | Contract + sandbox demo. |
+| Seller-initiated refund without a buyer request (`merchant_refund`) | Contract + dashboard. |
+| Refund assistant on NEAR AI Cloud | Code path exists (`packages/core/src/refund-agent.ts`); the live app runs the deterministic rules. |
+| Buyer emailed their private receipt link when they give an email | Sent from the buyer's browser when the payment confirms, so only if the checkout page is still open then; the success screen also has Copy and "Email me this link". |
+
+**Not built yet / known limits**
+
+- The refund chat stores an uploaded image's file name, not the image.
+- Sellers registered by the operator have their refund approvals signed by the app's relayer. A seller can take over by calling `register_merchant` from their own account; signing from the seller's own wallet in the dashboard is planned.
+- The executor and relayer use full-access keys, and there is no low-balance alert yet (an empty executor stops minting).
+- Changing the refund target or claiming a receipt needs only the receipt key, with no delay.
+- One Cloud Run instance with SQLite and the free public NEAR RPC: fine for a demo, not for heavy traffic.
+- The contract is unaudited.
 
 ---
 
@@ -144,7 +185,7 @@ The demo shop is **Tallyfox**. It has a one-time plan, a prepaid pass, and a mil
 
 ### Try it live on mainnet (real money)
 
-The hosted app runs on NEAR mainnet with real NEAR Intents swaps. It stays up through judging (at least until 2026-11-25). A test costs the price plus about 1% in swap fees plus gas, from your own wallet. $0.10 works with USDT or POL on Polygon; some coins have a higher minimum (about $1).
+The hosted app runs on NEAR mainnet with real NEAR Intents swaps. It stays up through judging (at least until 2026-11-25). A test costs the price plus swap fees and gas, from your own wallet. Swap fees are mostly fixed network costs, so tiny amounts lose a large share: a measured $0.10 round trip paid 1.25 POL and got 1.13 POL back (about 10%). $0.10 works with POL or USDT on Polygon; some coins have a higher minimum (about $1).
 
 1. **Do:** open the [hosted checkout for the $0.10 test product](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i).
    **See:** a checkout for "Saas Pro Subscription", $0.10, held in escrow until the refund window ends.
@@ -201,7 +242,7 @@ The button is a convenience, never proof of payment. A seller with a server conf
 
 ## Live mode (mainnet)
 
-Live mode uses NEAR mainnet, real USDC, and real NEAR Intents. NEAR Intents has no testnet (hackathon rule Q-007), so the real swap can only be shown with real money. The hosted app at https://zap-2lcs3sivbq-uc.a.run.app is live mode — a purchase costs the price plus about 1% in swap fees plus gas from your own wallet, and comes back deducted on refund.
+Live mode uses NEAR mainnet, real USDC, and real NEAR Intents. NEAR Intents has no testnet (hackathon rule Q-007), so the real swap can only be shown with real money. The hosted app at https://zap-2lcs3sivbq-uc.a.run.app is live mode — a purchase costs the price plus swap fees and gas from your own wallet, and a refund comes back minus the swap fees again (mostly fixed costs, so about 10% on a $0.10 round trip and a much smaller share on larger amounts).
 
 Mainnet payments are capped per receipt (default $50). The owner can pause new payments and releases; refunds still run while paused. Deploying or paying on mainnet is a human action, documented in [docs/GO-LIVE.md](docs/GO-LIVE.md). **A screening run should stop at `pnpm demo`.**
 
@@ -261,7 +302,7 @@ Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md),
 
 ## TL;DR
 
-Two lines of HTML give any seller a checkout that takes any coin on any chain. NEAR Intents turns it into USDC, a NEP-171 receipt NFT *holds* that USDC through the refund window, and a refund assistant triages refunds inside limits the contract enforces — refunds go back to the customer's original coin and chain. Customers never touch a wallet; sellers never touch a contract. `pnpm demo` shows the whole thing locally with no keys.
+Two lines of HTML give any seller a checkout that takes any coin on any chain. NEAR Intents turns it into USDC, a contract escrows that USDC against a NEP-171 receipt NFT through the refund window, and a refund assistant triages refunds inside limits the contract enforces — refunds go back to the customer's original coin and chain. Customers never touch a wallet; sellers never touch a contract. `pnpm demo` shows the whole thing locally with no keys.
 
 <p align="center">
   <img src="docs/assets/mascot.png" alt="Zap mascot" width="160" /><br/>
