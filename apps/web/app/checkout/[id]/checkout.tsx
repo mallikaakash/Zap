@@ -36,6 +36,9 @@ interface Session {
 }
 
 const KEY = (id: string) => `uc:receipt-key:${id}`;
+/** The email the customer typed at checkout (kept in this browser only), and whether their full receipt link was sent to it. */
+const EMAIL = (id: string) => `uc:receipt-email:${id}`;
+const EMAILED = (id: string) => `uc:receipt-emailed:${id}`;
 const PLACEHOLDER: Record<string, string> = { sol: "Your Solana address", tron: "T…", btc: "bc1…", near: "you.near" };
 
 function Steps({ status }: { status: string }) {
@@ -76,6 +79,7 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
+  const [emailedTo, setEmailedTo] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const announced = useRef(false);
 
@@ -108,6 +112,23 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     if (s?.status === "paid" && s.receiptId && !announced.current) {
       announced.current = true;
+      // The customer gave an email at checkout: send them the FULL receipt link (with its key) now,
+      // so they can ask for a refund later from any device. Only this browser has the key, so the
+      // request goes from here; the server checks the key against the receipt, sends one email and
+      // does not store the key. Sent before telling the parent page, which may navigate away.
+      const key = localStorage.getItem(KEY(sessionId));
+      const to = localStorage.getItem(EMAIL(sessionId));
+      const sent = localStorage.getItem(EMAILED(sessionId));
+      if (sent) setEmailedTo(sent);
+      else if (key && to) {
+        const link = `${window.location.origin}/r/${s.receiptId}#k=${key}`;
+        api(`/api/receipts/${s.receiptId}/email`, { body: { email: to, link } })
+          .then(() => {
+            localStorage.setItem(EMAILED(sessionId), to);
+            setEmailedTo(to);
+          })
+          .catch(() => {});
+      }
       // The parent page gets the receipt URL WITHOUT the key fragment: the key stays with the customer.
       post("uc:paid", { receiptId: s.receiptId, receiptUrl: `${window.location.origin}/r/${s.receiptId}` });
     }
@@ -134,6 +155,8 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
         localStorage.setItem(KEY(sessionId), key);
       }
       setPrivateKey(key);
+      if (email.trim()) localStorage.setItem(EMAIL(sessionId), email.trim());
+      else localStorage.removeItem(EMAIL(sessionId));
       await api(`/api/sessions/${sessionId}/quote`, { body: { originAsset: asset, refundAddress: refund.trim(), receiptKey: await receiptPublicKey(key), email: email.trim() || undefined } });
       setEditing(false);
       refresh();
@@ -221,8 +244,9 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
               <strong>Keep the receipt link.</strong> It contains the key to this receipt: anyone with the link can request a refund to your original address or claim the receipt. It is not stored on our servers.
               {privateKey ? (
                 <span className="mt-2 block space-y-2">
+                  {emailedTo ? <span className="block font-medium text-good">We emailed this link to {emailedTo}.</span> : null}
                   <CopyButton text={`${window.location.origin}${receiptHref}`} label="Copy receipt link" />
-                  <EmailLink receiptId={s.receiptId!} link={`${window.location.origin}${receiptHref}`} />
+                  {emailedTo ? null : <EmailLink receiptId={s.receiptId!} link={`${window.location.origin}${receiptHref}`} />}
                 </span>
               ) : (
                 <span className="mt-2 block">This browser does not have the key for this receipt. Open the link on the device you paid from.</span>
@@ -259,8 +283,8 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
               <span className="mt-1.5 block text-xs leading-relaxed text-muted">If you ask for a refund it comes back here, in the same coin. Use your own wallet, not an exchange deposit address.</span>
             </Step>
             <Step n={3} title="Email" optional>
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" aria-label="Email for updates" />
-              <span className="mt-1.5 block text-xs text-muted">Only for payment and refund updates.</span>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" aria-label="Email for your receipt link and updates" />
+              <span className="mt-1.5 block text-xs text-muted">We email you your receipt link once the payment is confirmed: you need it to ask for a refund. Also used for payment and refund updates.</span>
             </Step>
             <button className="btn-primary w-full !min-h-12 text-[15px]" onClick={getQuote} disabled={busy !== null || !asset}>
               {busy === "quote" ? <><Spinner /> Getting your quote…</> : picked ? <>Continue with {picked.symbol} on {chainName(picked.chain)}</> : "Choose a coin to continue"}

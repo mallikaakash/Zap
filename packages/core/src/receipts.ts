@@ -497,7 +497,8 @@ export async function emailReceiptLink(id: string, email: string, link: string) 
     subject: `Your receipt from ${s?.merchant.name ?? "Zap"}`,
     lines: [
       `Your receipt #${id} for ${s?.product ?? "your order"}.`,
-      "This link is the key to your receipt: with it you can ask for a refund, cancel a pass, or claim the receipt to a NEAR account. Do not share it.",
+      "Open it to ask for a refund (it goes back to the address you paid from), release the payment, or claim the receipt to a NEAR account.",
+      "This link is the key to your receipt. Keep this email and do not forward it.",
     ],
     button: { label: "Open my receipt", url: link },
   });
