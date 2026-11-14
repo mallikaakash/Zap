@@ -1,6 +1,6 @@
 # @uc/intents-adapter
 
-One interface over cross-chain swaps for Universal Checkout (SPEC §5):
+One interface over cross-chain swaps for Zap (SPEC §5):
 
 - `MockAdapter` — deterministic, no network. Used in `local` and `testnet` (NEAR Intents has no testnet).
 - `OneClickAdapter` — the real NEAR Intents 1Click API (`https://1click.chaindefuser.com`).

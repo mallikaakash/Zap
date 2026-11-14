@@ -1,4 +1,4 @@
-//! Universal Checkout receipt contract.
+//! Zap receipt contract.
 //!
 //! Every payment is a NEP-171 receipt token that holds USDC until it is released to the
 //! merchant or refunded to the customer. The binding interface is `contracts/INTERFACE.md`.
@@ -884,7 +884,7 @@ impl Contract {
             env::current_account_id(),
             Some(TokenMetadata {
                 title: Some(format!("Receipt #{id}")),
-                description: Some(format!("Universal Checkout receipt at {}", args.merchant_id)),
+                description: Some(format!("Zap receipt at {}", args.merchant_id)),
                 copies: Some(1),
                 issued_at: Some(now.to_string()),
                 ..Default::default()

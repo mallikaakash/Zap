@@ -1,6 +1,6 @@
 [package]
 name = "receipts"
-description = "Universal Checkout receipt contract: NEP-171 receipts that hold USDC during a refund window"
+description = "Zap receipt contract: NEP-171 receipts that hold USDC during a refund window"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

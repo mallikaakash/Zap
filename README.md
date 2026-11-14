@@ -1,4 +1,4 @@
-# Universal Checkout
+# Zap
 
 A business pastes a checkout button on its site. The customer pays with any coin on any chain. NEAR Intents settles that payment into USDC, and a receipt NFT holds the USDC until the refund window ends. A refund goes back to the same coin and chain. Cancelling a prepaid pass returns the periods that have not started.
 

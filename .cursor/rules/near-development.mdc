@@ -1,24 +1,46 @@
 ---
-description: Universal Checkout — where the code lives and what to run
+description: NEAR Protocol defaults — networks, safety, layout (Zap)
 alwaysApply: true
 ---
 
-# Universal Checkout
+# Zap
 
 Read `README.md` first. Try the product with `pnpm install && pnpm demo`. That path needs no keys and does not touch mainnet.
 
 ## Layout
 
-- `contracts/receipts` — Rust receipt contract. Interface: `contracts/INTERFACE.md`.
+- `contracts/` — Rust smart contracts (`receipts`, `mock-usdc`). Interface: `contracts/INTERFACE.md`.
 - `packages/` — sdk, chain, core, db, intents-adapter, landing.
 - `apps/web` — Next.js checkout, receipt, dashboard, API.
-- `services/settlement` — settlement worker.
+- `services/settlement` — settlement worker. In live mode it holds the executor key.
 - `examples/seller-site` — static page that embeds `<pay-button>`.
+- `.agents/skills/` — official NEAR agent skills. `.cursor/skills/` — project supplements.
+- `docs/near/` — NEAR notes for agents and humans.
 
 There is no `contract/` or `frontend/` directory.
 
-## Safety
+## Networks
+
+- **Local**: `pnpm demo` uses a NEAR sandbox and simulated Intents. This is the default.
+- **Mainnet**: `pnpm deploy:mainnet` only after the human asks. See `docs/GO-LIVE.md`. NEAR Intents has no testnet.
+- Never commit private keys, seed phrases, or `.env` with secrets.
+
+## Grounding
+
+1. Prefer the `near-docs` MCP server or https://docs.near.org/llms.txt.
+2. Read the relevant `.agents/skills/*/SKILL.md` before CLI, contracts, Intents, or audits.
+3. For this product’s on-chain interface, read `contracts/INTERFACE.md`.
+
+## Agent tooling
+
+- **CLI**: `near-cli-rs`. Include `network-config testnet|mainnet` and a terminal action (`now`, `send`).
+- **Contracts**: `pnpm build:contracts` and `pnpm test:contracts`.
+- **TypeScript**: `pnpm test` and `pnpm typecheck`. Generate Prisma before core tests: `pnpm --filter @uc/db generate`.
+- **NEAR blockchain MCP**: read-only calls are fine. Do not import keys or send transactions unless the human asks.
+
+## Security
 
 - Do not deploy, fund accounts, or send mainnet transactions. The human does that.
-- Never commit `.env`, keystores, or seed phrases.
-- `docs/GO-LIVE.md` is the operator runbook. It is not part of `pnpm demo`.
+- Confirm before mainnet or real funds.
+- Run the contract-audit skill before a production deploy.
+- Do not fabricate transaction hashes, deployment addresses, or test outcomes.

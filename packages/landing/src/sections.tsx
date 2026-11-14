@@ -7,7 +7,7 @@ import { Bolt, Check, Cross } from "./icons";
 import { evaluate, INITIAL_PROTECTIONS, nudge, REQUEST, type ProtectionIdx, type Tone } from "./protections";
 
 const ACCENT = "#FF2D87";
-const GITHUB_BLOB = "https://github.com/mallikaakash/near-hackathon/blob/main";
+const GITHUB_BLOB = "https://github.com/mallikaakash/Zap/blob/main";
 
 export function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; children: React.ReactNode; lead?: React.ReactNode; xl?: boolean; center?: boolean }) {
   return (

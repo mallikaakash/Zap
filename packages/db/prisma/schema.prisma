@@ -1,4 +1,4 @@
-// Universal Checkout — off-chain state. SQLite locally, Postgres when hosted
+// Zap — off-chain state. SQLite locally, Postgres when hosted
 // (scripts/use-postgres.mjs swaps the provider line; the models are identical).
 // Money is always integer minor units (USDC, 6 dp) stored as strings.
 

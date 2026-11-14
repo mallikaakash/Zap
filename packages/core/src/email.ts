@@ -22,11 +22,11 @@ export const isEmail = (s: unknown): s is string => typeof s === "string" && s.l
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 function render(m: Mail): { text: string; html: string } {
-  const text = [...m.lines, ...(m.button ? ["", `${m.button.label}: ${m.button.url}`] : []), "", "— Universal Checkout"].join("\n");
+  const text = [...m.lines, ...(m.button ? ["", `${m.button.label}: ${m.button.url}`] : []), "", "— Zap"].join("\n");
   const [head, ...rest] = m.lines;
   const html = `<!doctype html><html><body style="margin:0;background:#f6f7fb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">
 <div style="max-width:520px;margin:0 auto;padding:32px 20px">
-<p style="font-weight:600;color:#4f46e5;margin:0 0 16px">Universal Checkout</p>
+<p style="font-weight:600;color:#4f46e5;margin:0 0 16px">Zap</p>
 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px">
 <h1 style="font-size:18px;margin:0 0 12px">${esc(head ?? "")}</h1>
 ${rest.map((l) => `<p style="font-size:14px;line-height:1.6;margin:0 0 10px;color:#334155">${esc(l)}</p>`).join("\n")}
@@ -52,7 +52,7 @@ export async function sendEmail(m: Mail): Promise<void> {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ from: env().EMAIL_FROM || "Universal Checkout <onboarding@resend.dev>", to: [m.to], subject: m.subject, text, html }),
+      body: JSON.stringify({ from: env().EMAIL_FROM || "Zap <onboarding@resend.dev>", to: [m.to], subject: m.subject, text, html }),
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) throw new Error(`Resend HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);

@@ -1,0 +1,15 @@
+---
+description: Security-critical NEAR and key-handling constraints
+alwaysApply: true
+---
+
+# NEAR security (agents)
+
+- Never request, log, or commit seed phrases, private keys, or `.env` secrets.
+- Default to sandbox/local (`pnpm demo`) or read-only RPC; mainnet only with explicit human approval.
+- Do not use `near-mcp` `system_import_account` or transaction-signing tools without user approval.
+- Do not assume `Final` until receipt/status verified; handle cross-contract callback failures.
+- Validate attached deposits, gas, and authorization on every contract change method.
+- Separate view calls from state-changing calls in docs and generated code.
+- Run `.agents/skills/near-contract-audit/` before mainnet contract changes.
+- Never fabricate deployment addresses, tx hashes, or passing tests.
