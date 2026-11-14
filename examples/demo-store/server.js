@@ -12,7 +12,7 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PAGES = { "/index.html": "text/html; charset=utf-8", "/thanks.html": "text/html; charset=utf-8", "/orders.html": "text/html; charset=utf-8", "/style.css": "text/css; charset=utf-8" };
 
 /** What this shop sells: the product-id from the Zap dashboard → what a payment for it unlocks. Keep in sync with index.html. */
-const PRODUCTS = { cmwg1bh1q0002s654xkmaqg1d: "SuperSaaaS Pro" };
+const PRODUCTS = { cmwg5c4b20004s65payw0ucls: "SuperSaaaS Pro" };
 
 /** Verified webhook events, newest first. A real shop would use its database. */
 const events = [];
