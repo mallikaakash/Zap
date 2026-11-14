@@ -34,11 +34,13 @@ export interface PayButtonProps {
   size?: string;
   icon?: string;
   metadata?: string;
+  /** Dashboard previews: renders the real button but never starts a checkout. */
+  preview?: boolean;
   onPaid?: (detail: { sessionId: string; receiptId?: string; receiptUrl?: string }) => void;
 }
 
 /** React wrapper around the real `<pay-button>` web component (attributes in, DOM events out). */
-export function PayButton({ onPaid, ...attrs }: PayButtonProps) {
+export function PayButton({ onPaid, preview, ...attrs }: PayButtonProps) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     void loadPayScript();
@@ -51,6 +53,6 @@ export function PayButton({ onPaid, ...attrs }: PayButtonProps) {
     return () => el.removeEventListener("uc:paid", h);
   }, [onPaid]);
   const { productId, ...rest } = attrs;
-  const clean = Object.fromEntries(Object.entries({ ...rest, "product-id": productId }).filter(([, v]) => v !== undefined && v !== ""));
+  const clean = Object.fromEntries(Object.entries({ ...rest, "product-id": productId, preview: preview ? "Preview only. Paste the snippet on your site to take payments." : undefined }).filter(([, v]) => v !== undefined && v !== ""));
   return createElement("pay-button", { ref, ...clean });
 }

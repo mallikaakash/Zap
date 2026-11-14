@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, chainName, duration, fromMinor, setSellerToken, short, toMinor, until, usd } from "@/lib/client";
+import { api, chainName, fromMinor, setSellerToken, short, toMinor, until, usd } from "@/lib/client";
 import { receiptStatus } from "@/lib/labels";
 import type { DashReceipt } from "@/lib/types";
-import { PayButton } from "@/components/pay-button";
-import { CopyButton, Field, Logo, Notice, Pill, QR, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { CopyButton, DurationInput, Field, Logo, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { SellTab } from "./sell-tab";
 
 interface Merchant {
   id: string;
@@ -23,6 +23,7 @@ interface Merchant {
   autoApproveMax: string;
   vetoSecs: number;
   minOrder: string;
+  productsOnly: boolean;
   webhookUrl: string | null;
   webhookSecret: string;
   policy: { refundableCategories: string[]; requiresPhotoFor: string[]; digitalGoodsRule: string; escalateAlways: boolean; customerReplyHours: number };
@@ -40,7 +41,7 @@ interface DevState {
   chainNow: string;
 }
 
-const TABS = ["Orders", "Products", "Button", "Settings", "Notifications"] as const;
+const TABS = ["Orders", "Your button", "Settings", "Notifications"] as const;
 type Tab = (typeof TABS)[number];
 const CATEGORIES = ["damaged", "not_received", "not_as_described", "changed_mind"];
 
@@ -145,7 +146,7 @@ function MerchantDash({ id }: { id: string }) {
   if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Create a merchant account</a></Notice></Page>;
   if (!m) return <Page><p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p></Page>;
   return (
-    <Page right={<><SimBadge mode={dev?.mode} /><a className="btn-ghost" href={`/shop?m=${m.id}`}>View shop</a></>}>
+    <Page right={<SimBadge mode={dev?.mode} />}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{m.name}</h1>
@@ -167,7 +168,7 @@ function MerchantDash({ id }: { id: string }) {
           </button>
         ))}
       </div>
-      {tab === "Orders" ? <OrdersTab id={id} /> : tab === "Products" ? <ProductsTab m={m} /> : tab === "Button" ? <ButtonTab m={m} onSaved={reload} /> : tab === "Settings" ? <SettingsTab m={m} onSaved={reload} /> : <WebhooksTab m={m} />}
+      {tab === "Orders" ? <OrdersTab id={id} onSetup={() => setTab("Your button")} /> : tab === "Your button" ? <SellTab m={m} onSaved={reload} goSettings={() => setTab("Settings")} /> : tab === "Settings" ? <SettingsTab m={m} onSaved={reload} /> : <WebhooksTab m={m} />}
     </Page>
   );
 }
@@ -201,7 +202,7 @@ function TimeTravel({ onDone }: { onDone: () => void }) {
   );
 }
 
-function OrdersTab({ id }: { id: string }) {
+function OrdersTab({ id, onSetup }: { id: string; onSetup: () => void }) {
   const { data, error, refresh } = usePoll(() => api<Orders>(`/api/merchants/${id}/receipts`), 2500, [id]);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
@@ -240,8 +241,8 @@ function OrdersTab({ id }: { id: string }) {
       {data.receipts.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="font-semibold">No orders yet</p>
-          <p className="mt-1 text-sm text-muted">Payments appear here as receipts the moment they are minted. Try the button on your pricing page or in your app.</p>
-          <a className="btn-primary mt-4" href={`/shop?m=${id}`}>Open the business</a>
+          <p className="mt-1 text-sm text-muted">Payments appear here the moment they land. Add the button to your site to start taking them.</p>
+          <button type="button" className="btn-primary mt-4" onClick={onSetup}>Set up your button</button>
         </div>
       ) : (
         <div className="card divide-y divide-line">
@@ -284,7 +285,7 @@ function OrdersTab({ id }: { id: string }) {
                       {decidable ? (
                         <>
                           <button className="btn-primary" disabled={busy !== null} onClick={() => act(`a${r.id}`, `/api/receipts/${r.id}/approve`, {}, "Refund approved. It is being sent back to the customer.")}>{busy === `a${r.id}` ? <Spinner /> : null} Approve refund</button>
-                          <button className="btn-danger" disabled={busy !== null} onClick={() => act(`r${r.id}`, `/api/receipts/${r.id}/reject`, { note: "Declined by the businep" }, "Request declined. The money stays in escrow until the window ends.")}>{busy === `r${r.id}` ? <Spinner /> : null} Decline</button>
+                          <button className="btn-danger" disabled={busy !== null} onClick={() => act(`r${r.id}`, `/api/receipts/${r.id}/reject`, { note: "Declined by the business" }, "Request declined. The money stays in escrow until the window ends.")}>{busy === `r${r.id}` ? <Spinner /> : null} Decline</button>
                         </>
                       ) : (
                         <button className="btn-ghost" disabled={busy !== null} onClick={() => act(`v${r.id}`, `/api/receipts/${r.id}/veto`, { note: "The business asked to review" }, "Paused. The request is now waiting for your decision.")}>{busy === `v${r.id}` ? <Spinner /> : null} Object and review it myself</button>
@@ -352,65 +353,13 @@ const Meta = ({ k, v }: { k: string; v: ReactNode }) => (
   <div><p className="text-xs text-muted">{k}</p><p className="font-medium">{v}</p></div>
 );
 
-function ButtonTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
-  const [b, setB] = useState({ label: m.button.label ?? "Pay any way", color: m.button.color ?? "#4F46E5", radius: m.button.radius ?? "12", size: m.button.size ?? "md", icon: m.button.icon ?? "lock" });
-  const [product, setProduct] = useState("Ebook");
-  const [amount, setAmount] = useState("49");
-  const [saved, setSaved] = useState(false);
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
-  const validAmount = toMinor(amount) !== null && amount.trim() !== "" && BigInt(toMinor(amount)!) > 0n;
-  const attrs = [`merchant="${m.id}"`, `amount="${amount}"`, `product="${product.replace(/"/g, "&quot;")}"`, b.label !== "Pay any way" ? `label="${b.label.replace(/"/g, "&quot;")}"` : "", b.color.toLowerCase() !== "#4f46e5" ? `color="${b.color}"` : "", b.radius !== "12" ? `radius="${b.radius}"` : "", b.size !== "md" ? `size="${b.size}"` : "", b.icon !== "lock" ? `icon="${b.icon}"` : ""].filter(Boolean).join(" ");
-  const snippet = `<script src="${origin}/pay.js" defer></script>\n<pay-button ${attrs}></pay-button>`;
-  const link = `${origin}/pay?merchant=${encodeURIComponent(m.id)}&amount=${encodeURIComponent(amount)}&product=${encodeURIComponent(product)}&mode=one-time`;
-  const set = (k: keyof typeof b) => (e: { target: { value: string } }) => { setB({ ...b, [k]: e.target.value }); setSaved(false); };
-  return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <div className="card space-y-4 p-6">
-        <h2 className="font-semibold">Style your button</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Product"><input className="input" value={product} onChange={(e) => setProduct(e.target.value)} /></Field>
-          <Field label="Price (USD)"><input className="input tabular-nums" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={!validAmount} /></Field>
-          <Field label="Label"><input className="input" value={b.label} onChange={set("label")} maxLength={40} /></Field>
-          <Field label="Colour"><span className="flex items-center gap-2"><input type="color" value={b.color} onChange={set("color")} className="h-10 w-12 cursor-pointer rounded-lg border border-line bg-white p-1" aria-label="Button colour" /><input className="input mono" value={b.color} onChange={set("color")} /></span></Field>
-          <Field label={`Corner radius · ${b.radius}px`}><input type="range" min="0" max="28" value={b.radius} onChange={set("radius")} className="w-full accent-[var(--accent)]" /></Field>
-          <Field label="Size"><select className="input" value={b.size} onChange={set("size")}><option value="sm">Small</option><option value="md">Medium</option><option value="lg">Large</option></select></Field>
-          <Field label="Icon"><select className="input" value={b.icon} onChange={set("icon")}><option value="lock">Lock</option><option value="coins">Coins</option><option value="none">None</option></select></Field>
-        </div>
-        <button className="btn-ghost" onClick={async () => { await api(`/api/merchants/${m.id}`, { method: "PATCH", body: { button: b } }); setSaved(true); onSaved(); }}>{saved ? "Saved" : "Save as my default style"}</button>
-      </div>
-      <div className="space-y-5">
-        <div className="card p-6">
-          <h2 className="font-semibold">Live preview</h2>
-          <p className="mt-1 text-sm text-muted">This is the real component. Click it to run a payment.</p>
-          <div className="mt-4 grid min-h-28 place-items-center rounded-xl bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:20px_20px] p-6">
-            {validAmount ? <PayButton merchant={m.id} amount={amount} product={product} label={b.label} color={b.color} radius={b.radius} size={b.size} icon={b.icon} /> : <span className="text-sm text-bad">Enter a price like 49 or 49.99</span>}
-          </div>
-        </div>
-        <div className="card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3"><h2 className="font-semibold">Paste this into your site</h2><CopyButton text={snippet} label="Copy snippet" /></div>
-          <pre className="mono overflow-x-auto bg-[#0e0e0e] p-4 text-[12.5px] leading-relaxed text-[#ededed]">{snippet}</pre>
-          <p className="px-5 py-3 text-xs leading-relaxed text-muted">Two lines, no backend needed to take the payment. Mark orders as paid only after verifying our signed webhook on your server (see the Webhooks tab).</p>
-        </div>
-        <div className="card flex flex-wrap items-center gap-5 p-6">
-          {validAmount && origin ? <QR value={link} size={120} /> : null}
-          <div className="min-w-0 flex-1">
-            <h2 className="font-semibold">Or share a link or QR code</h2>
-            <p className="mono mt-2 rounded-xl border border-line p-2.5 text-xs break-all">{link}</p>
-            <div className="mt-2"><CopyButton text={link} label="Copy link" /></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
   const [f, setF] = useState({
     guard: fromMinor(m.guardThreshold).replace(/,/g, ""),
     auto: fromMinor(m.autoApproveMax).replace(/,/g, ""),
     cap: fromMinor(m.dailyRefundCap).replace(/,/g, ""),
     min: fromMinor(m.minOrder).replace(/,/g, ""),
+    productsOnly: m.productsOnly,
     window: String(m.defaultWindowSecs),
     response: String(m.responseSecs),
     veto: String(m.vetoSecs),
@@ -426,18 +375,18 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
   const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
   const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const toggle = (k: "cats" | "photo", c: string) => setF({ ...f, [k]: f[k].includes(c) ? f[k].filter((x) => x !== c) : [...f[k], c] });
-  const secs = (v: string) => (/^\d+$/.test(v) ? duration(Number(v)) : "enter whole seconds");
+  const dur = (k: "window" | "response" | "veto") => (v: string) => setF((cur) => ({ ...cur, [k]: v }));
 
   async function save() {
     const money = { guardThreshold: toMinor(f.guard), autoApproveMax: toMinor(f.auto), dailyRefundCap: toMinor(f.cap), minOrder: toMinor(f.min) };
     if (Object.values(money).some((v) => v === null)) return setMsg({ tone: "bad", text: "Amounts must look like 20 or 20.50." });
-    if (![f.window, f.response, f.veto].every((v) => /^\d+$/.test(v))) return setMsg({ tone: "bad", text: "Time settings must be whole numbers of seconds." });
+    if (![f.window, f.response, f.veto].every((v) => /^\d+$/.test(v))) return setMsg({ tone: "bad", text: "Times must be positive numbers." });
     setBusy(true);
     setMsg(null);
     try {
       await api(`/api/merchants/${m.id}`, {
         method: "PATCH",
-        body: { ...money, defaultWindowSecs: Number(f.window), responseSecs: Number(f.response), vetoSecs: Number(f.veto), payoutAccount: f.payout, webhookUrl: f.webhook || null, aiTriage: f.ai, policy: { escalateAlways: f.escalateAlways, refundableCategories: f.cats, requiresPhotoFor: f.photo, digitalGoodsRule: f.digital } },
+        body: { ...money, productsOnly: f.productsOnly, defaultWindowSecs: Number(f.window), responseSecs: Number(f.response), vetoSecs: Number(f.veto), payoutAccount: f.payout, webhookUrl: f.webhook || null, aiTriage: f.ai, policy: { escalateAlways: f.escalateAlways, refundableCategories: f.cats, requiresPhotoFor: f.photo, digitalGoodsRule: f.digital } },
       });
       setMsg({ tone: "good", text: "Saved. Limits and time windows are now enforced by the contract." });
       onSaved();
@@ -454,12 +403,13 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         <h2 className="font-semibold">Escrow and payouts</h2>
         <Field label="Payout account" hint="Released USDC is sent here."><input className="input mono" value={f.payout} onChange={up("payout")} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Refund window (seconds)" hint={`${secs(f.window)}. 0 = pay out at once.`}><input className="input tabular-nums" value={f.window} onChange={up("window")} /></Field>
+          <Field label="Refund window" hint="0 = pay out at once."><DurationInput label="Refund window" value={f.window} onChange={dur("window")} /></Field>
           <Field label="Minimum order (USD)"><input className="input tabular-nums" value={f.min} onChange={up("min")} /></Field>
-          <Field label="Your time to answer (seconds)" hint={`${secs(f.response)}. If you stay silent, the request is approved.`}><input className="input tabular-nums" value={f.response} onChange={up("response")} /></Field>
+          <Field label="Your time to answer" hint="If you stay silent, the request is approved."><DurationInput label="Time to answer" value={f.response} onChange={dur("response")} /></Field>
           <Field label="Daily refund cap (USD)" hint="The executor cannot refund more than this per day."><input className="input tabular-nums" value={f.cap} onChange={up("cap")} /></Field>
         </div>
-        <Field label="Webhook URL" hint="We POST signed events here: payment.succeeded, receipt.released, refund.*"><input className="input mono" value={f.webhook} onChange={up("webhook")} placeholder="https://your-site.example/webhooks/checkout" /></Field>
+        <label className="flex items-start gap-3 rounded-2xl bg-canvas p-3.5 text-sm ring-1 ring-line"><input type="checkbox" className="mt-1 accent-[var(--accent)]" checked={f.productsOnly} onChange={(e) => setF({ ...f, productsOnly: e.target.checked })} /><span><span className="font-semibold">Only accept my saved products</span><span className="block text-muted">Refuse any checkout without a product-id, so nobody can edit a price in your page's HTML. Turn on once your buttons use saved products.</span></span></label>
+        <Field label="Webhook URL" hint="We POST signed events here: payment.succeeded (with the productId paid for), receipt.released, refund.*"><input className="input mono" value={f.webhook} onChange={up("webhook")} placeholder="https://your-site.example/webhooks/checkout" /></Field>
       </div>
       <div className="card space-y-4 p-6">
         <h2 className="font-semibold">Refund assistant</h2>
@@ -467,7 +417,7 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         <div className="grid grid-cols-2 gap-3">
           <Field label="May approve up to (USD)"><input className="input tabular-nums" value={f.auto} onChange={up("auto")} disabled={!f.ai} /></Field>
           <Field label="Always ask me above (USD)" hint="Guard threshold."><input className="input tabular-nums" value={f.guard} onChange={up("guard")} /></Field>
-          <Field label="Your objection window (seconds)" hint={`${secs(f.veto)} to object before an approval pays out.`}><input className="input tabular-nums" value={f.veto} onChange={up("veto")} disabled={!f.ai} /></Field>
+          <Field label="Your objection window" hint="Time to object before an approval pays out."><DurationInput label="Objection window" fallback="hour" value={f.veto} onChange={dur("veto")} disabled={!f.ai} /></Field>
           <Field label="Digital goods"><select className="input" value={f.digital} onChange={up("digital")} disabled={!f.ai}><option value="no_refund_after_access">No refund once accessed</option><option value="refundable">Refundable</option></select></Field>
         </div>
         <fieldset disabled={!f.ai} className="space-y-2">
@@ -534,121 +484,6 @@ if (!fresh || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
               <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <span className="min-w-0"><span className="mono font-medium">{d.event}</span><span className="block truncate text-xs text-muted">{new Date(d.createdAt).toLocaleTimeString()}{d.lastError ? ` · ${d.lastError}` : ""}</span></span>
                 <Pill tone={d.status === "delivered" ? "good" : d.status === "failed" ? "bad" : d.status === "skipped" ? "neutral" : "warn"}>{d.status === "skipped" ? "no URL set" : d.status}{d.attempts > 1 ? ` · ${d.attempts} tries` : ""}</Pill>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  emoji: string;
-  amount: string;
-  kind: "OneTime" | "Subscription" | "Schedule";
-  schedule: Array<{ afterSecs: number; amount: string }>;
-  windowSecs: number | null;
-}
-
-function ProductSnippet({ m, p }: { m: Merchant; p: Product }) {
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
-  const snippet = `<script src="${origin}/pay.js" defer></script>\n<pay-button merchant="${m.id}" product-id="${p.id}" product="${p.name.replace(/"/g, "&quot;")}"></pay-button>`;
-  const link = `${origin}/pay?merchant=${encodeURIComponent(m.id)}&product-id=${p.id}&product=${encodeURIComponent(p.name)}`;
-  return (
-    <div className="rise mt-2 grid gap-3 rounded-xl border border-line bg-canvas p-3 sm:grid-cols-[1fr_auto]">
-      <div className="min-w-0 space-y-2">
-        <pre className="mono overflow-x-auto rounded-lg bg-[#0e0e0e] p-3 text-[12px] leading-relaxed text-[#ededed]">{snippet}</pre>
-        <div className="flex flex-wrap gap-2"><CopyButton text={snippet} label="Copy snippet" /><CopyButton text={link} label="Copy pay link" /></div>
-      </div>
-      {origin ? <QR value={link} size={104} /> : null}
-    </div>
-  );
-}
-
-function ProductsTab({ m }: { m: Merchant }) {
-  const [shown, setShown] = useState<string | null>(null);
-  const { data, refresh } = usePoll(() => api<{ products: Product[] }>(`/api/merchants/${m.id}/products`), 15000, [m.id]);
-  const [f, setF] = useState({ kind: "OneTime", name: "", price: "1", window: "300", periods: "3", interval: "180", emoji: "🛍️", description: "" });
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
-  const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const sub = f.kind === "Subscription";
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setMsg(null);
-    try {
-      await api(`/api/merchants/${m.id}/products`, {
-        body: sub
-          ? { kind: "Subscription", name: f.name, emoji: f.emoji, description: f.description, pricePerPeriodUsd: f.price, periods: Number(f.periods), intervalSecs: Number(f.interval) }
-          : { kind: "OneTime", name: f.name, emoji: f.emoji, description: f.description, priceUsd: f.price, windowSecs: f.window === "" ? undefined : Number(f.window) },
-      });
-      setMsg({ tone: "good", text: `${f.name} added. It is live on your demo checkout page.` });
-      setF({ ...f, name: "", description: "" });
-      refresh();
-    } catch (err) {
-      setMsg({ tone: "bad", text: err instanceof Error ? err.message : "Could not add the product" });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <form className="card space-y-3 p-6" onSubmit={add}>
-        <h2 className="font-semibold">Add a product</h2>
-        <div className="flex gap-2" role="radiogroup">
-          {[["OneTime", "One-time"], ["Subscription", "Prepaid pass"]].map(([k, label]) => (
-            <button type="button" key={k} role="radio" aria-checked={f.kind === k} onClick={() => setF({ ...f, kind: k! })} className={`pill ring-1 ${f.kind === k ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{label}</button>
-          ))}
-        </div>
-        <div className="grid grid-cols-[4rem_1fr] gap-3">
-          <Field label="Icon"><input className="input text-center" value={f.emoji} onChange={up("emoji")} maxLength={4} /></Field>
-          <Field label="Name"><input className="input" value={f.name} onChange={up("name")} placeholder={sub ? "Team plan, prepaid" : "Pro plan, 1 year"} required /></Field>
-        </div>
-        <Field label="Description"><input className="input" value={f.description} onChange={up("description")} maxLength={240} /></Field>
-        {sub ? (
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Per period (USD)"><input className="input tabular-nums" inputMode="decimal" value={f.price} onChange={up("price")} /></Field>
-            <Field label="Periods"><input className="input tabular-nums" value={f.periods} onChange={up("periods")} /></Field>
-            <Field label="Every (seconds)" hint={/^\d+$/.test(f.interval) ? duration(Number(f.interval)) : ""}><input className="input tabular-nums" value={f.interval} onChange={up("interval")} /></Field>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Price (USD)"><input className="input tabular-nums" inputMode="decimal" value={f.price} onChange={up("price")} /></Field>
-            <Field label="Refund window (seconds)" hint={/^\d+$/.test(f.window) ? duration(Number(f.window)) : "empty = account default"}><input className="input tabular-nums" value={f.window} onChange={up("window")} /></Field>
-          </div>
-        )}
-        <p className="text-xs leading-relaxed text-muted">
-          {sub ? "The customer prepays every period. One period is released to you each interval; if they cancel, the periods not yet started go back to them." : "The money waits in escrow during the refund window, then is paid out to you."} Times are real: for a live demo use a few minutes.
-        </p>
-        {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
-        <button className="btn-primary" disabled={busy || !f.name.trim()}>{busy ? <Spinner /> : null} Add product</button>
-      </form>
-      <div className="card p-6">
-        <div className="flex items-center justify-between"><h2 className="font-semibold">Your products</h2><a className="text-sm link" href={`/shop?m=${encodeURIComponent(m.id)}`}>Open shop page</a></div>
-        {!data ? <p className="mt-3 flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : data.products.length === 0 ? <p className="mt-3 text-sm text-muted">No products yet. You can also skip products and set the price on the button itself.</p> : (
-          <ul className="mt-3 divide-y divide-line">
-            {data.products.map((p) => (
-              <li key={p.id} className="py-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="font-semibold">{p.emoji} {p.name}</span>
-                  <span className="block text-xs text-muted">
-                    {p.kind === "Subscription" ? `${p.schedule.length} × ${usd(p.schedule[0]?.amount)} every ${duration(p.schedule[1]?.afterSecs ?? 0)}` : `${usd(p.amount)} · refund window ${p.windowSecs !== null ? duration(p.windowSecs) : duration(m.defaultWindowSecs)}`}
-                  </span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold tabular-nums">{usd(p.amount)}</span>
-                  <button className="text-xs link" onClick={() => setShown(shown === p.id ? null : p.id)}>{shown === p.id ? "Hide" : "Embed"}</button>
-                  <button className="text-xs font-semibold text-bad hover:underline" onClick={async () => { await api(`/api/merchants/${m.id}/products`, { method: "DELETE", body: { productId: p.id } }); refresh(); }}>Remove</button>
-                </span>
-                </div>
-                {shown === p.id ? <ProductSnippet m={m} p={p} /> : null}
               </li>
             ))}
           </ul>
