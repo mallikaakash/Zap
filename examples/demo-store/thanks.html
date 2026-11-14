@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thank you · Pixel &amp; Pine</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap row">
+        <a class="brand" href="/">Pixel <span>&amp;</span> Pine</a>
+        <nav><a href="/">Assets</a><a href="/orders.html">Orders</a></nav>
+      </div>
+    </header>
+    <main class="wrap narrow">
+      <h1>Thanks for your order</h1>
+      <p class="lead">Receipt <strong id="rid">…</strong></p>
+
+      <div id="status" class="status wait">
+        <span class="dot"></span>
+        <div>
+          <strong>Waiting for the signed webhook…</strong>
+          <p>The button said you paid, but the shop only delivers after Zap's server confirms it to our server with a signed message. This usually takes a few seconds.</p>
+        </div>
+      </div>
+
+      <div id="download" hidden class="download">
+        <strong id="product"></strong>
+        <p>Your download is ready. (In a real shop this is where the file, licence key or account upgrade appears.)</p>
+      </div>
+      <p class="hint" id="nowebhook" hidden>No webhook yet? Check that the webhook URL in your Zap dashboard (Settings) points at this server's public tunnel address + <code>/webhooks/zap</code>, and that <code>ZAP_WEBHOOK_SECRET</code> is set. See README.md.</p>
+    </main>
+    <script>
+      const receipt = new URLSearchParams(location.search).get("receipt") || "";
+      document.getElementById("rid").textContent = receipt ? `#${receipt}` : "(unknown)";
+      const started = Date.now();
+      async function check() {
+        try {
+          const r = await fetch(`/api/orders?receipt=${encodeURIComponent(receipt)}`);
+          const { order } = await r.json();
+          if (order) {
+            const s = document.getElementById("status");
+            s.className = "status ok";
+            s.innerHTML = `<span class="dot"></span><div><strong>Payment confirmed by signed webhook</strong><p>${order.amountUsd} received for receipt #${order.receiptId}. Signature checked on our server.</p></div>`;
+            document.getElementById("product").textContent = order.product || "Your order";
+            document.getElementById("download").hidden = false;
+            document.getElementById("nowebhook").hidden = true;
+            return;
+          }
+        } catch {}
+        if (Date.now() - started > 45000) document.getElementById("nowebhook").hidden = false;
+        setTimeout(check, 2000);
+      }
+      check();
+    </script>
+  </body>
+</html>

@@ -75,11 +75,11 @@ Optional settings in `.env`:
 
 1. **Create the shop.** Open `https://34-69-143-151.sslip.io/dashboard`, enter a shop name, your email and the **seller's payout account**. Use a second NEAR account, or the 64-character address from any NEAR wallet, so payouts visibly go somewhere other than the operator.
 2. **Save the private dashboard link.** It is shown on screen and emailed to you.
-3. **Add products** in the Products tab:
-   - "Pour-over set": one-time, **$1**, refund window **300** seconds.
-   - "Coffee club pass": prepaid pass, **$1** per period, **3** periods, every **180** seconds.
-4. **Shorten the timers for filming.** In Settings, set "Your objection window" to **60** seconds and "Your time to answer" to **300** seconds. The defaults (12 h and 72 h) suit real sellers but are too slow for a video.
-5. **Copy the snippet** from the Products tab ("Embed" next to a product) or the Button tab into any website. For example, open `examples/seller-site/index.html` and set the host and merchant at the top.
+3. **Add products** in the **Your button** tab:
+   - "Pour-over set": one-time, **$1**, refund window **5 minutes**.
+   - "Coffee club pass": prepaid pass, **$1** per period, **3** periods, every **3 minutes**.
+4. **Shorten the timers for filming.** In Settings, set "Your objection window" to **1 minute** and "Your time to answer" to **5 minutes**. The defaults (12 h and 72 h) suit real sellers but are too slow for a video.
+5. **Copy the snippet** from the **Your button** tab (or use "Copy prompt for your AI") into any website. To try it end to end, run the demo store in `examples/demo-store` (see its README: it receives and verifies the webhook).
 
 ## 7. Pay with MetaMask
 
