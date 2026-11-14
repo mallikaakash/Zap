@@ -15,6 +15,8 @@
     "dev": "tsx scripts/dev.ts",
     "test:e2e": "tsx scripts/e2e.ts",
     "deploy:mainnet": "tsx scripts/deploy-mainnet.ts",
+    "litestream:bootstrap": "bash scripts/litestream-bootstrap.sh",
+    "litestream:seed": "bash scripts/litestream-seed.sh",
     "start": "tsx scripts/start.ts"
   },
   "engines": {

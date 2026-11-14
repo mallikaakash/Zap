@@ -28,8 +28,12 @@ const run = (args: string[]) => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 console.log(`▸ mode=${process.env.UC_MODE ?? "local"} network=${process.env.NEAR_NETWORK_ID} contract=${process.env.UC_RECEIPTS_CONTRACT}`);
-console.log("▸ database schema (non-destructive)");
-run(["--filter", "@uc/db", "exec", "prisma", "db", "push", "--skip-generate"]);
+const dbPush = ["--filter", "@uc/db", "exec", "prisma", "db", "push", "--skip-generate"];
+const acceptDataLoss =
+  process.env.UC_PRISMA_ACCEPT_DATA_LOSS === "yes" || Boolean(process.env.LITESTREAM_REPLICA_URL);
+if (acceptDataLoss) dbPush.push("--accept-data-loss");
+console.log(`▸ database schema${acceptDataLoss ? " (accept-data-loss for restored/replicated SQLite)" : " (non-destructive)"}`);
+run(dbPush);
 run(["--filter", "@uc/db", "exec", "prisma", "generate"]);
 if (!process.argv.includes("--no-build") || !existsSync(path.join(ROOT, "apps/web/.next/BUILD_ID"))) {
   console.log("▸ building the web app");

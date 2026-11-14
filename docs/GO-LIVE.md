@@ -2,6 +2,8 @@
 
 **Production host (HTTPS):** `https://zap-2lcs3sivbq-uc.a.run.app` — set `PUBLIC_URL` and embed `pay.js` from this origin. The older VM/`sslip.io` setup is deprecated.
 
+**Cloud Run database:** sellers and products live in SQLite (`.uc/live.db`). Turn on persistence once with Litestream so deploys do not wipe the DB: `bash scripts/litestream-bootstrap.sh` (details in [gcp-cloud-run.md](./gcp-cloud-run.md)).
+
 This takes Zap from the local demo to real payments: real NEAR Intents swaps, real USDC in the receipt contract, real refunds. **You** run every step that touches money or keys; nothing here sends a transaction without you typing `--yes`.
 
 Budget: about **5.5 NEAR** (~3.8 NEAR of it is code storage, locked rather than spent; the deploy script prints the exact figure first) plus about **$5–10 of USDT on Polygon** and **~0.1 POL** for gas in MetaMask for test purchases. Refunds come back to MetaMask, and releases go to the seller account you choose.
