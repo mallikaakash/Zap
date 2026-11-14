@@ -2,7 +2,7 @@
   <img src="docs/assets/banner-hero.png" alt="Zap Payments" width="100%" />
 </p>
 
-<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The receipt holds the money.</h1>
+<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The NFT receipt holds the money.</h1>
 
 <p align="center">
   <a href="https://nearhackathon.com/"><img alt="NEAR HACKATHON 2026" src="https://img.shields.io/badge/NEAR%20HACKATHON-2026-00EC97?style=for-the-badge&logo=near&logoColor=black" /></a>
