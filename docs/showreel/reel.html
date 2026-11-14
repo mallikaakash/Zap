@@ -1,0 +1,214 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:SG;src:url(assets/space-grotesk.woff2);font-weight:300 700}
+@font-face{font-family:IN;src:url(assets/inter.woff2);font-weight:100 900}
+@font-face{font-family:JB;src:url(assets/jetbrains-mono.woff2);font-weight:100 800}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#000}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:#000;color:#f5f5f5;font-family:IN}
+.abs{position:absolute;will-change:transform,opacity}
+.scene{position:absolute;inset:0;opacity:0}
+#grid{position:absolute;inset:-200px;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:80px 80px;-webkit-mask-image:radial-gradient(ellipse 60% 55% at 50% 50%,#000 20%,transparent 75%)}
+.glow{position:absolute;border-radius:50%;filter:blur(120px)}
+.k{font-family:JB;font-size:22px;letter-spacing:.22em;color:#ff2d87;text-transform:uppercase;font-weight:500}
+.h{font-family:SG;font-weight:600;letter-spacing:-.035em;line-height:1.02;color:#f5f5f5}
+.pk{color:#ff2d87}
+.sub{font-size:30px;line-height:1.4;color:#b8b8b4}
+.card{border-radius:26px;overflow:hidden;border:1.5px solid #2c2c2c;box-shadow:0 40px 120px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.03)}
+.card img{display:block;width:100%}
+.chip{display:inline-flex;align-items:center;gap:12px;padding:14px 26px;border-radius:999px;border:1.5px solid #3a3a3a;background:#0d0d0d;font-family:SG;font-size:28px;font-weight:500;color:#f2f2ee;white-space:nowrap}
+.chip i{width:12px;height:12px;border-radius:50%;background:#ff2d87;display:inline-block}
+.tag{font-family:JB;font-size:22px;padding:10px 18px;border-radius:12px;background:#f2f2ee;color:#000;font-weight:600;white-space:nowrap}
+.tag.p{background:#ff2d87;color:#fff}
+.dot{width:26px;height:26px;border-radius:50%;background:#ff2d87;box-shadow:0 0 0 8px rgba(255,45,135,.25),0 0 40px 10px rgba(255,45,135,.7)}
+.ring{border:4px solid #ff2d87;border-radius:50%}
+#bar{position:absolute;left:0;bottom:0;height:6px;background:#ff2d87;width:0}
+#corner{left:60px;top:44px;display:flex;align-items:center;gap:14px;font-family:SG;font-weight:700;font-size:34px;letter-spacing:-.02em}
+#corner img{width:46px}
+#steps{right:60px;top:54px;display:flex;gap:10px}
+#steps b{width:44px;height:6px;border-radius:3px;background:#2c2c2c;display:block}
+</style></head><body><div id="stage">
+<div id="grid"></div>
+<div class="glow abs" id="g1" style="width:700px;height:700px;background:rgba(255,45,135,.20)"></div>
+<div class="glow abs" id="g2" style="width:600px;height:600px;background:rgba(47,123,255,.14)"></div>
+
+<!-- S1 intro -->
+<div class="scene" id="s1">
+  <img class="abs" id="s1mark" src="assets/mark.png" style="left:860px;top:150px;width:200px">
+  <div class="abs h" id="s1a" style="left:0;width:1920px;top:400px;text-align:center;font-size:150px">Any coin in.</div>
+  <div class="abs h" id="s1b" style="left:0;width:1920px;top:555px;text-align:center;font-size:150px"><span class="pk">USDC</span> out.</div>
+  <div class="abs sub" id="s1c" style="left:0;width:1920px;top:760px;text-align:center;font-size:36px">The crypto checkout with refunds that work.</div>
+  <img class="abs" id="s1m" src="assets/mascot.png" style="left:0;top:770px;width:340px">
+</div>
+
+<!-- S2 embed -->
+<div class="scene" id="s2">
+  <div class="abs k" style="left:110px;top:150px">01 — Embed</div>
+  <div class="abs h" id="s2h" style="left:110px;top:190px;font-size:84px">Two lines of HTML. <span class="pk">Done.</span></div>
+  <div class="abs card" id="s2code" style="left:110px;top:350px;width:880px"><img src="assets/c-snippet.png"></div>
+  <div class="abs" id="s2cur" style="left:130px;width:840px;height:3px;background:#ff2d87;box-shadow:0 0 18px #ff2d87"></div>
+  <div class="abs card" id="s2btn" style="left:1060px;top:330px;width:750px"><img src="assets/c-btncard.png"></div>
+  <div class="abs ring" id="s2ring" style="left:1435px;top:513px;width:0;height:0"></div>
+  <div class="abs chip" id="s2chip" style="left:1060px;top:925px"><i></i>Works on any site. No backend needed.</div>
+</div>
+
+<!-- S3 pay -->
+<div class="scene" id="s3">
+  <div class="abs k" style="left:110px;top:150px">02 — Pay</div>
+  <div class="abs h" id="s3h" style="left:110px;top:190px;font-size:92px;width:1000px">Pay with <span class="pk">any coin,</span><br>on any chain.</div>
+  <div class="abs" id="s3n" style="left:110px;top:440px;font-family:SG;font-weight:700;font-size:210px;letter-spacing:-.05em;color:#ff2d87;line-height:1"><span id="s3num">0</span>+</div>
+  <div class="abs sub" id="s3nl" style="left:118px;top:660px;font-size:34px">coins and networks, one checkout</div>
+  <div class="abs" id="s3mq" style="left:110px;top:760px;width:960px;height:90px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)"><img id="s3mqi" src="assets/c-coins.png" style="height:90px;position:absolute;left:0;top:0"></div>
+  <div class="abs" id="s3chips" style="left:110px;top:890px;display:flex;gap:16px"><span class="chip"><i></i>MetaMask</span><span class="chip"><i></i>Address + QR</span><span class="chip"><i></i>No bridging</span></div>
+  <div class="abs card" id="s3modal" style="left:1200px;top:120px;width:580px;border-radius:30px;border-color:#444;background:#fff"><img src="assets/checkout-a.png"><img id="s3b" src="assets/checkout-b.png" style="position:absolute;left:0;top:0"></div>
+  <div class="abs ring" id="s3rip" style="width:0;height:0"></div>
+  <svg class="abs" id="s3cursor" width="54" height="54" viewBox="0 0 24 24"><path d="M4 2l15 9-7 1.6L9 20z" fill="#fff" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/></svg>
+</div>
+
+<!-- S4 escrow -->
+<div class="scene" id="s4">
+  <div class="abs k" style="left:0;width:1920px;text-align:center;top:118px">03 — Escrow</div>
+  <div class="abs h" id="s4h" style="left:0;width:1920px;text-align:center;top:158px;font-size:86px">The <span class="pk">receipt NFT</span> holds the money.</div>
+  <div class="abs" id="s4iso" style="left:260px;top:270px;width:1400px;height:656px"><img src="assets/iso.png" style="width:1400px;display:block">
+    <div class="abs dot" id="s4dot"></div>
+    <div class="abs ring" id="s4ring" style="width:0;height:0"></div>
+    <div class="abs tag" id="s4t1" style="left:150px;top:300px">NEAR Intents swap</div>
+    <div class="abs tag p" id="s4t2" style="left:520px;top:130px">USDC held in escrow</div>
+    <div class="abs tag" id="s4t3" style="left:1060px;top:300px">Seller paid after refund window</div>
+  </div>
+  <div class="abs" id="s4flow" style="left:0;width:1920px;top:950px;display:flex;justify-content:center;align-items:center;gap:18px">
+    <span class="chip f">ETH · SOL · BTC · USDT</span><span class="ar">→</span><span class="chip f">NEAR Intents</span><span class="ar">→</span><span class="chip f">USDC on NEAR</span><span class="ar">→</span><span class="chip f">Receipt NFT · NEP-171</span>
+  </div>
+</div>
+
+<!-- S5 refund -->
+<div class="scene" id="s5">
+  <div class="abs k" style="left:110px;top:118px">04 — Refund</div>
+  <div class="abs h" id="s5h" style="left:110px;top:158px;font-size:86px">A refund button <span class="pk">that works.</span></div>
+  <div class="abs card" id="s5chat" style="left:110px;top:300px;width:700px;border:none"><img src="assets/c-chat.png"></div>
+  <div class="abs card" id="s5money" style="left:900px;top:300px;width:620px"><img src="assets/c-money.png">
+    <div class="abs dot" id="s5dot" style="width:22px;height:22px"></div></div>
+  <div class="abs h" id="s5l" style="left:900px;top:770px;font-size:60px;width:960px;line-height:1.1">Back to the <span class="pk">same coin.</span><br>Same chain.</div>
+  <img class="abs" id="s5m" src="assets/mascot.png" style="left:1540px;top:330px;width:330px">
+</div>
+
+<!-- S6 trust -->
+<div class="scene" id="s6">
+  <div class="abs k" style="left:0;width:1920px;text-align:center;top:92px">05 — Trust</div>
+  <div class="abs h" id="s6h" style="left:0;width:1920px;text-align:center;top:130px;font-size:84px">Verify on chain. <span class="pk">No wallet. No gas.</span></div>
+  <div class="abs card" id="s6a" style="left:190px;top:262px;width:630px"><img src="assets/c-verify.png"></div>
+  <div class="abs card" id="s6b" style="left:880px;top:262px;width:840px;border:none"><img src="assets/c-trust.png"></div>
+  <div class="abs card" id="s6c" style="left:180px;top:772px;width:1560px;border:none"><img src="assets/c-nogas.png"></div>
+</div>
+
+<!-- S7 dashboard -->
+<div class="scene" id="s7">
+  <div class="abs k" style="left:0;width:1920px;text-align:center;top:92px">06 — Dashboard</div>
+  <div class="abs h" id="s7h" style="left:0;width:1920px;text-align:center;top:130px;font-size:84px">Every order. Every dollar <span class="pk">in escrow.</span></div>
+  <img class="abs" id="s7d" src="assets/c-dash.png" style="left:210px;top:330px;width:1500px">
+</div>
+
+<!-- S8 outro -->
+<div class="scene" id="s8">
+  <div class="abs" id="s8lock" style="left:0;width:1920px;top:250px;display:flex;justify-content:center;align-items:center;gap:30px"><img src="assets/mark.png" style="width:170px"><span class="h" style="font-size:190px;font-weight:700">Zap</span></div>
+  <div class="abs h" id="s8t" style="left:0;width:1920px;text-align:center;top:500px;font-size:84px">Any coin in. <span class="pk">USDC</span> out.</div>
+  <div class="abs" id="s8c" style="left:0;width:1920px;top:660px;display:flex;justify-content:center;gap:18px"><span class="chip"><i></i>NEAR Intents</span><span class="chip"><i></i>Receipt NFTs</span><span class="chip"><i></i>Real refunds</span><span class="chip"><i></i>Live on mainnet</span></div>
+  <div class="abs" id="s8u" style="left:0;width:1920px;text-align:center;top:800px;font-family:JB;font-size:34px;color:#f2f2ee">github.com/mallikaakash/Zap</div>
+  <div class="abs k" id="s8k" style="left:0;width:1920px;text-align:center;top:880px;color:#a6a6a2">Built at NEAR Hackathon 2026</div>
+  <img class="abs" id="s8m" src="assets/mascot.png" style="left:1480px;top:700px;width:340px">
+</div>
+
+<div class="abs" id="corner"><img src="assets/mark.png">Zap</div>
+<div class="abs" id="steps"><b></b><b></b><b></b><b></b><b></b><b></b></div>
+<div id="bar"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const EZ={o:x=>1-Math.pow(1-x,3),o5:x=>1-Math.pow(1-x,5),io:x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2,back:x=>{const c=1.7,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)},lin:x=>x,i:x=>x*x*x};
+const p=(t,a,b,e='o')=>EZ[e](clamp((t-a)/(b-a)));
+const mix=(a,b,k)=>a+(b-a)*k;
+const st=(id,o)=>Object.assign((typeof id==='string'?$(id):id).style,o);
+// enter: fade + rise (+scale)
+function enter(id,t,at,{d=.55,y=50,x=0,s=1,e='o5'}={}){const k=p(t,at,at+d,e);st(id,{opacity:clamp((t-at)/(d*.5)),transform:`translate(${mix(x,0,k)}px,${mix(y,0,k)}px) scale(${mix(s,1,k)})`});return k}
+function pop(id,t,at,d=.5){const k=p(t,at,at+d,'back');st(id,{opacity:clamp((t-at)/(d*.4)),transform:`scale(${mix(.8,1,k)})`})}
+function scene(id,t,a,b,{fi=.25,fo=.28,mode='left'}={}){const on=t>=a-0.001&&t<b;const el=$(id);if(!on){el.style.opacity=0;el.style.visibility='hidden';return false}
+  el.style.visibility='visible';const ko=p(t,b-fo,b,'i');el.style.opacity=clamp((t-a)/fi)*(1-ko);
+  el.style.transform=mode==='zoom'?`scale(${1+ko*.12})`:`translateX(${-ko*140}px)`;return true}
+function path(pts,k){const n=pts.length-1;const f=clamp(k)*n;const i=Math.min(n-1,Math.floor(f));const u=f-i;return [mix(pts[i][0],pts[i+1][0],u),mix(pts[i][1],pts[i+1][1],u)]}
+const T={s1:[0,2.4],s2:[2.4,5.3],s3:[5.3,8.5],s4:[8.5,11.7],s5:[11.7,14.9],s6:[14.9,16.9],s7:[16.9,18.3],s8:[18.3,20.01]};
+window.setT=function(t){
+  // ambient
+  st('grid',{transform:`translate(${-(t*14)%80}px,${-(t*8)%80}px)`});
+  st('g1',{left:(900+Math.sin(t*.5)*500)+'px',top:(250+Math.cos(t*.4)*200)+'px'});
+  st('g2',{left:(300+Math.cos(t*.45)*400)+'px',top:(500+Math.sin(t*.6)*200)+'px'});
+  $('bar').style.width=(t/20*1920)+'px';
+  const mid=t>=2.4&&t<18.3; st('corner',{opacity:mid?clamp((t-2.4)/.3)*(1-clamp((t-18.0)/.3)):0}); st('steps',{opacity:mid?clamp((t-2.4)/.3)*(1-clamp((t-18.0)/.3)):0});
+  const order=['s2','s3','s4','s5','s6','s7'];[...$('steps').children].forEach((b,i)=>{const[a,z]=T[order[i]];b.style.background=t>=z?'#f2f2ee':t>=a?'#ff2d87':'#2c2c2c'});
+
+  // S1
+  if(scene('s1',t,...T.s1,{mode:'zoom',fi:.01})){
+    const k=p(t,.1,.75,'back');st('s1mark',{opacity:clamp((t-.1)/.2),transform:`scale(${mix(.2,1,k)}) rotate(${mix(-40,0,p(t,.1,.75))}deg)`});
+    enter('s1a',t,.55,{y:90});enter('s1b',t,.85,{y:90});enter('s1c',t,1.35,{y:30});
+    const mk=p(t,1.0,1.9,'o5');st('s1m',{opacity:clamp((t-1.0)/.15),transform:`translate(${mix(-400,1430,mk)}px,${Math.sin(t*14)*-8*(1-mk)}px) rotate(${mix(-8,0,mk)}deg)`});
+  }
+  // S2
+  if(scene('s2',t,...T.s2)){
+    const a=T.s2[0];enter('s2h',t,a+.05,{y:40});
+    const ck=p(t,a+.35,a+1.5,'lin');st('s2code',{opacity:clamp((t-a-.2)/.2),clipPath:`inset(0 0 ${(1-ck)*100}% 0 round 26px)`,transform:`translateY(${mix(30,0,p(t,a+.2,a+.7))}px)`});
+    st('s2cur',{top:(350+ck*582)+'px',opacity:ck>0&&ck<1?1:0});
+    pop('s2btn',t,a+1.35,.6);
+    const rk=p(t,a+1.95,a+2.6,'o');st('s2ring',{opacity:(t>a+1.95?1:0)*(1-rk),width:rk*420+'px',height:rk*420+'px',marginLeft:-rk*210+'px',marginTop:-rk*210+'px'});
+    enter('s2chip',t,a+1.9,{y:30});
+  }
+  // S3
+  if(scene('s3',t,...T.s3)){
+    const a=T.s3[0];enter('s3h',t,a+.05,{y:40});
+    enter('s3n',t,a+.4,{y:40});$('s3num').textContent=Math.round(mix(0,230,p(t,a+.45,a+1.6,'o5')));
+    enter('s3nl',t,a+.6,{y:30});enter('s3mq',t,a+.8,{y:30});$('s3mqi').style.transform=`translateX(${-40-(t-a)*150}px)`;
+    enter('s3chips',t,a+1.1,{y:30});
+    const mk=p(t,a+.25,a+1.0,'o5');st('s3modal',{opacity:clamp((t-a-.25)/.2),transform:`translateY(${mix(500,0,mk)}px) rotate(${mix(4,0,mk)}deg)`});
+    const tx=1200+580*.268,ty=120+ (580*1336/920)*.32; const ck=p(t,a+1.0,a+1.7,'io');
+    st('s3cursor',{opacity:clamp((t-a-.95)/.15),left:mix(1700,tx,ck)+'px',top:mix(980,ty,ck)+'px',transform:`scale(${1-.18*Math.sin(Math.PI*clamp((t-a-1.7)/.25))})`});
+    st('s3b',{opacity:clamp((t-a-1.78)/.12)});
+    const rk=p(t,a+1.75,a+2.3);st('s3rip',{left:tx+'px',top:ty+'px',opacity:(t>a+1.75?1:0)*(1-rk),width:rk*260+'px',height:rk*260+'px',marginLeft:-rk*130+'px',marginTop:-rk*130+'px'});
+  }
+  // S4
+  if(scene('s4',t,...T.s4)){
+    const a=T.s4[0];enter('s4h',t,a+.05,{y:40});
+    const zk=p(t,a+.1,a+3.2,'io');st('s4iso',{opacity:clamp((t-a-.15)/.3),transform:`scale(${mix(.94,1.04,zk)})`});
+    const sc=1400/960;const pts=[[-20,395],[55,375],[275,295],[445,205],[590,180],[735,160]].map(q=>[q[0]*sc,q[1]*sc]);
+    const dk=p(t,a+.5,a+2.5,'io');const[dx,dy]=path(pts,dk);st('s4dot',{left:dx-13+'px',top:dy-13+'px',opacity:clamp((t-a-.45)/.1)});
+    pop('s4t1',t,a+.8,.4);pop('s4t2',t,a+1.55,.4);pop('s4t3',t,a+2.3,.4);
+    const rk=p(t,a+1.55,a+2.2);st('s4ring',{left:445*sc+'px',top:205*sc+'px',opacity:(t>a+1.55?1:0)*(1-rk),width:rk*360+'px',height:rk*360+'px',marginLeft:-rk*180+'px',marginTop:-rk*180+'px'});
+    [...$('s4flow').children].forEach((el,i)=>{const at=a+.5+i*.2;const k=p(t,at,at+.35,'back');el.style.opacity=clamp((t-at)/.15);el.style.transform=`translateY(${mix(26,0,k)}px)`;if(el.classList.contains('ar')){el.style.color='#ff2d87';el.style.fontSize='38px';el.style.fontFamily='SG'}else{const lit=t>at+.5;el.style.borderColor=lit?'#ff2d87':'#3a3a3a';el.style.boxShadow=lit?'0 0 30px rgba(255,45,135,.35)':'none'}});
+  }
+  // S5
+  if(scene('s5',t,...T.s5)){
+    const a=T.s5[0];enter('s5h',t,a+.05,{y:40});
+    const ck=p(t,a+.3,a+2.0,'lin');const steps=[.14,.36,.5,.83,1];let rv=0;for(const s of steps){if(ck*1.05>=s)rv=s}
+    const sm=steps.reduce((acc,s,i)=>{const at=a+.3+i*.36;return Math.max(acc,s*p(t,at,at+.25))},0);
+    st('s5chat',{opacity:clamp((t-a-.2)/.2),clipPath:`inset(0 0 ${(1-Math.max(sm,.14*p(t,a+.2,a+.4)))*100}% 0 round 26px)`});
+    enter('s5money',t,a+1.0,{x:120,y:0});
+    const dk=p(t,a+1.5,a+2.7,'io');const ys=[.205,.33,.46,.59].map(f=>f*620*(856/1256));const yy=mix(ys[0],ys[3],dk);
+    st('s5dot',{left:(.057*620-11)+'px',top:(yy-11)+'px',opacity:clamp((t-a-1.5)/.15)});
+    enter('s5l',t,a+1.7,{y:40});
+    const mk=p(t,a+2.0,a+2.6,'back');st('s5m',{opacity:clamp((t-a-2.0)/.15),transform:`translate(${mix(300,0,mk)}px,${Math.sin(t*5)*6}px) rotate(${mix(12,0,mk)}deg)`});
+  }
+  // S6
+  if(scene('s6',t,...T.s6)){
+    const a=T.s6[0];enter('s6h',t,a+.05,{y:40});
+    enter('s6a',t,a+.2,{y:120,s:.95});enter('s6b',t,a+.4,{y:120,s:.95});enter('s6c',t,a+.6,{y:120,s:.95});
+  }
+  // S7
+  if(scene('s7',t,...T.s7,{mode:'zoom'})){
+    const a=T.s7[0];enter('s7h',t,a+.05,{y:40});
+    const k=p(t,a+.1,a+.9,'o5');st('s7d',{opacity:clamp((t-a-.1)/.2),transform:`perspective(1600px) translateY(${mix(420,0,k)}px) rotateX(${mix(28,0,k)}deg) scale(${mix(.9,1,k)})`});
+  }
+  // S8
+  if(scene('s8',t,...T.s8,{fo:.0001})){
+    const a=T.s8[0];pop('s8lock',t,a+.05,.55);enter('s8t',t,a+.35,{y:50});enter('s8c',t,a+.6,{y:30});enter('s8u',t,a+.8,{y:24});enter('s8k',t,a+.95,{y:20});
+    const mk=p(t,a+.5,a+1.2,'back');st('s8m',{opacity:clamp((t-a-.5)/.15),transform:`translate(${mix(420,0,mk)}px,${Math.sin(t*5)*6}px)`});
+  }
+};
+document.fonts.ready.then(()=>{window.READY=true;setT(0)});
+</script></body></html>
