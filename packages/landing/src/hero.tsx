@@ -5,6 +5,7 @@ import { useApp, v } from "./context";
 import { DEMO } from "./demo";
 import { advance, COIN_KEYS, COINS, dwell, flowView, INITIAL_FLOW, PLACES, sceneWaypoint, USDC_COLOR, type Actor, type CoinKey, type FlowState, type Pt } from "./flow";
 import { Arrow, Bolt, Check, Mark } from "./icons";
+import { LandingModeKicker } from "./landing-mode-kicker";
 import { SiteHeader } from "./site-header";
 
 const ACCENT = "#FF2D87";
@@ -24,27 +25,6 @@ const toStage = (p: Pt): Pt => [SX + p[0], SY + p[1]];
 
 export function Header() {
   return <SiteHeader section="home" />;
-}
-
-/** Optional status chip — only when the host reports local vs live mode. */
-function Honesty() {
-  const { mode } = useApp();
-  if (!mode) return null;
-  const body =
-    mode === "live" ? (
-      <>
-        <span className="z-dot live" /> <b>Live on NEAR mainnet</b>
-      </>
-    ) : (
-      <>
-        <span className="z-dot sim" /> <b>Sandbox demo</b> · no real money moves
-      </>
-    );
-  return (
-    <p className="z-honest" role="note">
-      {body}
-    </p>
-  );
 }
 
 function useWidth(ref: RefObject<HTMLElement | null>) {
@@ -144,6 +124,7 @@ function FlowCaption({ f, go, reduced }: { f: View; go: Go; reduced: boolean }) 
 }
 
 export function HeroFlow() {
+  const { href } = useApp();
   const { s, setS, go, reduced, still } = useFlow();
   // The "try it" hint: shown until the visitor first touches the phone, never in stills.
   const [touched, setTouched] = useState(false);
@@ -157,9 +138,6 @@ export function HeroFlow() {
 
   return (
     <section id="top" className="z-hero" aria-label="Zap: any coin in, USDC out">
-      <div className="z-wrap" style={{ paddingTop: 20 }}>
-        <Honesty />
-      </div>
       <div ref={boxRef} className="z-posterbox">
         {width === 0 ? (
           <div style={{ height: 600 }} />
@@ -188,10 +166,11 @@ export function HeroFlow() {
               How refunds work
             </a>
           </p>
-          <div>
-            <a href="#start" className="z-btn ink">
+          <div className="z-col" style={{ gap: 12, alignItems: "flex-start" }}>
+            <a href={href("/dashboard")} className="z-btn ink">
               Get started <Arrow />
             </a>
+            <LandingModeKicker />
           </div>
           {reduced ? (
             <p className="z-muted" style={{ fontSize: 13, margin: 0 }}>

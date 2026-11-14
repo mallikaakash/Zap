@@ -7,9 +7,9 @@ import { LogoWordmark, LogoMark } from "./brand";
 import { Bolt } from "./icons";
 import { PASS_PERIODS, passTotals, usdc2 } from "./protections";
 import { Head } from "./sections";
+import { ZAP_GITHUB } from "./site-links";
 
 const ACCENT = "#FF2D87";
-const GITHUB = "https://github.com/mallikaakash/Zap";
 
 export function Gasless() {
   const items = [
@@ -287,10 +287,7 @@ export function Footer() {
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
           <LogoWordmark height={52} />
           <nav aria-label="Footer" className="z-row" style={{ gap: 24, fontSize: 14, fontWeight: 500 }}>
-            <a href="#top" style={{ textDecoration: "none", color: "var(--z-body)" }}>
-              How it works
-            </a>
-            <a href="#start" style={{ textDecoration: "none", color: "var(--z-body)" }}>
+            <a href={href("/dashboard")} style={{ textDecoration: "none", color: "var(--z-body)" }}>
               Get started
             </a>
             <a href="#refunds" style={{ textDecoration: "none", color: "var(--z-body)" }}>
@@ -304,9 +301,6 @@ export function Footer() {
             </a>
             <a href={href("/shop")} style={{ textDecoration: "none", color: "var(--z-body)" }}>
               Demo checkout
-            </a>
-            <a href={href("/dashboard")} style={{ textDecoration: "none", color: "var(--z-body)" }}>
-              Dashboard
             </a>
           </nav>
         </div>

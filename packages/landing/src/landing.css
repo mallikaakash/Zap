@@ -401,15 +401,18 @@
   justify-content: center;
 }
 
-/* ---------- header ---------- */
+/* ---------- header (pivy-style: compact logo, pill links, edge gutters) ---------- */
 .z-header {
-  padding-top: 24px;
-  padding-bottom: 24px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 18px clamp(20px, 5vw, 72px);
+  min-height: 72px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   position: relative;
   z-index: 5;
 }
@@ -418,6 +421,8 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
+  flex: none;
+  min-width: 0;
 }
 .z-logo-wordmark {
   object-fit: contain;
@@ -428,11 +433,10 @@
   border-radius: 8px;
   flex: none;
 }
-@media (min-width: 900px) {
-  .z-logo-wordmark-header {
-    height: 72px !important;
-    max-width: 500px !important;
-  }
+.z-logo-wordmark-header {
+  height: 58px !important;
+  width: auto !important;
+  max-width: min(340px, 58vw) !important;
 }
 .z-mark {
   width: 34px;
@@ -451,29 +455,64 @@
 }
 .z-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px 28px;
-  font-size: 15px;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 14px;
   font-weight: 500;
+  flex: none;
 }
-.z-nav a:not(.z-btn) {
+.z-nav-ico {
+  flex: none;
+  opacity: 0.85;
+}
+.z-navlink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--z-line);
+  background: rgba(255, 255, 255, 0.06);
   text-decoration: none;
   color: var(--z-body);
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
-.z-nav a:not(.z-btn):hover {
+.z-navlink:hover {
   color: var(--z-fg);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--z-edge);
 }
 .z-navlink.on {
   color: var(--z-fg);
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--z-edge);
 }
-@media (max-width: 860px) {
+.z-header .z-btn.sm,
+.z-header .z-nav-cta {
+  min-height: 40px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .z-header {
+    padding-top: 14px;
+    padding-bottom: 14px;
+    min-height: 56px;
+  }
   .z-header .z-nav .z-navlink {
     display: none;
   }
-  .z-header .z-nav {
-    gap: 8px 12px;
+  .z-logo-wordmark-header {
+    height: 46px !important;
+    max-width: 240px !important;
   }
 }
 .z-sim {
@@ -488,20 +527,31 @@
   padding: 5px 9px;
   border-radius: 7px;
 }
-.z-honest {
-  display: inline-flex;
+.z-landing-kicker {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 6px 8px;
+  margin: 0;
+  max-width: 28rem;
   font-family: var(--z-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.03em;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--z-muted);
 }
-.z-honest b {
-  font-weight: 700;
-  color: var(--z-fg);
+.z-landing-kicker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #e0b000;
+  flex: none;
+  box-shadow: 0 0 0 3px rgba(224, 176, 0, 0.22);
+}
+.z-landing-kicker-sep {
+  opacity: 0.55;
 }
 .z-dot {
   width: 7px;

@@ -36,16 +36,24 @@ export const useApp = () => useContext(Ctx);
 export function AppProvider({ appUrl, demoMerchant, children }: { appUrl: string; demoMerchant?: string; children: React.ReactNode }) {
   const base = appUrl.replace(/\/+$/, "");
   const [host, setHost] = useState(base);
-  const [mode, setMode] = useState<string>();
+  /** Default not-live until /api/dev/state proves otherwise (chip visible on first paint). */
+  const [mode, setMode] = useState<string>("local");
   const [merchant, setMerchant] = useState<string | null | undefined>(demoMerchant);
   const href = useCallback((p: string) => `${base}${p}`, [base]);
   const [payJsGzip, setPayJsGzip] = useState<number>();
   useEffect(() => {
     if (!base) setHost(window.location.origin);
     const get = <T,>(p: string) => fetch(`${base}${p}`, { headers: { accept: "application/json" } }).then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(new Error(String(r.status)))));
+    const setModeFrom = (r: { mode?: string }) => {
+      if (r.mode) setMode(r.mode);
+    };
     get<{ mode: string }>("/api/dev/state")
-      .then((r) => setMode(r.mode))
-      .catch(() => {});
+      .then(setModeFrom)
+      .catch(() =>
+        get<{ mode: string }>("/api/health")
+          .then(setModeFrom)
+          .catch(() => setMode("local")),
+      );
     measureGzip(`${base}/pay.js`)
       .then(setPayJsGzip)
       .catch(() => {});
