@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useApp, v } from "./context";
-import { advance, COIN_KEYS, COINS, dwell, flowView, INITIAL_FLOW, LEGEND, PLACES, scrubTo, sceneWaypoint, USDC_COLOR, type Actor, type CoinKey, type FlowState, type Pt } from "./flow";
+import { DEMO } from "./demo";
+import { advance, COIN_KEYS, COINS, dwell, flowView, INITIAL_FLOW, PLACES, sceneWaypoint, USDC_COLOR, type Actor, type CoinKey, type FlowState, type Pt } from "./flow";
 import { Arrow, Bolt, Check, Mark } from "./icons";
+import { SiteHeader } from "./site-header";
 
 const ACCENT = "#FF2D87";
 
@@ -21,54 +23,21 @@ const POSTER_MIN = 980;
 const toStage = (p: Pt): Pt => [SX + p[0], SY + p[1]];
 
 export function Header() {
-  const { href } = useApp();
-  return (
-    <header className="z-wrap z-header">
-      <a href="#top" className="z-brand">
-        <Mark />
-        <span className="z-display" style={{ fontSize: 22, letterSpacing: "-0.02em" }}>
-          Zap
-        </span>
-        <span className="z-mono z-muted" style={{ fontSize: 11, fontWeight: 600, border: "1px solid var(--z-line)", borderRadius: 6, padding: "3px 6px" }}>
-          PAYMENTS
-        </span>
-      </a>
-      <nav aria-label="Primary" className="z-nav">
-        <a className="z-navlink" href="#how">
-          How it works
-        </a>
-        <a className="z-navlink" href="#refunds">
-          Refunds
-        </a>
-        <a className="z-navlink" href="#verify">
-          Verify a receipt
-        </a>
-        <a className="z-navlink" href="#docs">
-          Docs
-        </a>
-        <a className="z-btn ink sm" href={href("/dashboard")}>
-          Get the button
-        </a>
-      </nav>
-    </header>
-  );
+  return <SiteHeader section="home" />;
 }
 
-/** One sentence of honesty, right at the top. */
+/** Optional status chip — only when the host reports local vs live mode. */
 function Honesty() {
   const { mode } = useApp();
+  if (!mode) return null;
   const body =
     mode === "live" ? (
       <>
-        <span className="z-dot live" /> <b>Live on NEAR mainnet</b> · real money, capped at $50 a payment
-      </>
-    ) : mode ? (
-      <>
-        <span className="z-dot sim" /> <b>Local demo</b> · simulated, no real money moves
+        <span className="z-dot live" /> <b>Live on NEAR mainnet</b>
       </>
     ) : (
       <>
-        <span className="z-dot" /> <b>Payments on NEAR</b> · unaudited contracts
+        <span className="z-dot sim" /> <b>Sandbox demo</b> · no real money moves
       </>
     );
   return (
@@ -153,6 +122,27 @@ function useFlow() {
 type View = ReturnType<typeof flowView>;
 type Go = (patch: Partial<FlowState>) => void;
 
+function FlowCaption({ f, go, reduced }: { f: View; go: Go; reduced: boolean }) {
+  return (
+    <div className="z-caption" style={{ flex: "1 1 min(100%, 520px)", maxWidth: 820 }} aria-label="How it works">
+      <span className="z-mono" style={{ fontSize: 13, fontWeight: 700, background: "var(--z-btn)", color: "var(--z-btn-fg)", padding: "6px 10px", borderRadius: 8 }}>
+        {f.stepNo}
+      </span>
+      <p aria-live="polite" className="z-display" style={{ flex: "1 1 200px", fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.3, margin: 0 }}>
+        {f.cur.cap}
+      </p>
+      <div className="z-row" style={{ gap: 8 }}>
+        <button type="button" className="z-btn sm" aria-pressed={!f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 0, paused: reduced })}>
+          Payment
+        </button>
+        <button type="button" className="z-btn sm" aria-pressed={f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 1, paused: reduced })}>
+          Refund
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function HeroFlow() {
   const { s, setS, go, reduced, still } = useFlow();
   // The "try it" hint: shown until the visitor first touches the phone, never in stills.
@@ -170,69 +160,46 @@ export function HeroFlow() {
       <div className="z-wrap" style={{ paddingTop: 20 }}>
         <Honesty />
       </div>
-      <div id="how" ref={boxRef} className="z-posterbox" style={{ scrollMarginTop: 24 }}>
-        {width === 0 ? <div style={{ height: 600 }} /> : poster ? <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} hint={hint} /> : <Stacked s={s} f={f} go={go} width={width} hint={hint} />}
+      <div ref={boxRef} className="z-posterbox">
+        {width === 0 ? (
+          <div style={{ height: 600 }} />
+        ) : poster ? (
+          <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} hint={hint} />
+        ) : (
+          <Stacked s={s} f={f} go={go} width={width} hint={hint} />
+        )}
       </div>
 
-      <div className="z-wrap" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 28, marginTop: poster ? 0 : 20 }}>
-        <div className="z-col" style={{ flex: "1 1 340px", maxWidth: 460, gap: 20 }}>
-          <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--z-body)" }}>
-            Crypto checkout for SaaS and online businesses. Customers pay with what they hold, on any chain. You receive USDC, and every payment becomes a receipt NFT that keeps the money in escrow until the refund window closes.
+      <div
+        className="z-wrap"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 28,
+          marginTop: poster ? 28 : 20,
+        }}
+      >
+        <div className="z-col" style={{ flex: "1 1 280px", maxWidth: 460, gap: 20 }}>
+          <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--z-body)", margin: 0 }}>
+            Checkout for SaaS and online businesses. Customers pay in the assets they already hold; you receive USDC in escrow until the refund window closes.{" "}
+            <a href="#refunds" style={{ color: "var(--z-fg)", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>
+              How refunds work
+            </a>
           </p>
-          <div className="z-row" style={{ gap: 12 }}>
+          <div>
             <a href="#start" className="z-btn ink">
-              Add it to your site <Arrow />
-            </a>
-            <a href="#verify" className="z-btn">
-              Verify a receipt
+              Get started <Arrow />
             </a>
           </div>
+          {reduced ? (
+            <p className="z-muted" style={{ fontSize: 13, margin: 0 }}>
+              Walkthrough paused — your system prefers reduced motion.
+            </p>
+          ) : null}
         </div>
-        <div className="z-caption" style={{ flex: "1 1 520px", maxWidth: 820 }}>
-          <span className="z-mono" style={{ fontSize: 13, fontWeight: 700, background: "var(--z-btn)", color: "var(--z-btn-fg)", padding: "6px 10px", borderRadius: 8 }}>
-            {f.stepNo}
-          </span>
-          <p aria-live="polite" className="z-display" style={{ flex: "1 1 280px", fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
-            {f.cur.cap}
-          </p>
-          <div className="z-row" style={{ gap: 8 }}>
-            <button type="button" className="z-btn sm" aria-pressed={!f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 0, paused: false })}>
-              Payment
-            </button>
-            <button type="button" className="z-btn sm" aria-pressed={f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 1, paused: false })}>
-              Refund
-            </button>
-            <button type="button" className="z-btn sm icon" aria-label={s.paused ? "Play" : "Pause"} onClick={() => setS((x) => ({ ...x, paused: !x.paused }))}>
-              {s.paused ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M7 4v16l13-8z" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="z-wrap" style={{ marginTop: 22 }}>
-        <p className="z-muted" style={{ fontSize: 13, marginBottom: 10 }}>
-          {reduced ? "Paused because your system asks for reduced motion. " : ""}Pick a step to jump the story there.
-        </p>
-        <ol className="z-legend" aria-label="Steps of a payment">
-          {LEGEND.map(([n, id, title, body]) => (
-            <li key={n}>
-              <button type="button" aria-current={f.active(id) ? "step" : undefined} onClick={() => setS((x) => scrubTo(x, id))}>
-                <span className="n">{n}</span>
-                <span style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3 }}>{title}</span>
-                <span style={{ fontSize: 13, lineHeight: 1.5, color: "var(--z-body2)" }}>{body}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        {width > 0 ? <FlowCaption f={f} go={go} reduced={reduced} /> : null}
       </div>
     </section>
   );
@@ -406,10 +373,10 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
   if (f.screen === "shop")
     return (
       <div className="z-scr">
-        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>tallyfox.example/pricing</div>
+        <div style={{ height: 34, borderRadius: 10, background: "#F3F3F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#5C5C5C" }}>{DEMO.site}</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span className="z-display" style={{ fontSize: 19 }}>
-            Tallyfox
+            {DEMO.name}
           </span>
           <span style={muted}>Upgrade</span>
         </div>
@@ -437,7 +404,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
         <PayCta onClick={() => go({ step: 1, mode: "pay" })}>
           <Bolt /> Pay with Zap
         </PayCta>
-        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · Tallyfox gets USDC</span>
+        <span style={{ textAlign: "center", fontSize: 12, color: "#5C5C5C", marginTop: -6 }}>Any coin, any chain · you receive USDC</span>
       </div>
     );
 
@@ -452,7 +419,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             $24.00
           </span>
         </div>
-        <span style={{ ...muted, marginTop: -6 }}>Tallyfox · Pro plan, 1 year</span>
+        <span style={{ ...muted, marginTop: -6 }}>{DEMO.name} · Pro plan, 1 year</span>
         <div className="z-col" style={{ gap: 8 }}>
           <span id="z-paywith" style={{ fontSize: 13, fontWeight: 600 }}>
             Pay with
@@ -542,9 +509,11 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
       <span className="z-display" style={{ fontSize: 23, letterSpacing: "-0.02em" }}>
         {f.isRefund ? `Refunded in ${coin.label}` : "Order confirmed"}
       </span>
-      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>{f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `Tallyfox is paid in USDC once the refund window ends. You paid in ${coin.label}.`}</span>
+      <span style={{ fontSize: 14, lineHeight: 1.55, color: "#5C5C5C" }}>
+        {f.isRefund ? `Back on ${coin.chain}, to the refund address you gave at checkout.` : `${DEMO.name} is paid in USDC once the refund window ends. You paid in ${coin.label}.`}
+      </span>
       <button type="button" onClick={() => go({ step: 0, mode: "pay" })} style={{ marginTop: 10, minHeight: 46, padding: "0 22px", borderRadius: 999, border: 0, background: "#111111", color: "#FFFFFF", fontWeight: 600, fontSize: 14 }}>
-        Back to Tallyfox
+        Back to {DEMO.name}
       </button>
     </div>
   );
@@ -784,49 +753,5 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
         </div>
       </div>
     </>
-  );
-}
-
-/** Measured, not invented: the real token list and the real size of pay.js. */
-export function Stats() {
-  const { href, mode, payJsGzip } = useApp();
-  const [tokens, setTokens] = useState<{ n: number; chains: number } | null | undefined>(undefined);
-  useEffect(() => {
-    let live = true;
-    fetch(href("/api/tokens"))
-      .then((r) => (r.ok ? (r.json() as Promise<{ tokens: Array<{ chain?: string }> }>) : Promise.reject(new Error(String(r.status)))))
-      .then((r) => live && setTokens({ n: r.tokens.length, chains: new Set(r.tokens.map((t) => t.chain)).size }))
-      .catch(() => live && setTokens(null));
-    return () => {
-      live = false;
-    };
-  }, [href]);
-  const kb = payJsGzip ? `${(payJsGzip / 1000).toFixed(1)} kB` : null;
-  const items: Array<[React.ReactNode, string]> = [
-    [
-      tokens === undefined ? <span className="z-skel" style={{ display: "inline-block", width: 150, height: 30 }} /> : tokens ? `${tokens.n} assets` : "Any asset",
-      tokens
-        ? mode === "live"
-          ? `on ${tokens.chains} chains, live from NEAR Intents 1Click right now`
-          : `on ${tokens.chains} chains in this sandbox's list (live mode reads NEAR Intents)`
-        : "that NEAR Intents 1Click lists, plus MetaMask on EVM chains",
-    ],
-    [kb ?? "Tiny", kb ? "pay.js, gzipped, measured just now from the file this server serves. No dependencies" : "web component, no dependencies"],
-    ["Original chain", "refunds return in the coin the customer paid with"],
-    ["Public /verify", "anyone can check a receipt and that escrow covers it"],
-  ];
-  return (
-    <section className="z-wrap" style={{ paddingTop: 64, paddingBottom: 64, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 32 }}>
-      {items.map(([k, d], i) => (
-        <div key={i} className="z-col" style={{ gap: 6 }}>
-          <span className="z-display" style={{ fontSize: 30, letterSpacing: "-0.03em" }}>
-            {k}
-          </span>
-          <span className="z-muted" style={{ fontSize: 15 }}>
-            {d}
-          </span>
-        </div>
-      ))}
-    </section>
   );
 }

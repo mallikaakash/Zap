@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CONTRACT_FILE, EXCERPTS } from "./contract";
 import { useApp } from "./context";
+import { DEMO, DEMO_ORDER } from "./demo";
 import { Bolt, Check, Cross } from "./icons";
+import { RealPayButton } from "./pay-button";
 import { evaluate, INITIAL_PROTECTIONS, nudge, REQUEST, type ProtectionIdx, type Tone } from "./protections";
 
 const ACCENT = "#FF2D87";
-const GITHUB_BLOB = "https://github.com/mallikaakash/Zap/blob/main";
 
 export function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; children: React.ReactNode; lead?: React.ReactNode; xl?: boolean; center?: boolean }) {
   return (
@@ -28,8 +28,8 @@ export function Problem() {
   const big = { fontFamily: "var(--z-display)", fontWeight: 700, fontSize: "clamp(64px, 8vw, 120px)", lineHeight: 0.9, letterSpacing: "-0.06em" } as const;
   return (
     <section className="z-wrap z-sec">
-      <Head eyebrow="THE PROBLEM">
-        Crypto checkout makes the customer do the <span className="z-acc">work.</span>
+      <Head eyebrow="WHY ZAP" lead="Customers shouldn’t bridge, swap, or learn your stack just to pay you.">
+        Checkout they can finish. <span className="z-acc">Refunds</span> that work.
       </Head>
       <div className="z-grid" style={{ ["--min" as string]: "320px" }}>
         <div className="z-card soft" style={{ borderRadius: 28, gap: 26 }}>
@@ -87,7 +87,7 @@ const RADII = { square: ["Square", "6px"], rounded: ["Rounded", "14px"], pill: [
 const LABELS = ["Pay with Zap", "Pay with crypto", "Checkout"];
 
 export function DropIn() {
-  const { host, merchant, payJsGzip } = useApp();
+  const { host, merchant, payJsGzip, href, mode } = useApp();
   const [color, setColor] = useState<keyof typeof COLORS>("ink");
   const [radius, setRadius] = useState<keyof typeof RADII>("pill");
   const [label, setLabel] = useState(0);
@@ -100,9 +100,12 @@ export function DropIn() {
   const kb = payJsGzip ? `${(payJsGzip / 1000).toFixed(1)} kB gzipped` : "Small, gzipped";
 
   return (
-    <section id="start" className="z-wrap z-sec" style={{ paddingTop: 32 }}>
-      <Head eyebrow="DROP-IN" lead="A script tag and one element, on your pricing page or inside your app. The button opens a hosted checkout, so there's nothing to build and no keys on your site.">
-        Paste it. You&apos;re taking <span className="z-acc">payments.</span>
+    <section id="start" className="z-wrap z-sec" style={{ paddingTop: 32, paddingBottom: 64 }}>
+      <Head
+        eyebrow="GET STARTED"
+        lead="Register your shop in the dashboard, paste the snippet, and you're live. Hosted checkout—no keys on your site."
+      >
+        Embed Zap on your <span className="z-acc">site.</span>
       </Head>
       <div className="z-grid">
         <div className="z-code" style={{ borderRadius: 24 }}>
@@ -134,7 +137,7 @@ export function DropIn() {
             })}
             <span className="c-tg">&gt;&lt;/pay-button&gt;</span>
             {"\n\n"}
-            <span className="c-cm">{"// 3. react to the result (verify the signed webhook to fulfil)"}</span>
+            <span className="c-cm">{"// 3. listen for payment events, then fulfil the order"}</span>
             {"\n"}
             button.<span className="c-at">addEventListener</span>(<span className="c-st">&apos;uc:paid&apos;</span>, showThanks)
           </pre>
@@ -142,14 +145,14 @@ export function DropIn() {
         <div className="z-card" style={{ gap: 22 }}>
           <div style={{ flex: 1, minHeight: 210, borderRadius: 18, background: "var(--z-soft)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: 24 }}>
             <span className="z-muted" style={{ fontSize: 14 }}>
-              Pro plan · $24.00
+              {DEMO_ORDER.productShort} · {DEMO_ORDER.amountDisplay}
             </span>
             <span aria-label={`Button preview: ${LABELS[label]}`} style={{ minHeight: 54, padding: "0 26px", borderRadius: RADII[radius][1], background: col.bg, color: col.fg, border: "1.5px solid #111111", fontWeight: 700, fontSize: 16, display: "inline-flex", alignItems: "center", gap: 9, transition: "all .25s ease" }}>
               <Bolt color={col.bolt} />
               {LABELS[label]}
             </span>
             <span className="z-mono z-muted" style={{ fontSize: 11, textAlign: "center" }}>
-              PREVIEW · SHADOW DOM, SO YOUR CSS STAYS YOURS
+              Button preview · styles won&apos;t clash with your site
             </span>
           </div>
           <div className="z-col" style={{ gap: 14 }}>
@@ -180,13 +183,40 @@ export function DropIn() {
           </div>
         </div>
       </div>
-      <div className="z-row" style={{ gap: 10 }}>
-        {[kb, "No dependencies", "Shadow DOM", "Themable", "uc:paid + uc:closed events", "Links and QR codes too"].map((s) => (
+      <div className="z-row" style={{ gap: 10, flexWrap: "wrap" }}>
+        {[kb, "No dependencies", "Hosted checkout", "Themable"].map((s) => (
           <span key={s} className="z-chip">
             {s}
           </span>
         ))}
       </div>
+      <div className="z-row" style={{ gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+        <a className="z-btn ink" href={href("/dashboard")}>
+          <Bolt /> Open dashboard
+        </a>
+        <a className="z-btn" href={href("/docs")}>
+          Documentation
+        </a>
+        <a className="z-btn" href={href("/docs/quickstart")}>
+          Quickstart
+        </a>
+      </div>
+      {merchant ? (
+        <div className="z-col" style={{ alignItems: "center", gap: 12, marginTop: 28, paddingTop: 28, borderTop: "1.5px solid var(--z-line)" }}>
+          <h3 className="z-display" style={{ fontSize: 22, letterSpacing: "-0.02em", margin: 0, textAlign: "center" }}>
+            Try a live button
+          </h3>
+          <div className="z-col" style={{ alignItems: "center", gap: 10, padding: "20px 24px", borderRadius: 20, border: "1.5px solid var(--z-line)", maxWidth: 520, width: "100%", background: "var(--z-bg)" }}>
+            <RealPayButton merchant={merchant} amount="1" product="Test purchase" label="Try it: pay $1" color="#111111" radius="999px" />
+            <span style={{ fontSize: 13, lineHeight: 1.5, color: "var(--z-muted)", textAlign: "center" }}>
+              {mode === "live" ? "Live checkout on NEAR mainnet." : "Sandbox checkout — no real funds."}
+            </span>
+          </div>
+          <a className="z-btn sm" href={href("/shop")}>
+            Open demo checkout
+          </a>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -232,18 +262,29 @@ function Marquee({ items, reverse }: { items: Array<[string, string, string]>; r
 }
 
 export function AnyCoin() {
-  const a = ASSETS.slice(0, 8);
-  const b = ASSETS.slice(8);
+  const { href, payJsGzip } = useApp();
+  const [tokens, setTokens] = useState<{ n: number; chains: number } | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    fetch(href("/api/tokens"))
+      .then((r) => (r.ok ? (r.json() as Promise<{ tokens: Array<{ chain?: string }> }>) : Promise.reject(new Error(String(r.status)))))
+      .then((r) => live && setTokens({ n: r.tokens.length, chains: new Set(r.tokens.map((t) => t.chain)).size }))
+      .catch(() => live && setTokens(null));
+    return () => {
+      live = false;
+    };
+  }, [href]);
+  const kb = payJsGzip ? `${(payJsGzip / 1000).toFixed(1)} kB pay.js` : null;
+  const marquee = ASSETS.slice(0, 10);
   return (
     <section className="z-rule" style={{ paddingTop: 96, paddingBottom: 96, display: "flex", flexDirection: "column", gap: 44, overflow: "hidden" }}>
       <div className="z-wrap" style={{ width: "100%" }}>
-        <Head eyebrow="ANY COIN" lead="NEAR Intents 1Click quotes an exact USDC output, so you always receive the amount you priced, delivered straight into the receipt contract.">
-          Hundreds of assets in. <span className="z-acc">One</span> currency out.
+        <Head eyebrow="ANY COIN" lead="Quotes lock the USDC you priced. Settlement goes straight into escrow on NEAR.">
+          Pay in what they hold. <span className="z-acc">Settle</span> in USDC.
         </Head>
       </div>
-      <div className="z-col" style={{ gap: 10 }} role="img" aria-label="Example assets: Bitcoin, Ethereum, Solana, USDC, USDT, Arbitrum, Dogecoin, XRP, Zcash, BNB, NEAR, Polygon, TON, Sui">
-        <Marquee items={a.concat(b)} />
-        <Marquee items={b.concat(a)} reverse />
+      <div role="img" aria-label="Sample assets: Bitcoin, Ethereum, Solana, USDC, and more">
+        <Marquee items={marquee} />
       </div>
       <div className="z-wrap z-col" style={{ width: "100%", gap: 14 }}>
         <div className="z-grid" style={{ ["--min" as string]: "280px", gap: 16 }}>
@@ -267,9 +308,18 @@ export function AnyCoin() {
             </div>
           ))}
         </div>
-        <span className="z-muted" style={{ fontSize: 13 }}>
-          Assets shown are examples. The live list comes from NEAR Intents.
-        </span>
+        <p className="z-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+          {tokens === undefined ? "Loading supported assets…" : tokens ? `${tokens.n}+ assets on ${tokens.chains} chains` : "Hundreds of assets"}
+          {kb ? ` · ${kb}` : ""}
+          {" · "}
+          <a href={href("/verify")} style={{ color: "inherit", fontWeight: 600 }}>
+            Public receipt lookup
+          </a>
+          {" · "}
+          <a href={href("/docs")} style={{ color: "inherit", fontWeight: 600 }}>
+            Checkout docs
+          </a>
+        </p>
       </div>
     </section>
   );
@@ -290,11 +340,11 @@ const SCENARIOS = {
       ["Customer", "Exports are not working since I upgraded to Pro.", true, false],
       ["Refund assistant", "Sorry about that. What exactly is broken or not working? Please add a screenshot that shows it.", false, false],
       ["Customer", "Every export fails with an error. Screenshot attached.", true, true],
-      ["Refund assistant", "Thanks. A feature that doesn’t work is covered by Tallyfox’s refund policy, and this is within what I can approve. Approved: 24.00 USDC goes back to you as ETH.", false, false],
+      ["Refund assistant", `Thanks. A feature that doesn’t work is covered by ${DEMO.possessive} refund policy, and this is within what I can approve. Approved: 24.00 USDC goes back to you as ETH.`, false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Held by receipt NFT #1042", true],
-      ["Business veto window", "Tallyfox can still step in", true],
+      ["Business veto window", `${DEMO.name} can still step in`, true],
       ["1Click swap back", "Quote ID logged on chain", true],
       ["ETH on Ethereum", "To 0x8f3a…c21a, the refund address", true],
     ] as Array<[string, string, boolean]>,
@@ -309,7 +359,7 @@ const SCENARIOS = {
     vFg: "var(--z-btn-fg)",
     chat: [
       ["Customer", "We don’t need it anymore. Can I get a refund?", true, false],
-      ["Refund assistant", "Tallyfox’s policy refunds something that is broken, never activated or not as described, but not a change of mind, so I can’t approve this. You can appeal once and Tallyfox will review it.", false, false],
+      ["Refund assistant", `${DEMO.possessive} policy refunds something that is broken, never activated or not as described, but not a change of mind, so I can’t approve this. You can appeal once and ${DEMO.name} will review it.`, false, false],
     ] as Msg[],
     route: [
       ["24.00 USDC in escrow", "Nothing moves", true],
@@ -328,140 +378,99 @@ const SCENARIOS = {
     vFg: "#111111",
     chat: [
       ["Customer", "SSO is not working for our whole team since the update. Screenshot attached.", true, true],
-      ["Refund assistant", "That is covered by Tallyfox’s policy, but the amount is above what I may approve on my own, so I’ve sent Tallyfox a summary. If they don’t answer by the deadline, it’s approved.", false, false],
+      ["Refund assistant", `That is covered by ${DEMO.possessive} policy, but the amount is above what I may approve on my own, so I’ve sent ${DEMO.name} a summary. If they don’t answer by the deadline, it’s approved.`, false, false],
     ] as Msg[],
     route: [
-      ["24.00 USDC in escrow", "Held while Tallyfox decides", true],
-      ["Summary sent to Tallyfox", "With the chat and the attachment", true],
+      ["24.00 USDC in escrow", `Held while ${DEMO.name} decides`, true],
+      [`Summary sent to ${DEMO.name}`, "With the chat and the attachment", true],
       ["Decision deadline", "No answer in time means approved", false],
-      ["Refund or release", "Whatever Tallyfox decides", false],
+      ["Refund or release", `Whatever ${DEMO.name} decides`, false],
     ] as Array<[string, string, boolean]>,
     outTitle: "Escalate: above your limits, or needs judgement",
     outBody: "The business gets a short summary. If they don’t respond by the decision deadline, the request is approved, so customers are never left waiting forever.",
   },
 };
-type ScenKey = keyof typeof SCENARIOS;
-
-function BeatRail({ n, last }: { n: string; last?: boolean }) {
-  return (
-    <div className="z-col" style={{ alignItems: "center" }}>
-      <span className="z-beat-n">{n}</span>
-      {last ? null : <span className="z-beat-line" />}
-    </div>
-  );
-}
-
 export function Refunds() {
-  const [scen, setScen] = useState<ScenKey>("approve");
-  const sc = SCENARIOS[scen];
-  const stagger = (i: number) => ({ animationDelay: `${i * 0.35}s` });
+  const sc = SCENARIOS.approve;
+  const stagger = (i: number) => ({ animationDelay: `${i * 0.22}s` });
   return (
     <section id="refunds" className="z-band">
       <div className="z-wrap z-sec">
-        <Head xl eyebrow="REFUNDS" lead="A refund assistant handles the first response. It can ask up to three questions, ask for a screenshot, and check your policy and the order.">
-          Crypto payments with a real <span className="z-acc">refund button.</span>
+        <Head xl eyebrow="REFUNDS" lead="Customers open a refund flow from their receipt. The assistant asks follow-ups, checks your policy, and routes clear cases — inside your guardrails.">
+          A refund button that <span className="z-acc">works.</span>
         </Head>
-        <div role="tablist" aria-label="Refund outcome" className="z-row" style={{ gap: 8 }}>
-          {(Object.keys(SCENARIOS) as ScenKey[]).map((k) => (
-            <button key={k} type="button" role="tab" id={`z-tab-${k}`} aria-controls="z-refund-panel" aria-selected={scen === k} className="z-btn" style={{ minHeight: 48, padding: "0 22px", fontSize: 15 }} onClick={() => setScen(k)}>
-              <span style={{ width: 10, height: 10, borderRadius: 999, background: SCENARIOS[k].dot }} />
-              {SCENARIOS[k].name}
-            </button>
-          ))}
-        </div>
 
-        <div id="z-refund-panel" role="tabpanel" aria-labelledby={`z-tab-${scen}`} className="z-col" style={{ gap: 0 }}>
-          {/* beat 1: the customer's view */}
-          <div className="z-beat">
-            <BeatRail n="01" />
-            <div className="z-col" style={{ gap: 14, paddingBottom: 36, minWidth: 0 }}>
-              <span className="z-eyebrow">THE CUSTOMER ASKS · ON THEIR RECEIPT PAGE</span>
-              <div className="z-col" style={{ maxWidth: 760, borderRadius: 28, background: "var(--z-bg)", border: "1.5px solid var(--z-edge)", overflow: "hidden" }}>
-                <div className="z-col" style={{ gap: 2, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #1042</span>
-                  <span className="z-muted" style={{ fontSize: 13 }}>
-                    Tallyfox · Pro plan · 24.00 USDC in escrow
-                  </span>
-                </div>
-                <div key={scen} className="z-col" style={{ padding: 22, gap: 12 }}>
-                  {sc.chat.map(([who, text, shopper, photo], i) => (
-                    <div key={i} className="z-col z-msg" style={{ ...stagger(i), gap: 4, alignSelf: shopper ? "flex-end" : "flex-start", maxWidth: "86%" }}>
-                      <span className="z-muted" style={{ fontSize: 12, fontWeight: 600, alignSelf: shopper ? "flex-end" : "flex-start" }}>
-                        {who}
-                      </span>
-                      <div style={{ padding: "12px 16px", borderRadius: shopper ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: shopper ? "var(--z-btn)" : "var(--z-soft)", color: shopper ? "var(--z-btn-fg)" : "var(--z-fg)", fontSize: 15, lineHeight: 1.5 }}>{text}</div>
-                      {photo ? (
-                        <div aria-label="Attached photo" role="img" style={{ alignSelf: "flex-end", width: 150, height: 96, borderRadius: 14, border: "1.5px solid #111111", background: "#F4F4F1", position: "relative", overflow: "hidden" }}>
-                          {/* a tiny app window with an error, i.e. a screenshot */}
-                          <div style={{ position: "absolute", left: 14, right: 14, top: 12, height: 62, borderRadius: 8, background: "#FFFFFF", border: "1.5px solid #111111", overflow: "hidden" }}>
-                            <div style={{ height: 10, background: "#E6E6E1", borderBottom: "1px solid #111111" }} />
-                            <div style={{ margin: "8px 8px 0", height: 14, borderRadius: 4, background: "#FDE2E2", border: "1px solid #DC2626" }} />
-                            <div style={{ margin: "6px 8px 0", width: "60%", height: 6, borderRadius: 3, background: "#D9D9D4" }} />
-                          </div>
-                          <span className="z-mono" style={{ position: "absolute", left: 8, bottom: 6, fontSize: 10, fontWeight: 600, color: "#111111" }}>
-                            SCREENSHOT.PNG
-                          </span>
+        <div className="z-grid" style={{ ["--min" as string]: "340px", alignItems: "stretch", gap: 24 }}>
+          <div className="z-col" style={{ gap: 14, minWidth: 0 }}>
+            <span className="z-eyebrow">ON THE RECEIPT PAGE</span>
+            <div className="z-col" style={{ borderRadius: 28, background: "var(--z-bg)", border: "1.5px solid var(--z-edge)", overflow: "hidden" }}>
+              <div className="z-col" style={{ gap: 2, padding: "18px 22px", borderBottom: "1.5px solid var(--z-hair)" }}>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Refund request · Order #{DEMO_ORDER.id}</span>
+                <span className="z-muted" style={{ fontSize: 13 }}>
+                  {DEMO.name} · {DEMO_ORDER.productShort} · {DEMO_ORDER.usdc} in escrow
+                </span>
+              </div>
+              <div className="z-col" style={{ padding: 22, gap: 12 }}>
+                {sc.chat.map(([who, text, shopper, photo], i) => (
+                  <div key={i} className="z-col z-msg" style={{ ...stagger(i), gap: 4, alignSelf: shopper ? "flex-end" : "flex-start", maxWidth: "86%" }}>
+                    <span className="z-muted" style={{ fontSize: 12, fontWeight: 600, alignSelf: shopper ? "flex-end" : "flex-start" }}>
+                      {who}
+                    </span>
+                    <div style={{ padding: "12px 16px", borderRadius: shopper ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: shopper ? "var(--z-btn)" : "var(--z-soft)", color: shopper ? "var(--z-btn-fg)" : "var(--z-fg)", fontSize: 15, lineHeight: 1.5 }}>{text}</div>
+                    {photo ? (
+                      <div aria-label="Attached photo" role="img" style={{ alignSelf: "flex-end", width: 150, height: 96, borderRadius: 14, border: "1.5px solid #111111", background: "#F4F4F1", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", left: 14, right: 14, top: 12, height: 62, borderRadius: 8, background: "#FFFFFF", border: "1.5px solid #111111", overflow: "hidden" }}>
+                          <div style={{ height: 10, background: "#E6E6E1", borderBottom: "1px solid #111111" }} />
+                          <div style={{ margin: "8px 8px 0", height: 14, borderRadius: 4, background: "#FDE2E2", border: "1px solid #DC2626" }} />
+                          <div style={{ margin: "6px 8px 0", width: "60%", height: 6, borderRadius: 3, background: "#D9D9D4" }} />
                         </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                        <span className="z-mono" style={{ position: "absolute", left: 8, bottom: 6, fontSize: 10, fontWeight: 600, color: "#111111" }}>
+                          SCREENSHOT.PNG
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* beat 2: the verdict, inside the seller's rules */}
-          <div className="z-beat">
-            <BeatRail n="02" last />
-            <div key={scen} className="z-col z-msg" style={{ ...stagger(sc.chat.length), gap: 14, minWidth: 0 }}>
-              <span className="z-eyebrow">THE VERDICT · INSIDE YOUR RULES</span>
-              <div className="z-grid" style={{ alignItems: "stretch" }}>
-                <div className="z-col" style={{ gap: 16 }}>
-                  <div className="z-card" style={{ borderRadius: 22, gap: 12 }}>
-                    <span className="z-tag" style={{ alignSelf: "flex-start", background: sc.vBg, color: sc.vFg, fontSize: 12 }}>
-                      {sc.verdict}
-                    </span>
-                    <span className="z-display" style={{ fontSize: 24, letterSpacing: "-0.02em" }}>
-                      {sc.outTitle}
-                    </span>
-                    <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>{sc.outBody}</span>
-                  </div>
-                  <div className="z-row" style={{ gap: 8 }}>
-                    {["NEAR AI Cloud", "or a deterministic rule engine", "≤ 3 clarifying questions", "asks for a screenshot"].map((c) => (
-                      <span key={c} className="z-chip sm">
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="z-card ink" style={{ borderRadius: 28, gap: 20 }}>
-                  <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
-                    WHERE THE MONEY GOES
-                  </span>
-                  <ol className="z-col">
-                    {sc.route.map(([title, sub, on], i) => {
-                      const next = sc.route[i + 1];
-                      const last = i === sc.route.length - 1;
-                      return (
-                        <li key={title} style={{ display: "flex", gap: 14 }}>
-                          <div className="z-col" style={{ alignItems: "center" }}>
-                            <span style={{ width: 14, height: 14, borderRadius: 999, background: on ? ACCENT : "transparent", border: `2px solid ${on ? ACCENT : "#5A5A5A"}`, marginTop: 4, flex: "none" }} />
-                            <span style={{ flex: 1, width: 2, minHeight: 22, background: last ? "transparent" : on && next?.[2] ? ACCENT : "#3A3A3A" }} />
-                          </div>
-                          <div className="z-col" style={{ gap: 2, paddingBottom: 16 }}>
-                            <span className="z-display" style={{ fontSize: 19, fontWeight: 600 }}>
-                              {title}
-                            </span>
-                            <span className="z-pm" style={{ fontSize: 14 }}>
-                              {sub}
-                            </span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              </div>
+          <div className="z-col" style={{ gap: 16, minWidth: 0 }}>
+            <div className="z-card" style={{ borderRadius: 22, gap: 12 }}>
+              <span className="z-tag" style={{ alignSelf: "flex-start", background: sc.vBg, color: sc.vFg, fontSize: 12 }}>
+                {sc.verdict}
+              </span>
+              <span className="z-display" style={{ fontSize: 24, letterSpacing: "-0.02em" }}>
+                {sc.outTitle}
+              </span>
+              <span style={{ fontSize: 15, lineHeight: 1.55, color: "var(--z-body2)" }}>{sc.outBody}</span>
+            </div>
+            <div className="z-card ink" style={{ borderRadius: 28, gap: 20, flex: 1 }}>
+              <span className="z-mono z-acc" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>
+                WHERE THE MONEY GOES
+              </span>
+              <ol className="z-col">
+                {sc.route.map(([title, sub, on], i) => {
+                  const next = sc.route[i + 1];
+                  const last = i === sc.route.length - 1;
+                  return (
+                    <li key={title} style={{ display: "flex", gap: 14 }}>
+                      <div className="z-col" style={{ alignItems: "center" }}>
+                        <span style={{ width: 14, height: 14, borderRadius: 999, background: on ? ACCENT : "transparent", border: `2px solid ${on ? ACCENT : "#5A5A5A"}`, marginTop: 4, flex: "none" }} />
+                        <span style={{ flex: 1, width: 2, minHeight: 22, background: last ? "transparent" : on && next?.[2] ? ACCENT : "#3A3A3A" }} />
+                      </div>
+                      <div className="z-col" style={{ gap: 2, paddingBottom: 16 }}>
+                        <span className="z-display" style={{ fontSize: 19, fontWeight: 600 }}>
+                          {title}
+                        </span>
+                        <span className="z-pm" style={{ fontSize: 14 }}>
+                          {sub}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
           </div>
         </div>
@@ -475,6 +484,7 @@ export function Refunds() {
 const TONE: Record<Tone, string> = { ok: "#3FE0A5", attention: ACCENT, neutral: "#6B6B6B", plain: "#FFFFFF" };
 
 export function Protections() {
+  const { href } = useApp();
   const [idx, setIdx] = useState<ProtectionIdx>(INITIAL_PROTECTIONS);
   const r = evaluate(idx);
   const controls: Array<{ key: keyof ProtectionIdx; name: string; help: string; value: string; less: string; more: string }> = [
@@ -486,7 +496,7 @@ export function Protections() {
   const tagBg = r.overCap ? "#BDBDBD" : r.overThr ? ACCENT : "#3FE0A5";
   return (
     <section className="z-wrap z-sec">
-      <Head eyebrow="BUSINESS PROTECTIONS" lead={`Limits are enforced in code and on chain, not just in a prompt. Try the controls and watch what happens to a $${REQUEST} refund request.`}>
+      <Head eyebrow="BUSINESS PROTECTIONS" lead={`Guardrails apply to every refund — on chain, not just in the assistant. Adjust the controls to see how a $${REQUEST} request is handled.`}>
         The AI proposes. <span className="z-acc">Your rules</span> decide.
       </Head>
       <div className="z-grid">
@@ -543,37 +553,12 @@ export function Protections() {
         </div>
       </div>
 
-      <div className="z-col" style={{ gap: 14 }}>
-        <div className="z-row" style={{ justifyContent: "space-between", gap: 12 }}>
-          <span className="z-eyebrow">THE SAME RULES, IN THE CONTRACT</span>
-          <a className="z-mono z-muted" style={{ fontSize: 13 }} href={`${GITHUB_BLOB}/${CONTRACT_FILE}`}>
-            {CONTRACT_FILE} ↗
-          </a>
-        </div>
-        <div className="z-grid" style={{ ["--min" as string]: "460px", gap: 14 }}>
-          {EXCERPTS.map((ex) => (
-            <figure key={ex.fn} className="z-code" style={{ display: "flex", flexDirection: "column" }}>
-              <figcaption className="z-code-bar" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-                <span>
-                  fn <span className="c-at">{ex.fn}</span>
-                </span>
-                <span>line {ex.line}</span>
-              </figcaption>
-              <pre className="tight" style={{ padding: "16px 0", flex: 1 }}>
-                {ex.code.map((l, i) => (
-                  <span key={i} className={i === ex.hl ? "c-hl" : undefined} style={{ display: "block", padding: "0 18px" }}>
-                    <span className="c-cm" style={{ display: "inline-block", width: 34, userSelect: "none" }}>
-                      {ex.line + i}
-                    </span>
-                    {l}
-                  </span>
-                ))}
-              </pre>
-              <p style={{ padding: "12px 18px 16px", borderTop: "1px solid #262626", fontSize: 14, lineHeight: 1.5, color: "#D4D4D4" }}>{ex.rule}</p>
-            </figure>
-          ))}
-        </div>
-      </div>
+      <p className="z-muted" style={{ fontSize: 15, lineHeight: 1.55, margin: 0 }}>
+        The same thresholds, caps, and deadlines are enforced in the escrow contract.{" "}
+        <a href={href("/docs")} style={{ color: "inherit", fontWeight: 600 }}>
+          Read how refunds work →
+        </a>
+      </p>
     </section>
   );
 }
@@ -626,14 +611,13 @@ export function Verify() {
   };
   const shownHost = host ? host.replace(/^https?:\/\//, "") : "[YOUR-ZAP-HOST]";
   const facts = [
-    ["01", "Public contract, not a company", "Escrow lives in a NEAR contract anyone can read.", true],
-    ["02", "Refunds are bounded", "Only approved requests, never more than the unreleased amount, always within the daily cap.", false],
-    ["03", "Refunds survive a pause", "Pausing stops new payments and releases. Refunds keep working.", false],
-    ["04", "You can take over", "Call register_merchant from your own NEAR account to own your registration.", false],
+    ["Public escrow", "Funds sit in a NEAR contract anyone can read—not on a company balance.", true],
+    ["Bounded refunds", "Daily caps, veto windows, and approval rules are enforced on chain.", false],
+    ["You stay in control", "Pause new checkouts when you need to. Register the shop from your own NEAR account.", false],
   ] as const;
 
   const real = data ?? null;
-  const rid = real?.receipt.id ?? "1042";
+  const rid = real?.receipt.id ?? DEMO_ORDER.id;
   const checks: Array<[string, string, boolean]> = real
     ? [
         ["Attribution", real.attribution ? `Paid to ${real.receipt.merchantId}${real.attribution.matches && real.attribution.amountMatches ? ", order and amount match" : ""}` : `Paid to ${real.receipt.merchantId}`, real.attribution ? real.attribution.matches && real.attribution.amountMatches : true],
@@ -655,7 +639,7 @@ export function Verify() {
             Don&apos;t trust us. <span className="z-acc">Verify.</span>
           </h2>
           <p className="z-lead" style={{ maxWidth: 560 }}>
-            Funds sit in a public NEAR contract, not with a company. Anyone can open /verify and check a receipt for themselves.
+            Look up a receipt by number—no login. See attribution, refund routing, and whether escrow still covers the balance.
           </p>
           <form onSubmit={submit} className="z-row" style={{ gap: 10, maxWidth: 560, marginTop: 6 }}>
             <label htmlFor="z-verify-id" className="z-sr">
@@ -680,13 +664,9 @@ export function Verify() {
               </span>
               {real ? (
                 <span className="z-tag" style={{ background: "var(--z-good)", color: "#FFFFFF" }}>
-                  REAL · {real.networkId.toUpperCase()}
+                  LIVE · {real.networkId.toUpperCase()}
                 </span>
-              ) : data === undefined ? null : (
-                <span className="z-tag" style={{ background: "var(--z-hair)", color: "var(--z-fg)" }}>
-                  EXAMPLE
-                </span>
-              )}
+              ) : null}
             </div>
             <div className="z-col" style={{ padding: 28, gap: 18 }}>
               {data === undefined ? (
@@ -703,7 +683,7 @@ export function Verify() {
                       Receipt #{rid}
                     </span>
                     <span className="z-mono z-muted" style={{ fontSize: 13 }}>
-                      {real ? `${usdc(real.receipt.amount)} USDC · ${STATUS[real.receipt.status] ?? real.receipt.status}` : "24.00 USDC · in escrow"}
+                      {real ? `${usdc(real.receipt.amount)} USDC · ${STATUS[real.receipt.status] ?? real.receipt.status}` : `${DEMO_ORDER.usdc} · in escrow`}
                     </span>
                   </div>
                   {checks.map(([t, b, ok]) => (
@@ -729,20 +709,17 @@ export function Verify() {
                       </a>
                     </div>
                   ) : (
-                    <span className="z-muted" style={{ fontSize: 13 }}>
-                      No receipts on this server yet, so this one is an example. Once someone pays, the newest real receipt shows here.
-                    </span>
+                    <a className="z-btn sm" href={href("/verify")}>
+                      Open verify
+                    </a>
                   )}
                 </>
               )}
             </div>
           </div>
-          <div className="z-grid" style={{ ["--min" as string]: "200px", gap: 16 }}>
-            {facts.map(([n, title, body, ink]) => (
-              <div key={n} className={`z-card ${ink ? "ink" : "soft"}`} style={{ borderRadius: 22, padding: 24, gap: 10 }}>
-                <span className={`z-mono ${ink ? "z-acc" : "z-muted"}`} style={{ fontSize: 12, fontWeight: 700 }}>
-                  {n}
-                </span>
+          <div className="z-col" style={{ gap: 12 }}>
+            {facts.map(([title, body, ink]) => (
+              <div key={title} className={`z-card ${ink ? "ink" : "soft"}`} style={{ borderRadius: 22, padding: 24, gap: 10 }}>
                 <span className="z-display" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
                   {title}
                 </span>
@@ -751,6 +728,9 @@ export function Verify() {
                 </span>
               </div>
             ))}
+            <a href={href("/docs")} className="z-muted" style={{ fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              Verification &amp; contracts in the docs →
+            </a>
           </div>
         </div>
       </div>

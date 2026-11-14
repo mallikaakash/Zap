@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
-const title = "Zap · Any coin in, USDC out";
+const title = "Zap";
 const description = "One pay button for any site. Shoppers pay in any coin on any chain through NEAR Intents; sellers get USDC; every payment is a receipt NFT that holds the money in escrow until the refund window closes.";
 const site = process.env.NEXT_PUBLIC_SITE_URL;
 

@@ -65,8 +65,8 @@ export function sequence(mode: FlowState["mode"], coinKey: CoinKey): Step[] {
     { wp: "phone", vis: true, act: "wallet", ms: 2600, cap: dep },
     { wp: "bs", vis: true, act: "bridge", ms: 2400, cap: `NEAR Intents 1Click quotes an exact USDC output for their ${coin.label}.` },
     { wp: "be", vis: true, usdc: true, act: "bridge", ms: 2400, cap: "Swapped. The USDC is delivered straight to the receipt contract." },
-    { wp: "vault", vis: true, usdc: true, act: "worker", ms: 2400, cap: "The settlement worker sees it land and calls mint_receipt." },
-    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, ms: 2600, cap: "A receipt NFT is minted. The USDC is held inside it, in escrow." },
+    { wp: "vault", vis: true, usdc: true, act: "worker", ms: 2400, cap: "Payment is confirmed on chain and tied to your merchant account." },
+    { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, ms: 2600, cap: "USDC sits in escrow with a receipt your customer can manage." },
     // The held breath: the whole product is this pause.
     { wp: "vault", vis: true, usdc: true, act: "vault", nft: true, win: true, ms: 5200, cap: "The refund window is open. Funds sit in a public contract, not with a company." },
     { wp: "stack", vis: true, usdc: true, act: "shop", ms: 2800, cap: "Window closed. Anyone can trigger the release, and USDC goes to the business." },
@@ -190,7 +190,7 @@ export function flowView(s: FlowState) {
         rows: [
           ["Deposit sent", coin.how === "MetaMask" ? "From MetaMask" : "To a deposit address"],
           ["Swapping to USDC", "NEAR Intents · 1Click"],
-          ["Minting your receipt", "mint_receipt on NEAR"],
+          ["Receipt issued", "Funds held in escrow"],
         ] as Array<[string, string]>,
         at: step === 2 ? 0 : step <= 4 ? 1 : 2,
       };
@@ -215,9 +215,9 @@ export function flowView(s: FlowState) {
     nftState: isRefund && step >= 8 ? "Refund in review" : "In escrow · refund window open",
     windowPct: cur.win ? "62%" : cur.nft ? "8%" : "0%",
     pins: [
-      pin("03", "NEAR Intents", "bridge", PLACES.bridge.x, -175, 0),
-      pin("04", "Settlement worker", "worker", PLACES.worker.x, -150, PLACES.worker.z),
-      pin("05", "Receipt contract", "vault", PLACES.vault.x - 150, -40, 30),
+      pin("03", "Swap to USDC", "bridge", PLACES.bridge.x, -175, 0),
+      pin("04", "Settlement", "worker", PLACES.worker.x, -150, PLACES.worker.z),
+      pin("05", "Escrow", "vault", PLACES.vault.x - 150, -40, 30),
       pin("R", "Refund assistant", "asst", PLACES.asst.x, -130, PLACES.asst.z),
       pin("06", "Payout to you", "shop", PLACES.shop.x, -150, 0),
     ],
@@ -251,6 +251,7 @@ export function flowView(s: FlowState) {
   };
 }
 
+/** Fine-grained actors (scrub targets and unit tests). */
 export const LEGEND: Array<[string, Actor, string, string]> = [
   ["01", "button", "Pay button", "<pay-button> in your app or on your pricing page opens a hosted checkout. Pick a coin, add a refund address."],
   ["02", "wallet", "Deposit", "MetaMask on EVM chains, or a deposit address and QR code for everything else."],
@@ -260,3 +261,39 @@ export const LEGEND: Array<[string, Actor, string, string]> = [
   ["06", "shop", "Payout to you", "When the window ends, anyone can trigger the release. USDC goes to the business."],
   ["R", "asst", "Refund assistant", "Approves clear cases, denies violations or escalates, inside your caps, veto window and deadline."],
 ];
+
+export type StoryPhase = "pay" | "escrow" | "payout" | "refund";
+
+/** High-level story beats for the marketing legend (animation steps stay the same). */
+export const STORY_LEGEND: Array<[string, StoryPhase, string, string]> = [
+  ["01", "pay", "Customer pays", "The pay button opens hosted checkout. They pick a coin and leave a refund address."],
+  ["02", "escrow", "Funds in escrow", "Payment settles to USDC in a public receipt contract until the refund window ends."],
+  ["03", "payout", "You get paid", "When the window closes, release runs and USDC is yours."],
+];
+
+export function scrubToPhase(s: FlowState, phase: StoryPhase): FlowState {
+  switch (phase) {
+    case "pay":
+      return { ...s, mode: "pay", step: 1, run: 0, paused: true };
+    case "escrow":
+      return { ...s, mode: "pay", step: 7, run: 0, paused: true };
+    case "payout":
+      return { ...s, mode: "pay", step: 9, run: 0, paused: true };
+    case "refund":
+      return scrubTo(s, "asst");
+  }
+}
+
+export function storyPhase(s: FlowState): string {
+  if (s.mode === "refund" || (s.step >= 8 && s.run % 2 === 1)) return "Refund";
+  if (s.step <= 2) return "1 · Pay";
+  if (s.step <= 8) return "2 · Escrow";
+  return "3 · Payout";
+}
+
+export function storyPhaseActive(s: FlowState, phase: StoryPhase): boolean {
+  if (phase === "refund") return s.mode === "refund" || (s.step >= 8 && s.run % 2 === 1);
+  if (phase === "pay") return s.mode === "pay" && s.step <= 2;
+  if (phase === "escrow") return s.mode === "pay" && s.step >= 3 && s.step <= 8;
+  return s.mode === "pay" && s.step >= 9;
+}

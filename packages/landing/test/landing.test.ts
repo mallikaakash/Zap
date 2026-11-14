@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CONTRACT_FILE, EXCERPTS } from "../src/contract";
-import { advance, dwell, flowView, INITIAL_FLOW, LEGEND, scrubTo, sequence, type FlowState } from "../src/flow";
+import { advance, dwell, flowView, INITIAL_FLOW, LEGEND, scrubTo, scrubToPhase, sequence, storyPhase, type FlowState } from "../src/flow";
 import { evaluate, INITIAL_PROTECTIONS, nudge, passTotals, usdc2 } from "../src/protections";
 
 describe("hero flow", () => {
@@ -35,6 +35,13 @@ describe("hero flow", () => {
     const ms = sequence("pay", "ETH").map((st) => st.ms);
     expect(Math.max(...ms)).toBe(ms[7]);
     expect(dwell({ ...INITIAL_FLOW, step: 7 })).toBe(ms[7]);
+  });
+
+  it("scrubs to high-level story phases", () => {
+    expect(scrubToPhase(INITIAL_FLOW, "pay")).toMatchObject({ step: 1, paused: true });
+    expect(scrubToPhase(INITIAL_FLOW, "escrow").step).toBe(7);
+    expect(scrubToPhase(INITIAL_FLOW, "payout").step).toBe(9);
+    expect(storyPhase({ ...INITIAL_FLOW, step: 9 })).toBe("3 · Payout");
   });
 
   it("scrubs to the step where each actor works, and pauses", () => {

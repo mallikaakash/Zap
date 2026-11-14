@@ -43,6 +43,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Landing + docs: page canvas matches logo black (#000), not off-white body. */
+body:has(.z) {
+  background: #000000;
+  color-scheme: dark;
+}
+
 h1,
 h2,
 h3 {

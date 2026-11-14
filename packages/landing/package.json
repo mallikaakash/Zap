@@ -7,14 +7,16 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./docs": "./src/docs/index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "next": ">=15"
   },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "react": "^19"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
+    "next": "16.4.6",
     "react": "19.3.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"

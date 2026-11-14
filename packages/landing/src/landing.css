@@ -2,35 +2,38 @@
    Tailwind app (apps/web) or the bare static site (apps/site).
    Colour rule for the hero: pink appears only where money moves. */
 
+/* Logo lockup uses true black #000000 — marketing/docs use the same canvas. */
 .z {
   --z-accent: #ff2d87;
   --z-usdc: #2f7bff;
   --z-good: #1f9d57;
-  --z-bg: #ffffff;
-  --z-fg: #111111;
-  --z-muted: #5c5c5c;
-  --z-body: #3d3d3d;
-  --z-body2: #4a4a4a;
-  --z-line: #e4e4e0;
-  --z-hair: #ededea;
-  --z-soft: #f4f4f1;
-  --z-band: #fafaf8;
-  --z-edge: #111111;
+  --z-bg: #000000;
+  --z-fg: #f5f5f5;
+  --z-muted: #a6a6a2;
+  --z-body: #d2d2ce;
+  --z-body2: #c2c2be;
+  --z-line: #2c2c2c;
+  --z-hair: #1a1a1a;
+  --z-soft: #0d0d0d;
+  --z-band: #000000;
+  --z-edge: #f2f2ee;
   --z-panel: #111111;
-  --z-panel-fg: #ffffff;
-  --z-panel-muted: #bdbdbd;
+  --z-panel-fg: #f2f2ee;
+  --z-panel-muted: #b0b0ac;
   --z-panel-line: #2a2a2a;
-  --z-btn: #111111;
-  --z-btn-fg: #ffffff;
-  --z-good-bg: #f3fbf6;
-  --z-stroke: #111111;
-  --z-floor: rgba(17, 17, 17, 0.07);
-  --z-shadow: rgba(110, 88, 66, 0.2);
-  --z-code: #0e0e0e;
+  --z-btn: #f2f2ee;
+  --z-btn-fg: #000000;
+  --z-good-bg: #0f2418;
+  --z-stroke: #6a6a66;
+  /* Isometric hero floor — soft grid vignette on black (not full-bleed) */
+  --z-floor: rgba(255, 255, 255, 0.11);
+  --z-shadow: rgba(0, 0, 0, 0.55);
+  --z-code: #0a0a0a;
   --z-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --z-display: "Space Grotesk Variable", "Space Grotesk", var(--z-sans);
   --z-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   width: 100%;
+  min-height: 100%;
   overflow-x: clip;
   background: var(--z-bg);
   color: var(--z-fg);
@@ -38,33 +41,7 @@
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  .z {
-    --z-bg: #0b0b0b;
-    --z-fg: #f2f2ee;
-    --z-muted: #a6a6a2;
-    --z-body: #d2d2ce;
-    --z-body2: #c2c2be;
-    --z-line: #2c2c2c;
-    --z-hair: #222222;
-    --z-soft: #181818;
-    --z-band: #101010;
-    --z-edge: #f2f2ee;
-    --z-panel: #1b1b1b;
-    --z-panel-fg: #f2f2ee;
-    --z-panel-muted: #b0b0ac;
-    --z-panel-line: #313131;
-    --z-btn: #f2f2ee;
-    --z-btn-fg: #111111;
-    --z-good-bg: #0f2418;
-    --z-stroke: #6a6a66;
-    --z-floor: rgba(242, 242, 238, 0.07);
-    --z-shadow: rgba(0, 0, 0, 0.55);
-    --z-code: #141414;
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 .z *,
 .z *::before,
@@ -442,6 +419,21 @@
   gap: 10px;
   text-decoration: none;
 }
+.z-logo-wordmark {
+  object-fit: contain;
+}
+.z-logo-mark {
+  object-fit: cover;
+  object-position: left center;
+  border-radius: 8px;
+  flex: none;
+}
+@media (min-width: 900px) {
+  .z-logo-wordmark-header {
+    height: 72px !important;
+    max-width: 500px !important;
+  }
+}
 .z-mark {
   width: 34px;
   height: 34px;
@@ -472,9 +464,16 @@
 .z-nav a:not(.z-btn):hover {
   color: var(--z-fg);
 }
+.z-navlink.on {
+  color: var(--z-fg);
+  font-weight: 600;
+}
 @media (max-width: 860px) {
-  .z-nav .z-navlink {
+  .z-header .z-nav .z-navlink {
     display: none;
+  }
+  .z-header .z-nav {
+    gap: 8px 12px;
   }
 }
 .z-sim {
@@ -528,6 +527,7 @@
 }
 .z-hero {
   position: relative;
+  scroll-margin-top: 12px;
 }
 .z-posterbox {
   position: relative;
@@ -551,9 +551,10 @@
 }
 .z-floor {
   position: absolute;
+  z-index: 0;
   pointer-events: none;
-  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 55%, #000 30%, transparent 75%);
-  mask-image: radial-gradient(ellipse 60% 55% at 50% 55%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 58% at 52% 58%, #000 22%, rgba(0, 0, 0, 0.55) 48%, transparent 72%);
+  mask-image: radial-gradient(ellipse 62% 58% at 52% 58%, #000 22%, rgba(0, 0, 0, 0.55) 48%, transparent 72%);
 }
 
 /* isometric scene */
@@ -971,7 +972,7 @@
   }
 }
 
-/* caption + legend */
+/* walkthrough bar (hero only) */
 .z-caption {
   display: flex;
   flex-wrap: wrap;
@@ -984,8 +985,11 @@
 }
 .z-legend {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 .z-legend button {
   width: 100%;
@@ -1020,9 +1024,9 @@
   background: var(--z-btn);
   color: var(--z-btn-fg);
 }
-@media (max-width: 1100px) {
+@media (max-width: 860px) {
   .z-legend {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 760px) {
@@ -1179,6 +1183,154 @@
   to {
     background-position: -200% 0;
   }
+}
+
+/* ---------- developer docs (/docs) ---------- */
+.z-docs-shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 48px;
+  padding-top: 32px;
+  padding-bottom: 64px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .z-docs-shell {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .z-docs-aside {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--z-bg);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--z-hair);
+  }
+  .z-docs-sidenav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .z-docs-sidenav li {
+    margin: 0;
+  }
+}
+.z-docs-sidenav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.z-docs-sidenav li {
+  margin: 0 0 2px;
+}
+.z-docs-sidenav a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--z-body);
+  font-size: 14px;
+  font-weight: 500;
+}
+.z-docs-sidenav a:hover {
+  background: var(--z-soft);
+}
+.z-docs-sidenav a.on {
+  background: var(--z-soft);
+  color: var(--z-fg);
+  font-weight: 600;
+}
+.z-docs-main {
+  min-width: 0;
+  max-width: 720px;
+  padding-bottom: 48px;
+}
+.z-docs-lede {
+  max-width: 42rem;
+}
+.z-docs-prose h2 {
+  font-family: var(--z-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 36px 0 12px;
+}
+.z-docs-prose h2:first-child {
+  margin-top: 8px;
+}
+.z-docs-prose p,
+.z-docs-prose li {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--z-body);
+}
+.z-docs-prose ul,
+.z-docs-prose ol {
+  margin: 0 0 16px;
+  padding-left: 1.25rem;
+}
+.z-docs-prose a {
+  color: var(--z-fg);
+  font-weight: 600;
+}
+.z-docs-prose code {
+  font-family: var(--z-mono);
+  font-size: 0.9em;
+  background: var(--z-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.z-docs-table-wrap {
+  overflow-x: auto;
+  margin: 16px 0 24px;
+  border: 1px solid var(--z-line);
+  border-radius: 14px;
+}
+.z-docs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.z-docs-table th,
+.z-docs-table td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--z-hair);
+  vertical-align: top;
+}
+.z-docs-table th {
+  font-weight: 600;
+  background: var(--z-soft);
+}
+.z-docs-table tr:last-child td {
+  border-bottom: 0;
+}
+ul.z-docs-cards {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+a.z-docs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--z-line);
+  text-decoration: none;
+  color: inherit;
+}
+a.z-docs-card:hover {
+  border-color: var(--z-edge);
+  background: var(--z-soft);
+}
+.z-docs-foot {
+  border-top: 1.5px solid var(--z-edge);
+  padding: 24px 0 40px;
 }
 
 @media (prefers-reduced-motion: reduce) {
