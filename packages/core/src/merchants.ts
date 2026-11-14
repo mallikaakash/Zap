@@ -10,7 +10,7 @@ import { custodialAllowed, ensureDemoAccount, getChain, getConfig } from "./runt
 /**
  * Merchants sign up with a business name, an email and the NEAR account they want to be paid to.
  * They never sign a transaction: the settlement worker registers them on the receipt
- * contract with `register_merchant_for` (operator registration, see DECISIONS.md).
+ * contract with `register_merchant_for` (operator registration).
  * The seller's merchant id IS their payout account, so their snippet reads
  * `<pay-button merchant="their-account.near" …>`.
  */
@@ -125,6 +125,7 @@ export interface MerchantUpdate extends Partial<OnChain> {
   name?: string;
   email?: string | null;
   minOrder?: string;
+  productsOnly?: boolean;
   webhookUrl?: string | null;
   policy?: Partial<RefundPolicy>;
   button?: Record<string, unknown>;
@@ -155,6 +156,7 @@ export async function updateMerchant(id: string, u: MerchantUpdate): Promise<Mer
       ...cfg,
       ...(onChainChanged ? { chainState: "pending", chainError: null } : {}),
       minOrder: u.minOrder ?? m.minOrder,
+      productsOnly: typeof u.productsOnly === "boolean" ? u.productsOnly : m.productsOnly,
       name: u.name?.trim().slice(0, 60) || m.name,
       email: u.email === undefined ? m.email : u.email?.trim().toLowerCase() || null,
       webhookUrl: u.webhookUrl === undefined ? m.webhookUrl : u.webhookUrl || null,
@@ -237,6 +239,7 @@ export function merchantView(m: Merchant) {
     autoApproveMax: m.autoApproveMax,
     vetoSecs: m.vetoSecs,
     minOrder: m.minOrder,
+    productsOnly: m.productsOnly,
     blockedRefundAddresses: JSON.parse(m.blockedRefundAddresses || "[]") as string[],
     webhookUrl: m.webhookUrl,
     webhookSecret: m.webhookSecret,

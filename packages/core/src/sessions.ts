@@ -71,8 +71,10 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   if (productId) {
     const p = await db.product.findFirst({ where: { id: productId, merchantId, active: true } });
     if (!p) throw new UserError("That product is no longer available", 404);
-    input = { ...input, amountUsd: p.amount, kind: p.kind as Kind, schedule: JSON.parse(p.scheduleJson) as ScheduleItem[], product: p.name };
+    input = { ...input, amountUsd: p.amount, kind: p.kind as Kind, schedule: JSON.parse(p.scheduleJson) as ScheduleItem[], product: p.name, metadata: { ...(input.metadata ?? {}), productId: p.id } };
     windowSecs = p.windowSecs;
+  } else if (merchant.productsOnly) {
+    throw new UserError("This shop only accepts its saved products. The button needs a product-id from the shop's dashboard.", 400);
   }
   if (!isMinor(input.amountUsd) || BigInt(input.amountUsd) <= 0n) throw new UserError("amountUsd must be a positive integer string in USDC minor units (6 dp)");
   if (BigInt(input.amountUsd) > MAX_AMOUNT) throw new UserError("Amount is above the per-payment limit");

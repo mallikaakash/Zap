@@ -62,7 +62,11 @@ async function recordPaid(sessionId: string, receipt: Receipt, txHash?: string):
   await db.session.update({ where: { id: s.id }, data: { status: "paid", receiptId: receipt.id, mintTxHash: txHash ?? s.mintTxHash, paidAt: new Date(), error: mismatch } });
   await db.chainEvent.create({ data: { receiptId: receipt.id, event: "receipt_minted", dataJson: JSON.stringify({ amount: receipt.amount, direct: s.direct }), txHash } });
   await notify(receipt.id, "paid", receipt.amount);
-  await enqueueWebhook(s.merchantId, "payment.succeeded", { sessionId: s.id, receiptId: receipt.id, orderRef: s.orderRef, amount: receipt.amount, expectedAmount: s.amount, kind: s.kind, product: s.product });
+  const { depositTx: _tx, ...metadata } = JSON.parse(s.metadataJson || "{}") as Record<string, unknown>;
+  // productId is set by the server from the saved product (never trusted from the page), so the
+  // seller's server can check exactly what was paid for before fulfilling.
+  const productId = typeof metadata.productId === "string" ? metadata.productId : null;
+  await enqueueWebhook(s.merchantId, "payment.succeeded", { sessionId: s.id, receiptId: receipt.id, orderRef: s.orderRef, amount: receipt.amount, expectedAmount: s.amount, kind: s.kind, product: s.product, productId, metadata });
 }
 
 /** Payments: money reached the contract → there must be exactly one receipt for the order. */
