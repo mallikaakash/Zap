@@ -16,8 +16,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+set -a
 # shellcheck disable=SC1090
-source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" | sed 's/^/export /')
+source "$ENV_FILE"
+set +a
 
 for v in SMTP_USER SMTP_PASS EMAIL_FROM; do
   if [[ -z "${!v:-}" ]]; then
