@@ -2,7 +2,7 @@
   <img src="docs/assets/banner-hero.png" alt="Zap Payments" width="100%" />
 </p>
 
-<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The receipt holds the money.</h1>
+<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The NFT receipt holds the money.</h1>
 
 <p align="center">
   <a href="https://nearhackathon.com/"><img alt="NEAR HACKATHON 2026" src="https://img.shields.io/badge/NEAR%20HACKATHON-2026-00EC97?style=for-the-badge&logo=near&logoColor=black" /></a>
@@ -19,7 +19,7 @@
   <img alt="pnpm demo" src="https://img.shields.io/badge/try%20it-pnpm%20demo-FF1F6E?style=flat-square" />
 </p>
 
-> Built solo at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
+> Built at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@
 | **Demo post on X** | _coming — link lands here once posted_ |
 | **Try it locally, no keys** | `pnpm install && pnpm demo` — see [Try it](#try-it) |
 
-Hackathon prototype. Unaudited. Not a licensed money service. Funds are held by a public contract, not by a company.
+Live on Mainnnet. Receipt NFT as escrow. Funds are held by a public contract, not by a company.
 
 ---
 
@@ -102,7 +102,6 @@ The server relays it and pays gas (**meta-transaction** style). The contract ver
 | **NEP-171 receipt NFT** | `contracts/receipts` (Rust, near-sdk 5.29) | The NFT *is* the escrow. It holds USDC, owns the refund state machine, enforces the window. |
 | **`ft_on_transfer` (NEP-141)** | `contracts/receipts` | USDC arriving at the contract is what mints a receipt — no separate "deposit then mint" dance. |
 | **ed25519 receipt keys + relayer** | `packages/chain`, `apps/web` | Walletless customers. Browser signs, server relays and pays gas, contract verifies. |
-| **NEAR AI Cloud** ([cloud.near.ai](https://cloud.near.ai)) | `packages/core/src/refund-agent.ts` | Private inference for the refund assistant. The model proposes; the contract enforces. |
 | **Function-call keys per role** | `executor.*`, `relayer.*` sub-accounts | The settlement worker is the only process with the executor key. The web app's relayer can approve refunds but cannot move money. |
 
 ---
@@ -149,7 +148,7 @@ The button is a convenience, never proof of payment. A seller with a server conf
 
 ## Live mode (mainnet)
 
-Live mode uses NEAR mainnet, real USDC, and real NEAR Intents. NEAR Intents has no testnet (hackathon rule Q-007), so the real swap can only be shown with real money. The hosted app at https://zap-2lcs3sivbq-uc.a.run.app is live mode — a test purchase costs the price plus about 1% in swap fees plus gas from your own wallet, and comes back on refund.
+Live mode uses NEAR mainnet, real USDC, and real NEAR Intents. NEAR Intents has no testnet (hackathon rule Q-007), so the real swap can only be shown with real money. The hosted app at https://zap-2lcs3sivbq-uc.a.run.app is live mode — a purchase costs the price plus about 1% in swap fees plus gas from your own wallet, and comes back deducted on refund.
 
 Mainnet payments are capped per receipt (default $50). The owner can pause new payments and releases; refunds still run while paused. Deploying or paying on mainnet is a human action, documented in [docs/GO-LIVE.md](docs/GO-LIVE.md). **A screening run should stop at `pnpm demo`.**
 
@@ -191,7 +190,7 @@ Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md),
 
 - **Everything here was written in the window.** First commit 2026-11-11. No pre-hackathon code, no prior product on another chain.
 - **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, Resend for email. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006). NEAR AI Cloud for inference.
-- **AI code:** a lot of it. Claude Code and Cursor were used throughout; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are mine.
+- **AI code:** Claude Code and Cursor were used throughout; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are ours - [Violina](https://github.com/violinadoley) and [Aakash](https://github.com/mallikaakash) .
 - **License:** MIT — see [LICENSE](LICENSE).
 - **Other submissions by me:** none.
 
