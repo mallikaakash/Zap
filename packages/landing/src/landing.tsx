@@ -7,6 +7,7 @@ import "./landing.css";
 import { AppProvider } from "./context";
 import { Header, HeroFlow } from "./hero";
 import { Dashboard, Footer, Gasless } from "./more";
+import { LandingBootScreen, Reveal, useLandingBoot, usePageEnter } from "./motion";
 import { AnyCoin, DropIn, Problem, Protections, Refunds, Verify } from "./sections";
 
 export interface LandingProps {
@@ -18,22 +19,47 @@ export interface LandingProps {
 
 /** The Zap landing page (design: claude.ai artifact "Zap Payments — Hero", three artboards). */
 export function Landing({ appUrl = "", demoMerchant }: LandingProps) {
+  const { booted, exiting, showPreloader, onExitEnd } = useLandingBoot();
+  const enterReady = usePageEnter(booted);
   return (
     <AppProvider appUrl={appUrl} demoMerchant={demoMerchant}>
-      <div className="z">
+      {showPreloader ? (
+        <div className="z">
+          <LandingBootScreen exiting={exiting} onExitEnd={onExitEnd} />
+        </div>
+      ) : null}
+      <div className={`z${enterReady ? " z-enter-ready" : ""}${!booted ? " z-boot-pending" : ""}`}>
         <Header />
         <main>
           <HeroFlow />
-          <Problem />
-          <DropIn />
-          <AnyCoin />
-          <Refunds />
-          <Protections />
-          <Verify />
-          <Gasless />
-          <Dashboard />
+          <Reveal>
+            <Problem />
+          </Reveal>
+          <Reveal>
+            <DropIn />
+          </Reveal>
+          <Reveal>
+            <AnyCoin />
+          </Reveal>
+          <Reveal>
+            <Refunds />
+          </Reveal>
+          <Reveal>
+            <Protections />
+          </Reveal>
+          <Reveal>
+            <Verify />
+          </Reveal>
+          <Reveal>
+            <Gasless />
+          </Reveal>
+          <Reveal>
+            <Dashboard />
+          </Reveal>
         </main>
-        <Footer />
+        <Reveal>
+          <Footer />
+        </Reveal>
       </div>
     </AppProvider>
   );

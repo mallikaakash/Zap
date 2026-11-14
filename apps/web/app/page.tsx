@@ -12,13 +12,13 @@ async function origin(): Promise<string> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const base = await origin();
-  const title = "Zap";
+  const title = "Zap Payments";
   const description = "Crypto checkout for SaaS and online businesses. Customers pay in any coin on any chain through NEAR Intents; you get USDC; every payment is a receipt NFT that holds the money in escrow until the refund window closes.";
   return {
     title,
     description,
     metadataBase: new URL(base),
-    openGraph: { title, description, url: base, siteName: "Zap", type: "website", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Any coin in. USDC out. A phone pays into a safe that holds a receipt NFT." }] },
+    openGraph: { title, description, url: base, siteName: "Zap Payments", type: "website", images: [{ url: "/og.png", width: 1200, height: 630, alt: "Any coin in. USDC out. A phone pays into a safe that holds a receipt NFT." }] },
     twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
   };
 }

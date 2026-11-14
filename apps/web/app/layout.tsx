@@ -6,7 +6,8 @@ import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Zap", template: "%s · Zap" },
+  title: { default: "Zap Payments", template: "%s · Zap Payments" },
+  applicationName: "Zap Payments",
   description: "Any coin in, USDC out. Embed one pay button; every payment is a receipt NFT that holds the money until the refund window ends.",
 };
 

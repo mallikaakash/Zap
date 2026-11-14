@@ -211,7 +211,7 @@ export function flowView(s: FlowState) {
     route: pts([bridgeStart, sceneWaypoint("be", usdcCount), proj(PLACES.vault.x, -60, 0), proj(PLACES.stack.x, -20, PLACES.stack.z), proj(PLACES.shop.x, -30, 0), proj(1300, -30, 0)]),
     branch: pts([proj(PLACES.vault.x, -40, 50), proj(PLACES.asst.x, -50, PLACES.asst.z - 30)]),
     branchOn: isRefund && step >= 8,
-    nft: { x: nftAnchor[0] + 24, y: nftAnchor[1] - 40 + L("vault") * 0.866, on: !!cur.nft },
+    nft: { x: nftAnchor[0] + 52, y: nftAnchor[1] - 8 + L("vault") * 0.866, on: !!cur.nft },
     nftState: isRefund && step >= 8 ? "Refund in review" : "In escrow · refund window open",
     windowPct: cur.win ? "62%" : cur.nft ? "8%" : "0%",
     pins: [
