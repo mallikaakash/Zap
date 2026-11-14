@@ -1,10 +1,16 @@
 /**
  * Email. Every message is stored (the dev inbox at /dev/inbox in local mode, an audit
- * log in live mode). With RESEND_API_KEY set it is also sent through Resend.
+ * log in live mode), then sent through the first provider that is configured:
  *
- * Note: without a verified domain, Resend only delivers to the account owner's own
- * address from `onboarding@resend.dev`. Set EMAIL_FROM once a domain is verified.
+ * 1. SMTP (SMTP_USER + SMTP_PASS): e.g. a Gmail account with an app password. Delivers to
+ *    any address, about 500 recipients a day on a normal Gmail account. SMTP_HOST and
+ *    SMTP_PORT default to smtp.gmail.com:465.
+ * 2. Resend (RESEND_API_KEY): without a verified domain it only delivers to the Resend
+ *    account owner's own address, from `onboarding@resend.dev`.
+ *
+ * EMAIL_FROM sets the sender, e.g. `Zap <zap.payments.demo@gmail.com>`.
  */
+import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "@uc/db";
 import { env, getConfig } from "./runtime";
 
@@ -37,12 +43,36 @@ ${m.button ? `<p style="margin:20px 0 0"><a href="${esc(m.button.url)}" style="d
   return { text, html };
 }
 
+let smtp: { key: string; t: Transporter } | null = null;
+
+/** The SMTP transport when SMTP_USER and SMTP_PASS are set (reused across sends). */
+function smtpTransport(): { t: Transporter; user: string } | null {
+  const user = env().SMTP_USER?.trim();
+  const pass = env().SMTP_PASS?.replace(/\s+/g, ""); // Google shows app passwords as "abcd efgh ijkl mnop"
+  if (!user || !pass) return null;
+  const host = env().SMTP_HOST || "smtp.gmail.com";
+  const port = Number(env().SMTP_PORT || 465);
+  const key = `${host}:${port}:${user}`;
+  if (smtp?.key !== key) smtp = { key, t: nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000 }) };
+  return { t: smtp.t, user };
+}
+
 /** Store and (if configured) send. Never throws: email must not break a payment flow. */
 export async function sendEmail(m: Mail): Promise<void> {
   if (!isEmail(m.to)) return;
   const { text, html } = render(m);
   const row = await db.email.create({ data: { to: m.to, subject: m.subject.slice(0, 200), text, html, status: "queued" } }).catch(() => null);
   if (!row) return;
+  const mailer = smtpTransport();
+  if (mailer) {
+    try {
+      await mailer.t.sendMail({ from: env().EMAIL_FROM || `Zap <${mailer.user}>`, to: m.to, subject: m.subject, text, html });
+      await db.email.update({ where: { id: row.id }, data: { status: "sent" } });
+    } catch (e) {
+      await db.email.update({ where: { id: row.id }, data: { status: "failed", error: `SMTP: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500) } }).catch(() => {});
+    }
+    return;
+  }
   const key = env().RESEND_API_KEY || env().RESEND;
   if (!key) {
     await db.email.update({ where: { id: row.id }, data: { status: "dev" } }).catch(() => {});
