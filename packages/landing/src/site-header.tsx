@@ -3,7 +3,7 @@
 import { useApp } from "./context";
 import { LogoWordmark } from "./brand";
 import { IconDocs, IconGitHub, IconLaunch } from "./icons";
-import { ZAP_GITHUB } from "./site-links";
+import { LIVE_DEMO_PATH, ZAP_GITHUB } from "./site-links";
 
 export type SiteSection = "home" | "docs";
 
@@ -18,6 +18,10 @@ export function SiteHeader({ section = "home" }: { section?: SiteSection }) {
         <LogoWordmark height={32} className="z-logo-wordmark-header" />
       </a>
       <nav aria-label="Primary" className="z-nav">
+        <a className="z-navlink z-nav-live" href={href(LIVE_DEMO_PATH)} title="A real $0.10 checkout on NEAR mainnet: pay with any coin, then ask for a refund">
+          <span className="z-live-dot" aria-hidden="true" />
+          Live demo · $0.10
+        </a>
         <a className={`z-navlink${section === "docs" ? " on" : ""}`} href={href("/docs")} aria-current={section === "docs" ? "page" : undefined}>
           <IconDocs size={15} />
           Docs
