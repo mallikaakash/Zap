@@ -18,26 +18,35 @@ bash scripts/gcp-cloudrun-deploy.sh   # copies .env from VM, full env refresh
 
 The app stores the off-chain half of every order in SQLite (`.uc/live.db`): seller sign-ups and dashboard links, products, refund chats, emails, webhook logs. Inside a container that file is lost on every new revision. [Litestream](https://litestream.io) fixes this: on start it restores the database from a Cloud Storage bucket, and while running it streams every change back. It is switched on by one env var; without it the app runs as before.
 
+**Quick path (recommended):**
+
+```bash
+bash scripts/litestream-bootstrap.sh
+```
+
+Override `GCP_PROJECT`, `GCP_REGION`, `RUN_SERVICE`, or `LITESTREAM_BUCKET` if needed. The script creates the bucket (default `zap-db-$PROJECT`), grants the Cloud Run runtime service account **object admin**, and sets `LITESTREAM_REPLICA_URL` on the service.
+
+**Manual equivalent:**
+
 ```bash
 PROJECT=project-bf77a013-c0b3-413c-a75
 REGION=us-central1
 BUCKET=zap-db-$PROJECT            # any globally unique name
 
-# 1. a private bucket for the replica
 gcloud storage buckets create gs://$BUCKET --project=$PROJECT --location=$REGION --uniform-bucket-level-access
 
-# 2. let the service's runtime account read and write it
 SA=$(gcloud run services describe zap --project=$PROJECT --region=$REGION --format='value(spec.template.spec.serviceAccountName)')
 SA=${SA:-$(gcloud projects describe $PROJECT --format='value(projectNumber)')-compute@developer.gserviceaccount.com}
 gcloud storage buckets add-iam-policy-binding gs://$BUCKET --member=serviceAccount:$SA --role=roles/storage.objectAdmin
 
-# 3. point the service at it (the next revision restores from it; the first one starts empty and seeds it)
 gcloud run services update zap --project=$PROJECT --region=$REGION \
   --update-env-vars=LITESTREAM_REPLICA_URL=gcs://$BUCKET/zap/live.db \
   --max-instances=1 --no-cpu-throttling
 ```
 
 Check: `curl -s https://<service>/api/health` returns `"database":"ok"`, and after the next deploy your sellers and products are still there.
+
+If you refresh env from a `.env` file via `scripts/gcp-cloudrun-deploy.sh`, include `LITESTREAM_REPLICA_URL=gcs://…` in that file so a full env sync does not drop persistence.
 
 **Why one instance, CPU always on:** SQLite has a single writer and Litestream a single replicator, so more than one instance would mean several separate databases. Cloud Run otherwise pauses the CPU between requests, which would stall both the settlement worker (minting receipts, running refunds) and replication. The workflow and `gcp-cloudrun-deploy.sh` set `--max-instances=1 --no-cpu-throttling`. The cost is one always-on small instance.
 
