@@ -19,7 +19,7 @@
   <img alt="pnpm demo" src="https://img.shields.io/badge/try%20it-pnpm%20demo-FF1F6E?style=flat-square" />
 </p>
 
-> Built solo at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
+> Built at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@
 | **Demo post on X** | _coming — link lands here once posted_ |
 | **Try it locally, no keys** | `pnpm install && pnpm demo` — see [Try it](#try-it) |
 
-Hackathon prototype. Unaudited. Not a licensed money service. Funds are held by a public contract, not by a company.
+Live on Mainnnet. Receipt NFT as escrow. Funds are held by a public contract, not by a company.
 
 ---
 
