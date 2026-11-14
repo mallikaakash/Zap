@@ -9,7 +9,8 @@ export type WebhookEvent =
   | "refund.approved"
   | "refund.rejected"
   | "refund.executed"
-  | "subscription.cancelled";
+  | "subscription.cancelled"
+  | "webhook.test"; // sent from the dashboard to check the endpoint and secret; no money involved
 
 /** Events older than this are rejected by `verifyWebhook` (replay protection). */
 export const WEBHOOK_TOLERANCE_SECS = 300;
