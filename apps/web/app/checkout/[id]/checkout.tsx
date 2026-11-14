@@ -6,6 +6,7 @@ import { api, chainName, short, usd } from "@/lib/client";
 import { EVM_CHAINS, hasWallet, isEvmChain, payWithWallet, txUrl } from "@/lib/evm";
 import { CopyButton, Logo, Notice, QR, SimBadge, Spinner, usePoll } from "@/components/ui";
 import { CoinBadge, CoinPicker, type Token } from "./coin-picker";
+import { SiteHeader } from "@/components/site-header";
 
 interface Session {
   id: string;
@@ -359,21 +360,21 @@ function Shell({ embed, children, innerRef }: { embed: boolean; children: React.
     return (
       <div ref={innerRef} className="bg-surface p-5">
         {children}
-        <p className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-muted">
-          <Logo className="text-[11px]" />
+        <p className="mt-5 flex items-center justify-center gap-2 text-[11px] font-medium text-muted">
+          Secured by <Logo size={18} />
         </p>
       </div>
     );
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <div className="mb-5 flex justify-center">
-        <Logo />
-      </div>
-      <div ref={innerRef} className="card p-6">
-        {children}
-      </div>
-      <p className="mt-4 text-center text-xs text-muted">Funds are held by a public NEAR contract, not by a company. Hackathon prototype, unaudited.</p>
-    </main>
+    <>
+      <SiteHeader variant="customer" />
+      <main className="mx-auto flex max-w-md flex-col px-4 py-8">
+        <div ref={innerRef} className="card p-6">
+          {children}
+        </div>
+        <p className="mt-4 text-center text-xs text-muted">Funds are held by a public NEAR contract, not by a company. Hackathon prototype, unaudited.</p>
+      </main>
+    </>
   );
 }
 

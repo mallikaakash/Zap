@@ -13,15 +13,15 @@ function invalidLinkPage(message: string): string {
 @media (prefers-color-scheme:dark){:root{--bg:#0b0b0b;--card:#161616;--fg:#f2f2ee;--muted:#a6a6a2;--line:#2c2c2c}}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--bg);color:var(--fg);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 main{width:100%;max-width:520px;background:var(--card);border:1.5px solid var(--line);border-radius:24px;padding:28px}
-.mark{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:-.02em}
-.tile{width:32px;height:32px;border-radius:9px;background:#111;display:grid;place-items:center}
+.mark{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--fg);text-decoration:none;background:none;min-height:0;padding:0}
+.pill{border:1.5px solid currentColor;border-radius:99px;padding:1px 8px;font-size:9.5px;letter-spacing:.18em;font-weight:600}
 h1{margin:22px 0 8px;font-size:26px;line-height:1.15;letter-spacing:-.03em}
 p{margin:0 0 10px;color:var(--muted)}
 code{display:block;margin:14px 0 18px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
 a{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:600;text-decoration:none}
 a:focus-visible{outline:2.5px solid var(--pink);outline-offset:2px}
 </style></head><body><main>
-<span class="mark"><span class="tile"><svg width="16" height="16" viewBox="0 0 24 24" fill="#ff2d87" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></span>Zap</span>
+<a class="mark" href="/" aria-label="Zap Payments home"><img src="/brand/mark.png" width="32" height="32" alt="">Zap<span class="pill">PAYMENTS</span></a>
 <h1>This payment link isn't valid</h1>
 <p>Nothing was charged. The business that sent you this link needs to fix it; let them know what went wrong:</p>
 <code>${esc(message)}</code>

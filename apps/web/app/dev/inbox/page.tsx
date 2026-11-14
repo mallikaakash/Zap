@@ -1,7 +1,8 @@
 "use client";
 
 import { api } from "@/lib/client";
-import { Logo, Notice, Pill, Spinner, usePoll } from "@/components/ui";
+import { Notice, Pill, Spinner, usePoll } from "@/components/ui";
+import { SiteHeader } from "@/components/site-header";
 
 interface Mail {
   id: string;
@@ -16,11 +17,10 @@ interface Mail {
 export default function Inbox() {
   const { data, error } = usePoll(() => api<{ emails: Mail[] }>("/api/dev/inbox"), 3000);
   return (
-    <main className="mx-auto max-w-2xl space-y-4 px-4 py-10">
-      <div className="flex items-center justify-between">
-        <a href="/"><Logo /></a>
-        <Pill tone="warn">Dev inbox</Pill>
-      </div>
+    <>
+    <SiteHeader right={<Pill tone="warn">Dev inbox</Pill>} />
+    <main className="mx-auto max-w-2xl space-y-4 px-4 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight">Dev inbox</h1>
       <p className="text-sm text-muted">Emails the app sent (or would send). With RESEND_API_KEY set they are also delivered for real.</p>
       {error ? <Notice tone="bad">{error}</Notice> : null}
       {!data && !error ? <p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p> : null}
@@ -35,5 +35,6 @@ export default function Inbox() {
         </details>
       ))}
     </main>
+    </>
   );
 }
