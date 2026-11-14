@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { isFullAccountId, liveClaimAccountError } from "../src/accounts";
-import { fromMinor, toMinor, usd } from "../src/money";
+import { formatUnits, fromMinor, toMinor, usd } from "../src/money";
 import { classifyByRules, DEFAULT_POLICY, enforce, parsePolicy, triage, type ChatMessage, type TriageInput } from "../src/refund-agent";
 import { signWebhook, verifyWebhook } from "../src/webhooks";
 
 describe("money", () => {
+  it("rounds the amount to send up, never down", () => {
+    // The real quote that came up 0.0000000028 POL short when the rounded-down amount was sent.
+    expect(formatUnits("1252617172770414759", 18)).toBe("1.25261718");
+    expect(formatUnits("1252617170000000000", 18)).toBe("1.25261717");
+    expect(formatUnits("1000000000000000000", 18)).toBe("1");
+    expect(formatUnits("1015793", 6)).toBe("1.015793");
+    expect(formatUnits("1", 18)).toBe("0.00000001");
+  });
+
   it("converts without floats", () => {
     expect(toMinor("49")).toBe("49000000");
     expect(toMinor("49.99")).toBe("49990000");

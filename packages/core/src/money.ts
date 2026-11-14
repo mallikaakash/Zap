@@ -35,3 +35,19 @@ export function isMinor(value: unknown): value is string {
 export function sumMinor(values: Array<string | bigint>): string {
   return values.reduce<bigint>((a, b) => a + BigInt(b), 0n).toString();
 }
+
+/**
+ * The amount a customer is told to send. Kept readable (at most 8 fraction digits) and rounded UP,
+ * never down: someone who copies or types it must send at least the quoted amount, or the swap
+ * provider sees a short deposit.
+ */
+export function formatUnits(minor: string, decimals: number): string {
+  const places = Math.min(8, decimals);
+  const step = 10n ** BigInt(decimals - places);
+  const n = BigInt(minor);
+  const up = ((n + step - 1n) / step) * step;
+  const s = fromMinor(up, decimals, 0).replace(/,/g, "");
+  const [w, f = ""] = s.split(".");
+  const frac = f.slice(0, places).replace(/0+$/, "");
+  return frac ? `${w}.${frac}` : (w ?? "0");
+}

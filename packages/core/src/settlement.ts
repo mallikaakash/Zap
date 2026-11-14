@@ -88,11 +88,20 @@ function due(key: string, ms: number): boolean {
 export async function tickPayments(log: Log = () => {}): Promise<void> {
   const chain = getChain();
   const { executor } = getConfig();
-  const sessions = await db.session.findMany({ where: { status: { in: ["quoted", "deposit_detected"] } }, orderBy: { updatedAt: "asc" }, take: 50 });
-  for (const s of sessions) {
+  const open = await db.session.findMany({ where: { status: { in: ["quoted", "deposit_detected"] } }, orderBy: { updatedAt: "asc" }, take: 50 });
+  // Swap checkouts we gave up on in the last 48 h. The swap provider can still finish one later (a
+  // deposit a hair short of the quote is accepted within its slippage), and then the money is in the
+  // contract: keep asking now and then, and mint if it says SUCCESS.
+  const closed = await db.session.findMany({
+    where: { status: { in: ["underpaid", "failed", "expired"] }, direct: false, depositAddress: { not: null }, createdAt: { gt: new Date(Date.now() - 48 * 3_600_000) } },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  const recovering = new Set(closed.map((s) => s.id));
+  for (const s of [...open, ...closed.filter((c) => due(`session:${c.id}`, 120_000))]) {
     try {
       // A checkout left open past its quote deadline is almost always abandoned: look at it now and then, not every tick.
-      if (s.quoteDeadline && s.quoteDeadline < new Date() && !due(`session:${s.id}`, 120_000)) continue;
+      if (!recovering.has(s.id) && s.quoteDeadline && s.quoteDeadline < new Date() && !due(`session:${s.id}`, 120_000)) continue;
 
       if (s.direct || !s.depositAddress) {
         // Direct payment: only the chain knows whether it arrived.
@@ -109,7 +118,12 @@ export async function tickPayments(log: Log = () => {}): Promise<void> {
       // Swap checkout: ask the swap provider first (no NEAR RPC call); the chain only matters once it says SUCCESS.
       const status = await getAdapter().status(s.depositAddress, s.depositMemo ?? undefined);
       if (status !== "SUCCESS") {
-        if (isTerminalStatus(status)) {
+        if (recovering.has(s.id)) continue; // already closed: only a later SUCCESS changes anything
+        const beforeDeadline = !s.quoteDeadline || s.quoteDeadline > new Date();
+        if (status === "INCOMPLETE_DEPOSIT" && beforeDeadline) {
+          // The provider may still accept it (slippage) or the customer may top up: not final until the quote expires.
+          if (s.status === "quoted") await db.session.update({ where: { id: s.id }, data: { status: "deposit_detected" } });
+        } else if (isTerminalStatus(status)) {
           // INCOMPLETE_DEPOSIT = underpaid; REFUNDED = the provider sent the coins back; FAILED = expired or failed.
           const state = status === "INCOMPLETE_DEPOSIT" ? "underpaid" : s.quoteDeadline && s.quoteDeadline < new Date() ? "expired" : "failed";
           const why = { underpaid: "Less than the quoted amount arrived. The swap provider returns short deposits to your refund address.", expired: "The quote expired before a payment arrived.", failed: `The swap ended as ${status}; any deposit is returned to your refund address.` }[state];
@@ -132,7 +146,7 @@ export async function tickPayments(log: Log = () => {}): Promise<void> {
       const receipt = await chain.getReceiptByOrderRef(s.orderRefHash);
       if (!receipt) throw new Error("mint_receipt returned but the receipt is not visible yet");
       await recordPaid(s.id, receipt, tx.txHash);
-      log(`session ${s.id}: minted receipt #${receipt.id} for ${s.amount}`);
+      log(`session ${s.id}: minted receipt #${receipt.id} for ${s.amount}${recovering.has(s.id) ? ` (recovered from ${s.status})` : ""}`);
     } catch (e) {
       // Typical transient cases: the USDC has not landed yet, or another mint holds the lock. Retry next tick.
       await db.session.update({ where: { id: s.id }, data: { error: e instanceof ChainError ? `Waiting to mint: ${e.message}` : errText(e) } }).catch(() => {});
