@@ -69,6 +69,21 @@ async function recordPaid(sessionId: string, receipt: Receipt, txHash?: string):
   await enqueueWebhook(s.merchantId, "payment.succeeded", { sessionId: s.id, receiptId: receipt.id, orderRef: s.orderRef, amount: receipt.amount, expectedAmount: s.amount, kind: s.kind, product: s.product, productId, metadata });
 }
 
+/**
+ * On a public network every RPC read counts against a shared rate limit (the web app uses the same
+ * one), so the worker skips reads it does not need right now. `due(key, ms)` is true at most once
+ * per `ms` for a key. The local sandbox is never throttled, so tests and the demo stay instant.
+ */
+const lastCheck = new Map<string, number>();
+function due(key: string, ms: number): boolean {
+  if (getConfig().networkId === "localnet") return true;
+  const now = Date.now();
+  if (now - (lastCheck.get(key) ?? 0) < ms) return false;
+  lastCheck.set(key, now);
+  if (lastCheck.size > 5000) for (const [k, t] of lastCheck) if (now - t > 3_600_000) lastCheck.delete(k);
+  return true;
+}
+
 /** Payments: money reached the contract → there must be exactly one receipt for the order. */
 export async function tickPayments(log: Log = () => {}): Promise<void> {
   const chain = getChain();
@@ -76,18 +91,22 @@ export async function tickPayments(log: Log = () => {}): Promise<void> {
   const sessions = await db.session.findMany({ where: { status: { in: ["quoted", "deposit_detected"] } }, orderBy: { updatedAt: "asc" }, take: 50 });
   for (const s of sessions) {
     try {
-      // Already minted? (direct payment, or an earlier attempt that crashed after minting)
-      const existing = await chain.getReceiptByOrderRef(s.orderRefHash);
-      if (existing) {
-        await recordPaid(s.id, existing);
-        log(`session ${s.id}: receipt #${existing.id} found on chain`);
-        continue;
-      }
+      // A checkout left open past its quote deadline is almost always abandoned: look at it now and then, not every tick.
+      if (s.quoteDeadline && s.quoteDeadline < new Date() && !due(`session:${s.id}`, 120_000)) continue;
+
       if (s.direct || !s.depositAddress) {
-        if (s.status === "quoted" && s.quoteDeadline && s.quoteDeadline < new Date()) await db.session.update({ where: { id: s.id }, data: { status: "expired" } });
+        // Direct payment: only the chain knows whether it arrived.
+        const existing = await chain.getReceiptByOrderRef(s.orderRefHash);
+        if (existing) {
+          await recordPaid(s.id, existing);
+          log(`session ${s.id}: receipt #${existing.id} found on chain`);
+        } else if (s.status === "quoted" && s.quoteDeadline && s.quoteDeadline < new Date()) {
+          await db.session.update({ where: { id: s.id }, data: { status: "expired" } });
+        }
         continue;
       }
 
+      // Swap checkout: ask the swap provider first (no NEAR RPC call); the chain only matters once it says SUCCESS.
       const status = await getAdapter().status(s.depositAddress, s.depositMemo ?? undefined);
       if (status !== "SUCCESS") {
         if (isTerminalStatus(status)) {
@@ -102,6 +121,13 @@ export async function tickPayments(log: Log = () => {}): Promise<void> {
         continue;
       }
 
+      // Already minted? (an earlier attempt that crashed after minting)
+      const existing = await chain.getReceiptByOrderRef(s.orderRefHash);
+      if (existing) {
+        await recordPaid(s.id, existing);
+        log(`session ${s.id}: receipt #${existing.id} found on chain`);
+        continue;
+      }
       const tx = await chain.mintReceipt(executor, mintArgsFor(s, await chain.now()));
       const receipt = await chain.getReceiptByOrderRef(s.orderRefHash);
       if (!receipt) throw new Error("mint_receipt returned but the receipt is not visible yet");
@@ -127,9 +153,12 @@ export async function tickReleases(log: Log = () => {}): Promise<void> {
   const { executor } = getConfig();
   const open = await db.session.findMany({ where: { status: "paid", receiptId: { not: null } }, take: 200 });
   if (open.length === 0) return;
+  // Each paid receipt is re-read at most every 30 s (a release window is hours or days long).
+  const check = open.filter((s) => due(`receipt:${s.receiptId}`, 30_000));
+  if (check.length === 0) return;
   if ((await chain.getConfig()).paused) return;
   const now = await chain.now();
-  for (const s of open) {
+  for (const s of check) {
     try {
       const r = await chain.getReceipt(s.receiptId!);
       if (!r) continue;
