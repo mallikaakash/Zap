@@ -1023,15 +1023,65 @@
 }
 
 /* walkthrough bar (hero only) */
+.z-caption-anchor {
+  position: absolute;
+  right: clamp(12px, 3vw, 36px);
+  z-index: 5;
+  width: max-content;
+  max-width: min(720px, calc(100% - 28px));
+  pointer-events: none;
+}
+.z-caption-anchor > * {
+  pointer-events: auto;
+}
 .z-caption {
+  position: relative;
+  z-index: 4;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: min(720px, calc(100vw - 40px));
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 14px 20px;
-  padding: 18px 20px 18px 22px;
-  border: 1.5px solid var(--z-edge);
-  border-radius: 20px;
+  gap: 10px 12px;
+  padding: 8px 12px 8px 13px;
+  margin: 0;
+  border: 1px solid var(--z-edge);
+  border-radius: 999px;
   background: var(--z-bg);
+}
+.z-wrap .z-caption {
+  align-self: flex-end;
+}
+.z-caption-step {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--z-btn);
+  color: var(--z-btn-fg);
+  flex: none;
+}
+.z-caption-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.z-caption-actions {
+  flex: none;
+  gap: 6px;
+}
+.z-caption .z-btn.sm {
+  min-height: 34px;
+  padding: 0 13px;
+  font-size: 13px;
 }
 .z-legend {
   display: grid;

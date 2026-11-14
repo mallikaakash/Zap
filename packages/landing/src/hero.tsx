@@ -16,6 +16,8 @@ const H = 700;
 const SX = 840; // scene origin
 const SY = 480;
 const PHONE = { left: 70, top: 168, scale: 0.8 };
+/** Unscaled phone shell + shadow stack in the poster (see `.z-ph` / `.z-ph-shadow`). */
+const PHONE_STACK_H = 612 + (-18 + 46);
 /* Stacked layout (narrow screens): crop of the same stage around the scene. */
 const CROP = { x: 450, y: 150, w: 900, h: 560 };
 const STACK_PHONE_POINT: Pt = [500, 610];
@@ -104,14 +106,12 @@ type Go = (patch: Partial<FlowState>) => void;
 
 function FlowCaption({ f, go, reduced }: { f: View; go: Go; reduced: boolean }) {
   return (
-    <div className="z-caption" style={{ flex: "1 1 min(100%, 520px)", maxWidth: 820 }} aria-label="How it works">
-      <span className="z-mono" style={{ fontSize: 13, fontWeight: 700, background: "var(--z-btn)", color: "var(--z-btn-fg)", padding: "6px 10px", borderRadius: 8 }}>
-        {f.stepNo}
-      </span>
-      <p aria-live="polite" className="z-display" style={{ flex: "1 1 200px", fontSize: 20, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.3, margin: 0 }}>
+    <div className="z-caption" aria-label="How it works">
+      <span className="z-caption-step z-mono">{f.stepNo}</span>
+      <p aria-live="polite" className="z-caption-text z-display">
         {f.cur.cap}
       </p>
-      <div className="z-row" style={{ gap: 8 }}>
+      <div className="z-caption-actions z-row">
         <button type="button" className="z-btn sm" aria-pressed={!f.refundStory} onClick={() => go({ step: 0, mode: "pay", run: 0, paused: reduced })}>
           Payment
         </button>
@@ -135,6 +135,11 @@ export function HeroFlow() {
   const width = useWidth(boxRef);
   const poster = width >= POSTER_MIN;
   const fitHeight = useFitHeight(boxRef);
+  const posterScale = poster && width > 0 ? Math.max(0.5, Math.min(0.92, width / W, fitHeight / H)) : 0;
+  /* Walkthrough bar: vertically centered on the phone’s bottom edge (poster space × scale). */
+  const phoneBottomY = PHONE.top + PHONE_STACK_H * PHONE.scale;
+  const captionBarH = 38;
+  const captionTop = posterScale > 0 ? Math.round(phoneBottomY * posterScale - captionBarH / 2) : 0;
 
   return (
     <section id="top" className="z-hero" aria-label="Zap: any coin in, USDC out">
@@ -146,6 +151,11 @@ export function HeroFlow() {
         ) : (
           <Stacked s={s} f={f} go={go} width={width} hint={hint} />
         )}
+        {poster && width > 0 ? (
+          <div className="z-caption-anchor" style={{ top: captionTop }}>
+            <FlowCaption f={f} go={go} reduced={reduced} />
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -155,8 +165,8 @@ export function HeroFlow() {
           flexWrap: "wrap",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          gap: 28,
-          marginTop: poster ? 28 : 20,
+          gap: 22,
+          marginTop: poster ? 20 : 16,
         }}
       >
         <div className="z-col" style={{ flex: "1 1 280px", maxWidth: 460, gap: 20 }}>
@@ -178,7 +188,7 @@ export function HeroFlow() {
             </p>
           ) : null}
         </div>
-        {width > 0 ? <FlowCaption f={f} go={go} reduced={reduced} /> : null}
+        {!poster && width > 0 ? <FlowCaption f={f} go={go} reduced={reduced} /> : null}
       </div>
     </section>
   );
