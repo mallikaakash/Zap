@@ -16,6 +16,7 @@ model Merchant {
   name              String
   email             String?
   dashboardToken    String   @unique @default(cuid()) // secret dashboard link; the seller's login for now
+  passwordHash      String?  // scrypt$<salt hex>$<hash hex>; null until the seller sets a password
   chainState        String   @default("pending") // pending | active | failed — registration on the contract (done by the worker)
   chainError        String?
   payoutAccount     String

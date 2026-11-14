@@ -9,3 +9,4 @@ export * from "./merchants";
 export * from "./receipts";
 export * from "./settlement";
 export * from "./email";
+export * from "./auth";
