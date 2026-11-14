@@ -1,6 +1,27 @@
-# Zap — pay in any coin, on any chain. The seller gets USDC. The receipt holds the money.
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Zap Payments" width="100%" />
+</p>
 
-> Built solo at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**, **AI Security & Defense**.
+<h1 align="center">Pay in any coin, on any chain. The seller gets USDC. The receipt holds the money.</h1>
+
+<p align="center">
+  <a href="https://nearhackathon.com/"><img alt="NEAR HACKATHON 2026" src="https://img.shields.io/badge/NEAR%20HACKATHON-2026-00EC97?style=for-the-badge&logo=near&logoColor=black" /></a>
+  <img alt="Track: Real-World Money" src="https://img.shields.io/badge/track-Real--World%20Money-FF1F6E?style=for-the-badge" />
+  <img alt="Track: NFTs That Do Something" src="https://img.shields.io/badge/track-NFTs%20That%20Do%20Something-FF1F6E?style=for-the-badge" />
+</p>
+
+<p align="center">
+  <a href="https://zap-2lcs3sivbq-uc.a.run.app"><img alt="Live on NEAR mainnet" src="https://img.shields.io/badge/live-NEAR%20mainnet-black?style=flat-square" /></a>
+  <a href="https://nearblocks.io/address/checkout.aakash7777.near"><img alt="Contract" src="https://img.shields.io/badge/contract-checkout.aakash7777.near-black?style=flat-square" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black?style=flat-square" /></a>
+  <img alt="Node 22+" src="https://img.shields.io/badge/node-%E2%89%A522-black?style=flat-square&logo=node.js" />
+  <img alt="Rust near-sdk" src="https://img.shields.io/badge/contract-Rust%20%C2%B7%20near--sdk%205.29-black?style=flat-square&logo=rust" />
+  <img alt="pnpm demo" src="https://img.shields.io/badge/try%20it-pnpm%20demo-FF1F6E?style=flat-square" />
+</p>
+
+> Built solo at [NEAR HACKATHON](https://nearhackathon.com/) (1–14 Nov 2026). Tracks: **Real-World Money**, **NFTs That Do Something**.
+
+<img src="docs/assets/mascot.png" alt="Zap mascot — a penguin running with a charged card" width="220" align="right" />
 
 | | |
 |---|---|
@@ -30,7 +51,7 @@ And refunds? In crypto, refunds are a DM and a prayer.
 
 The customer pays with **whatever coin they already hold, on whatever chain it lives on** — USDT on Polygon, ETH on Arbitrum, SOL, BTC. **NEAR Intents** swaps it into USDC on NEAR. The USDC does not go to the seller yet — it goes into a **receipt NFT** (NEP-171) that *holds the money* for the refund window. When the window closes, the seller gets paid. If something went wrong, an AI refund assistant (running on **NEAR AI Cloud**, private inference) looks at the complaint and the receipt and proposes a refund — and the refund goes back out through Intents to the **same coin and the same chain** the customer paid with.
 
-So the receipt is not a JPEG. The receipt *is* the escrow. The receipt *is* the refund policy. Ownership with behaviour — which is, not coincidentally, what the NFT track asked for.
+So the receipt is not a JPEG. The receipt *is* the escrow. The receipt *is* the refund policy. Ownership with behaviour — which is, not coincidentally, what the NFT track asked for. And "merchant payments a normal company could use tomorrow" is the Real-World Money brief almost word for word.
 
 Cool, but who is this actually for? Three people:
 
@@ -162,7 +183,7 @@ Mainnet payments are capped per receipt (default $50). The owner can pause new p
 | `services/settlement` | Worker. In live mode it is the only process with the executor key |
 | `examples/seller-site` | A static page that embeds the button |
 | `examples/demo-store` | A SaaS shop before and after the AI-prompt onboarding |
-| `docs/` | [GO-LIVE.md](docs/GO-LIVE.md), [gcp-cloud-run.md](docs/gcp-cloud-run.md), and a [NEAR knowledge base](docs/near/README.md) |
+| `docs/` | [GO-LIVE.md](docs/GO-LIVE.md), [gcp-cloud-run.md](docs/gcp-cloud-run.md), a [NEAR knowledge base](docs/near/README.md), and brand assets in `docs/assets` |
 
 ---
 
@@ -191,3 +212,8 @@ Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md),
 ## TL;DR
 
 Two lines of HTML give any seller a checkout that takes any coin on any chain. NEAR Intents turns it into USDC, a NEP-171 receipt NFT *holds* that USDC through the refund window, and an AI assistant on NEAR AI Cloud triages refunds inside limits the contract enforces — refunds go back to the customer's original coin and chain. Customers never touch a wallet; sellers never touch a contract. `pnpm demo` shows the whole thing locally with no keys.
+
+<p align="center">
+  <img src="docs/assets/mascot.png" alt="Zap mascot" width="160" /><br/>
+  <sub>Built with too much coffee at NEAR HACKATHON 2026 · <a href="https://github.com/mallikaakash/Zap">github.com/mallikaakash/Zap</a></sub>
+</p>
