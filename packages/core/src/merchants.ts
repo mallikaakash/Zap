@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { db, type Merchant } from "@uc/db";
 import { isValidAccountId } from "@uc/chain";
 import { dashboardUrl, isEmail, sendEmail } from "./email";
+import { checkPassword, hashPassword } from "./auth";
 import { UserError } from "./errors";
 import { fromMinor, isMinor } from "./money";
 import { DEFAULT_POLICY, parsePolicy, type RefundPolicy } from "./refund-agent";
@@ -28,6 +29,8 @@ export interface MerchantInput {
   vetoSecs?: number;
   minOrder?: string;
   webhookUrl?: string | null;
+  /** Optional so scripts can seed shops; the sign-up form requires it. */
+  password?: string;
 }
 
 function validUrl(u: string): boolean {
@@ -88,8 +91,10 @@ export async function registerMerchant(input: MerchantInput): Promise<Merchant> 
   if (!isMinor(minOrder)) throw new UserError("minOrder must be an integer string in minor units");
   if (input.webhookUrl && !validUrl(input.webhookUrl)) throw new UserError("webhookUrl must be an http(s) URL");
 
+  const passwordHash = input.password !== undefined && input.password !== "" ? await hashPassword(checkPassword(input.password)) : null;
+
   const payout = await resolvePayout(input.payoutAccount, name);
-  if (await db.merchant.findUnique({ where: { id: payout } })) throw new UserError(`${payout} already has a merchant account here. Open its dashboard link instead.`, 409);
+  if (await db.merchant.findUnique({ where: { id: payout } })) throw new UserError(`${payout} already has a shop here. Log in instead (or use “Forgot password?” on the login page).`, 409);
   const m = await db.merchant.create({
     data: {
       id: payout,
@@ -103,6 +108,7 @@ export async function registerMerchant(input: MerchantInput): Promise<Merchant> 
       webhookUrl: input.webhookUrl || null,
       webhookSecret: "whsec_" + randomBytes(24).toString("hex"),
       dashboardToken: randomBytes(18).toString("base64url"),
+      passwordHash,
       policyJson: JSON.stringify(DEFAULT_POLICY),
       chainState: "pending",
     },
@@ -114,7 +120,9 @@ export async function registerMerchant(input: MerchantInput): Promise<Merchant> 
       lines: [
         `"${name}" is set up on Zap.`,
         `Payments are paid out in USDC to ${payout} on NEAR, after each order's refund period.`,
-        "Keep this email: the button below is your private dashboard link. Anyone with it can manage your merchant account.",
+        passwordHash
+          ? `Log in any time at ${getConfig().publicUrl}/login with ${payout} and your password. The button below also signs you in; keep it private.`
+          : "Keep this email: the button below is your private dashboard link. Anyone with it can manage your merchant account.",
       ],
       button: { label: "Open my dashboard", url: dashboardUrl(m) },
     });
@@ -214,10 +222,10 @@ export async function tickStorage(executor: string, log: (m: string) => void = (
   }
 }
 
-/** The seller's login for now: their secret dashboard link. */
+/** The seller's secret token: from the private link, or the session cookie set by a password login. */
 export async function authMerchant(id: string, token: string | null | undefined): Promise<Merchant> {
   const m = await db.merchant.findUnique({ where: { id } });
-  if (!m || !token || token !== m.dashboardToken) throw new UserError("Open your dashboard with the private link from your sign-up email.", 401);
+  if (!m || !token || token !== m.dashboardToken) throw new UserError("Please log in again.", 401);
   return m;
 }
 
@@ -240,6 +248,7 @@ export function merchantView(m: Merchant) {
     vetoSecs: m.vetoSecs,
     minOrder: m.minOrder,
     productsOnly: m.productsOnly,
+    hasPassword: !!m.passwordHash,
     blockedRefundAddresses: JSON.parse(m.blockedRefundAddresses || "[]") as string[],
     webhookUrl: m.webhookUrl,
     webhookSecret: m.webhookSecret,

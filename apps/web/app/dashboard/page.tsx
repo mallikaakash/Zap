@@ -6,7 +6,7 @@ import { receiptStatus } from "@/lib/labels";
 import type { DashReceipt } from "@/lib/types";
 import { CopyButton, DurationInput, Field, Notice, Pill, SimBadge, Spinner, usePoll } from "@/components/ui";
 import { SellTab } from "./sell-tab";
-import { SiteHeader, rememberDashboard } from "@/components/site-header";
+import { SiteHeader } from "@/components/site-header";
 
 interface Merchant {
   id: string;
@@ -25,6 +25,7 @@ interface Merchant {
   vetoSecs: number;
   minOrder: string;
   productsOnly: boolean;
+  hasPassword: boolean;
   webhookUrl: string | null;
   webhookSecret: string;
   policy: { refundableCategories: string[]; requiresPhotoFor: string[]; digitalGoodsRule: string; escalateAlways: boolean; customerReplyHours: number };
@@ -49,9 +50,27 @@ const CATEGORIES = ["damaged", "not_received", "not_as_described", "changed_mind
 export default function Dashboard() {
   const [id, setId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    setSellerToken(q.get("t"));
-    setId(q.get("m"));
+    void (async () => {
+      const q = new URLSearchParams(window.location.search);
+      const m = q.get("m");
+      const t = q.get("t");
+      if (m && t) {
+        // A private or emailed sign-in link: swap it for a session cookie and take the secret out of the address bar.
+        setSellerToken(t);
+        try {
+          await api("/api/auth/link", { body: { merchant: m, token: t } });
+          window.history.replaceState(null, "", "/dashboard");
+        } catch {}
+        setId(m);
+        return;
+      }
+      try {
+        const r = await api<{ merchant: { id: string } | null }>("/api/auth/me");
+        setId(r.merchant?.id ?? null);
+      } catch {
+        setId(null);
+      }
+    })();
   }, []);
   if (id === undefined) return null;
   return id ? <MerchantDash id={id} /> : <Onboard />;
@@ -67,7 +86,8 @@ function Page({ children, right }: { children: ReactNode; right?: ReactNode }) {
 }
 
 function Onboard() {
-  const [f, setF] = useState({ name: "", email: "", payout: "" });
+  const [f, setF] = useState({ name: "", email: "", payout: "", password: "" });
+  const [show, setShow] = useState(false);
   const [mode, setMode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,14 +101,18 @@ function Onboard() {
       <Page>
         <div className="mx-auto max-w-lg space-y-4">
           <div className="card space-y-4 p-6">
-            <h1 className="text-lg font-semibold">Your merchant account is ready</h1>
+            <h1 className="text-lg font-semibold">Your shop is ready</h1>
             <p className="text-sm text-muted">Payments go to <span className="mono font-semibold text-ink">{created.payoutAccount}</span>. Registration on the contract takes a few seconds.</p>
-            <Notice tone="warn">
-              <strong>Save your private dashboard link.</strong> It is your login: anyone with it can manage this account.{created.email ? " We also emailed it to you." : ""}
-              <span className="mono mt-2 block text-xs break-all">{created.dashboardUrl}</span>
-              <span className="mt-2 block"><CopyButton text={created.dashboardUrl} label="Copy link" /></span>
-            </Notice>
-            <a className="btn-primary w-full" href={created.dashboardUrl}>Open my dashboard</a>
+            {created.hasPassword ? (
+              <Notice tone="good">You are signed in. Next time, log in at <strong>/login</strong> with <span className="mono">{created.id}</span> and your password.{created.email ? " We also emailed you a sign-in link." : ""}</Notice>
+            ) : (
+              <Notice tone="warn">
+                <strong>Save your private dashboard link.</strong> Anyone with it can manage this shop. Set a password in Settings to log in without it.
+                <span className="mono mt-2 block text-xs break-all">{created.dashboardUrl}</span>
+                <span className="mt-2 block"><CopyButton text={created.dashboardUrl} label="Copy link" /></span>
+              </Notice>
+            )}
+            <a className="btn-primary w-full" href="/dashboard">Open my dashboard</a>
           </div>
         </div>
       </Page>
@@ -106,7 +130,7 @@ function Onboard() {
               setBusy(true);
               setError(null);
               try {
-                setCreated(await api<Merchant>("/api/merchants", { body: { name: f.name, email: f.email || undefined, payoutAccount: f.payout || undefined } }));
+                setCreated(await api<Merchant>("/api/merchants", { body: { name: f.name, email: f.email || undefined, payoutAccount: f.payout || undefined, password: f.password || undefined } }));
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Could not create the merchant account");
               } finally {
@@ -119,10 +143,17 @@ function Onboard() {
             <Field label="Pay me to (NEAR account)" hint={local ? "Local demo: leave empty and we create a throwaway account for you." : "Your NEAR account, e.g. yourname.near. Any NEAR wallet (Meteor, HOT, MyNearWallet) creates one for free. Payouts arrive as USDC."}>
               <input className="input mono" value={f.payout} onChange={(e) => setF({ ...f, payout: e.target.value })} placeholder="yourname.near" required={!local} autoComplete="off" spellCheck={false} />
             </Field>
+            <Field label="Password" hint="At least 8 characters. You log in with your NEAR account and this password.">
+              <span className="flex gap-2">
+                <input className="input" type={show ? "text" : "password"} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} minLength={8} maxLength={200} required={!local} autoComplete="new-password" />
+                <button type="button" className="btn-ghost shrink-0" onClick={() => setShow(!show)}>{show ? "Hide" : "Show"}</button>
+              </span>
+            </Field>
             {error ? <Notice tone="bad">{error}</Notice> : null}
-            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Creating…</> : "Create merchant account"}</button>
+            <button className="btn-primary w-full" disabled={busy}>{busy ? <><Spinner /> Creating…</> : "Create my shop"}</button>
           </form>
         </div>
+        <p className="text-center text-sm text-muted">Already have a shop? <a className="link" href="/login">Log in</a></p>
       </div>
     </Page>
   );
@@ -137,7 +168,6 @@ function MerchantDash({ id }: { id: string }) {
     api<Merchant>(`/api/merchants/${id}`)
       .then((r) => {
         setM(r);
-        rememberDashboard(window.location.pathname + window.location.search);
       })
       .catch((e: Error) => setError(e.message));
   useEffect(() => void reload(), [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -147,7 +177,7 @@ function MerchantDash({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [m?.chainState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/dashboard">Create a merchant account</a></Notice></Page>;
+  if (error) return <Page><Notice tone="bad">{error} <a className="font-semibold underline" href="/login">Log in</a></Notice></Page>;
   if (!m) return <Page><p className="flex items-center gap-2 text-sm text-muted"><Spinner /> Loading…</p></Page>;
   return (
     <Page right={<SimBadge mode={dev?.mode} />}>
@@ -158,6 +188,14 @@ function MerchantDash({ id }: { id: string }) {
         </div>
         {dev?.canTimeTravel ? <TimeTravel onDone={refreshDev} /> : null}
       </div>
+      {!m.hasPassword ? (
+        <div className="mb-4">
+          <Notice tone="warn">
+            <strong>Set a password</strong> so you can log in at /login with {m.id}, instead of keeping this private link.{" "}
+            <button type="button" className="font-semibold underline" onClick={() => setTab("Settings")}>Set it in Settings</button>
+          </Notice>
+        </div>
+      ) : null}
       {m.chainState !== "active" ? (
         <div className="mb-4">
           <Notice tone={m.chainError ? "bad" : "warn"}>
@@ -437,6 +475,7 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         <button className="btn-primary" onClick={save} disabled={busy}>{busy ? <><Spinner /> Saving on chain…</> : "Save settings"}</button>
         {msg ? <div className="min-w-0 flex-1"><Notice tone={msg.tone}>{msg.text}</Notice></div> : null}
       </div>
+      <div className="lg:col-span-2"><PasswordCard m={m} onSaved={onSaved} /></div>
     </div>
   );
 }
@@ -496,6 +535,46 @@ function TestWebhook({ m }: { m: Merchant }) {
         {state === "busy" ? <Spinner /> : null} Send test event
       </button>
     </span>
+  );
+}
+
+function PasswordCard({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
+  const [pw, setPw] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
+  return (
+    <form
+      className="card space-y-3 p-6"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (pw !== again) return setMsg({ tone: "bad", text: "The two passwords do not match." });
+        setBusy(true);
+        setMsg(null);
+        try {
+          await api(`/api/merchants/${m.id}/password`, { body: { password: pw } });
+          setPw("");
+          setAgain("");
+          setMsg({ tone: "good", text: `Saved. Log in at /login with ${m.id} and this password.` });
+          onSaved();
+        } catch (err) {
+          setMsg({ tone: "bad", text: err instanceof Error ? err.message : "Could not save the password" });
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <h2 className="font-semibold">{m.hasPassword ? "Change password" : "Set a password"}</h2>
+      <p className="text-sm text-muted">You log in at /login with <span className="mono text-ink">{m.id}</span> and this password. Forgot it? The login page emails a sign-in link to {m.email ?? "your saved email"}.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="New password"><input className="input" type="password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={8} maxLength={200} required autoComplete="new-password" /></Field>
+        <Field label="Repeat it"><input className="input" type="password" value={again} onChange={(e) => setAgain(e.target.value)} minLength={8} maxLength={200} required autoComplete="new-password" /></Field>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-primary" disabled={busy}>{busy ? <Spinner /> : null} {m.hasPassword ? "Change password" : "Set password"}</button>
+        {msg ? <div className="min-w-0 flex-1"><Notice tone={msg.tone}>{msg.text}</Notice></div> : null}
+      </div>
+    </form>
   );
 }
 
