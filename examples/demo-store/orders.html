@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orders · Pixel &amp; Pine</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap row">
+        <a class="brand" href="/">Pixel <span>&amp;</span> Pine</a>
+        <nav><a href="/">Assets</a><a href="/orders.html">Orders</a></nav>
+      </div>
+    </header>
+    <main class="wrap">
+      <h1>Orders</h1>
+      <p class="lead">Every row here came from a webhook whose signature this shop's server checked. Nothing on this page trusts the browser.</p>
+      <table>
+        <thead><tr><th>When</th><th>Event</th><th>Product</th><th>Amount</th><th>Receipt</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" class="muted">No verified events yet.</td></tr></tbody>
+      </table>
+    </main>
+    <script>
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+      async function load() {
+        try {
+          const { events } = await (await fetch("/api/orders")).json();
+          if (events.length)
+            document.getElementById("rows").innerHTML = events
+              .map((e) => `<tr><td>${esc(new Date(e.receivedAt).toLocaleString())}</td><td><code>${esc(e.event)}</code></td><td>${esc(e.product)}</td><td>${esc(e.amountUsd)}</td><td>${esc(e.receiptId ? "#" + e.receiptId : "")}</td></tr>`)
+              .join("");
+        } catch {}
+        setTimeout(load, 3000);
+      }
+      load();
+    </script>
+  </body>
+</html>

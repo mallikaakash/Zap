@@ -1,8 +1,6 @@
-# Receipt contract — binding interface (revised spec)
+# Receipt contract — binding interface
 
-This is the agreed interface between the contract and the TypeScript backend. It follows
-the revised `SPEC.md` (§4, §8, §9b, §9c). If the code has to differ, change this file in the
-same commit and say so.
+This is the interface between the contract and the TypeScript backend. If the code has to differ, change this file in the same commit.
 
 Conventions: money = `U128` strings, USDC minor units (6 dp). Times = `U64` strings, ns.
 Receipt ids = JSON numbers (`u64`). Hashes, keys and signatures = lowercase hex strings.

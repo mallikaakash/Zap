@@ -125,3 +125,60 @@ export function usePoll<T>(load: () => Promise<T>, ms: number, deps: unknown[] =
   }, [ms, tick, ...deps]);
   return { data, error, refresh: () => setTick((n) => n + 1) };
 }
+
+const UNITS = [
+  { id: "min", label: "minutes", secs: 60 },
+  { id: "hour", label: "hours", secs: 3600 },
+  { id: "day", label: "days", secs: 86400 },
+] as const;
+
+function bestUnit(secs: number): (typeof UNITS)[number] {
+  if (secs > 0 && secs % 86400 === 0) return UNITS[2];
+  if (secs > 0 && secs % 3600 === 0) return UNITS[1];
+  return secs === 0 ? UNITS[2] : UNITS[0];
+}
+
+/**
+ * A time setting as "7 days" instead of "604800". The parent keeps whole seconds as a string
+ * ("" when the field is empty); `fallback` is the unit used when the value starts empty.
+ */
+export function DurationInput({ value, onChange, disabled, allowEmpty, fallback = "day", label }: { value: string; onChange: (secs: string) => void; disabled?: boolean; allowEmpty?: boolean; fallback?: "min" | "hour" | "day"; label: string }) {
+  const secs = /^\d+$/.test(value) ? Number(value) : null;
+  const [unit, setUnit] = useState<(typeof UNITS)[number]>(() => (secs === null ? UNITS.find((u) => u.id === fallback)! : bestUnit(secs)));
+  const [text, setText] = useState(() => (secs === null ? "" : String(+(secs / unit.secs).toFixed(4))));
+  const emit = (t: string, u: (typeof UNITS)[number]) => {
+    if (t.trim() === "") return onChange(allowEmpty ? "" : "0");
+    const n = Number(t);
+    onChange(Number.isFinite(n) && n >= 0 ? String(Math.round(n * u.secs)) : "x");
+  };
+  return (
+    <span className="flex">
+      <input
+        className="input rounded-r-none tabular-nums"
+        inputMode="decimal"
+        value={text}
+        disabled={disabled}
+        aria-label={`${label} amount`}
+        onChange={(e) => {
+          setText(e.target.value);
+          emit(e.target.value, unit);
+        }}
+      />
+      <select
+        className="input w-auto rounded-l-none border-l-0 pr-8"
+        value={unit.id}
+        disabled={disabled}
+        aria-label={`${label} unit`}
+        onChange={(e) => {
+          const u = UNITS.find((x) => x.id === e.target.value)!;
+          setUnit(u);
+          emit(text, u);
+        }}
+      >
+        {UNITS.map((u) => (
+          <option key={u.id} value={u.id}>{u.label}</option>
+        ))}
+      </select>
+    </span>
+  );
+}

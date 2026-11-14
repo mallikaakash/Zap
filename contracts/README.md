@@ -130,9 +130,8 @@ direct payment, and a withdrawal while a release is in flight.
 
 The human runs these; nothing here is automated. Mainnet USDC (native, 6 decimals) is
 `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`. Examples use near-cli-rs
-with the accounts from DECISIONS.md (`checkout.aakash7777.near` = contract, `aakash7777.near` =
-operator/owner; `executor.aakash7777.near` stands for whatever the executor subaccount is
-called). Check the exact flags against `near --help` for your near-cli-rs version.
+with the deployed accounts (`checkout.aakash7777.near` is the contract, `aakash7777.near` is the
+operator and owner, `executor.aakash7777.near` is the executor). Check the exact flags against `near --help` for your near-cli-rs version.
 
 1. **Accounts and NEAR.** The contract account pays for its code (about 3.8 NEAR for the
    380 KB wasm at 1e19 yoctoNEAR/byte) plus state that merchants do not prepay (merchant

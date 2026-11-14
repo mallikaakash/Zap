@@ -1,120 +1,84 @@
 # Zap
 
-**Crypto checkout for SaaS and online businesses**, in the spirit of Stripe Checkout. A merchant adds two lines to their pricing page or app. Customers pay with any coin on any chain through [NEAR Intents](https://docs.near-intents.org), and the merchant receives USDC. Every payment becomes a **receipt NFT that holds the money** until the refund period ends. Refunds go back to the customer's original chain and coin, and a refund assistant answers first, within limits the merchant sets and the contract enforces.
-
-```html
-<script src="https://YOUR-HOST/pay.js" defer></script>
-<pay-button merchant="your-business.near" amount="49" product="Pro plan"></pay-button>
-```
+A business pastes a checkout button on its site. The customer pays with any coin on any chain. NEAR Intents settles that payment into USDC, and a receipt NFT holds the USDC until the refund window ends. A refund goes back to the same coin and chain. Cancelling a prepaid pass returns the periods that have not started.
 
 Built at NEAR HACKATHON 2026. Hackathon prototype, unaudited, not a licensed money service. Funds are held by a public contract, not by a company.
 
----
+This file is the way to try the project. `pnpm demo` needs no API keys, no wallet, and no `.env`.
 
-## Try it in 60 seconds (no keys, no wallet, no money)
+## Try it
+
+Needs Node 22+ and pnpm. The first run downloads a local NEAR sandbox (about 60 MB). Rust is not required.
 
 ```bash
 pnpm install
 pnpm demo
 ```
 
-Needs Node 22+ and pnpm. `pnpm demo` does the following:
-1. starts a **local NEAR sandbox** (the first run downloads a ~60 MB binary);
-2. deploys the prebuilt contracts from `contracts/artifacts/`, so **no Rust is needed**;
-3. creates a demo merchant, Tallyfox, with three products (a one-time plan, a prepaid plan and a milestone project);
-4. starts the web app and the settlement worker, then prints the links.
+The terminal prints four URLs when the app is up. Use those URLs. Then:
 
-Then:
+1. Do: open **Demo checkout**. Click a plan, pick any coin, enter a refund address, and press **Simulate payment**.
+   See: a receipt. The amount is held. The page is marked **Simulated**.
+2. Do: on that receipt, press **Request refund** and write that a feature is not working. When the assistant asks for a screenshot, attach any image.
+   See: the assistant approves the refund.
+3. Do: open the **Merchant dashboard** URL from the terminal and press **+1 min**.
+   See: the refund completes and the held amount drops.
+4. Do: buy the prepaid plan. On its receipt, claim it, transfer it, then cancel it.
+   See: periods that have not started come back. Periods already due stay with the business.
+5. Do: open **Dev inbox**.
+   See: the emails the app would have sent.
 
-1. Open **/shop** (the demo checkout), click a plan's button, pick any coin, enter a refund address, and press **Simulate payment**.
-2. Open the receipt. It shows how much is held, the refund window, and every on-chain event.
-3. Press **Request refund** and say a feature is not working. The assistant asks for a screenshot; attach one and it approves.
-4. In the merchant dashboard (the link printed by `pnpm demo`), use **+1 min** on the sandbox clock and watch the refund go back.
-5. Buy the **prepaid plan**: periods release to the merchant over time. Claim it to an account, transfer it, cancel it, and the periods not yet started come back.
-6. Emails the app would send appear at **/dev/inbox**.
+`pnpm test` runs the TypeScript tests. Stop the demo with Ctrl+C.
 
-`pnpm test` runs the TypeScript tests. `cd contracts && cargo test` runs the contract unit and sandbox tests (needs Rust).
+The demo shop is Tallyfox. It has a one-time plan, a prepaid pass, and a milestone project. Swaps are simulated. The receipt contract on the sandbox is the real contract.
 
----
+## What NEAR does
 
-## What works
+NEAR Intents quotes a swap that delivers USDC to the receipt contract. The contract mints a NEP-171 receipt and holds that USDC. When the refund window ends, a release pays the business. An approved refund sends the USDC back out through Intents to the customer's original coin and chain. The customer's browser creates the receipt key. Only the public key is stored on chain. The server relays signed actions and pays the gas.
 
-| | |
-|---|---|
-| **Drop-in button** | `<pay-button>` web component: 8.6 KB gzipped, no dependencies, Shadow DOM, themable, accessible. Opens a hosted checkout in a modal and emits `uc:paid` / `uc:closed`. |
-| **Links and QR codes** | `/pay?merchant=…&product-id=…` creates a session and redirects; the dashboard makes the QR code. |
-| **Any coin in, USDC out** | NEAR Intents 1Click quotes `EXACT_OUTPUT` swaps that deliver USDC straight to the receipt contract. Any of the ~230 assets 1Click lists. Also **"Pay with USDC on NEAR"** with no swap (`ft_transfer_call`). |
-| **Pay with MetaMask** | For EVM coins the checkout connects MetaMask, switches network and sends the exact amount. Other chains get the deposit address and a QR code. |
-| **Receipt NFT that holds the money** | NEP-171 token per payment. The USDC stays in the contract until the refund window ends, then is released to the merchant. Anyone can trigger a release that is due; the contract enforces the rules. |
-| **Refunds to the original chain** | Refunds are converted back through 1Click and sent to the customer's address on the chain and coin they paid with. |
-| **Refund assistant** | First responder on every request: asks up to 3 clarifying questions (for example a screenshot of what is not working), checks the merchant's policy and fulfilment status, approves small clear cases, denies only objective violations (appeal once), and escalates the rest with a summary. Limits are enforced in code and on chain, not in the prompt. Uses NEAR AI Cloud when `NEARAI_API_KEY` is set; otherwise a deterministic rule engine with the same output. |
-| **Merchant protections** | Guard threshold, a veto window on AI approvals, a daily refund cap, and a decision deadline where silence means approval (customer protection). |
-| **Prepaid passes and milestones** | Released period by period. Cancelling refunds the periods not yet started. Passes are transferable NFTs; one-time receipts are not. |
-| **No raw secrets on chain** | The customer's browser creates an ed25519 **receipt key**; only the public key goes on chain. Actions are signed in the browser over the exact parameters plus a nonce, and the server only relays them, paying the gas. |
-| **Merchant onboarding** | Name, email and the NEAR account to be paid to. No wallet popups: the operator registers the merchant on chain. A private dashboard link is the login. |
-| **Merchant dashboard** | Orders with escrow state, approve/decline/object, refund what is in escrow, collect payout, fulfilment status, products (one-time with refund window, or pass with interval), button styler with copy-paste snippet, settings, webhook and email log. |
-| **Notifications** | Signed webhooks (`X-UC-Signature: sha256=HMAC(secret, "timestamp.body")`, 5-minute tolerance, event ids, retries) and emails through Resend. |
-| **Public verification** | `/verify/:id` shows a receipt's attribution, where each refund was sent compared with the on-chain refund target, and whether the contract's USDC covers every open receipt. |
-| **Health check** | `GET /api/health` answers `{ ok, mode, networkId, database }`: 200 when the database answers, 503 otherwise. No chain calls, so it is cheap for uptime checks. |
+On the demo, a mock adapter stands in for Intents. The escrow rules, the refund state machine, and the receipt NFT are the contract's.
 
-## What is simulated, and where
+## What a business adds
 
-| Mode | Chain | Swaps | Used for |
-|---|---|---|---|
-| `local` (default, `pnpm demo`) | NEAR sandbox on your machine | **Simulated**: a mock adapter mints mock USDC to the contract and marks refunds delivered. The contract logic is the real one. | Trying it, development, tests |
-| `live` (`pnpm deploy:mainnet` + `pnpm start`) | **NEAR mainnet**, real USDC | **Real NEAR Intents 1Click** | The real product |
-
-NEAR Intents has no testnet, so there is no in-between mode. Every page outside live mode shows a "Simulated" badge.
-
-## Running it for real (mainnet)
-
-[docs/GO-LIVE.md](docs/GO-LIVE.md) is the operator's step-by-step guide: fund the operator account, import its key, run `pnpm deploy:mainnet` (it shows a plan and cost first and acts only with `--yes`), set up HTTPS, then `pnpm start`. The total is about **5.5 NEAR**, of which ~3.8 NEAR is storage for the contract code (locked, not spent), plus a few dollars for test purchases.
-
-On **Cloud Run**, [docs/gcp-cloud-run.md](docs/gcp-cloud-run.md) covers deploys and how to keep the SQLite database across them with Litestream and a Cloud Storage bucket (one instance, CPU always on). Until a bucket is configured, each new revision starts with an empty database.
-
-Real quotes from 1Click, November 2026: paying $1 with Polygon USDT costs 1.0156 USDT (including a 1% slippage buffer that is returned if unused); refunding $1 returns 0.9904 USDT.
-
-## How it fits together
-
+```html
+<script src="https://YOUR-HOST/pay.js" defer></script>
+<pay-button merchant="your-business.near" product-id="PRODUCT_ID" product="Pro plan"></pay-button>
 ```
- merchant's site                our web app (Next.js)              settlement worker               NEAR mainnet
- ───────────────                ─────────────────────              ─────────────────               ────────────
- <pay-button> ──► checkout ──► sessions / quotes ──► 1Click ──► USDC delivered to ──► receipt contract
- link / QR        receipt page   relays signed actions   (NEAR Intents)  checkout.<op>.near      (NEP-171 + escrow)
-                  dashboard      AI triage (NEAR AI)                         │                       │
-                                 webhooks + email      ◄── mint_receipt, ai_decide, release, ───┘    └─► merchant payout (USDC)
-                                                            execute_refund → 1Click → customer's chain
-```
+
+`examples/seller-site/index.html` is a plain page with those two lines. The button opens a hosted checkout. It is not proof of payment. The business confirms `payment.succeeded` from the signed webhook (`X-UC-Signature`).
+
+The dashboard link printed by `pnpm demo` is the login for that run. It contains a secret. There is no wallet to connect.
+
+## Live payments
+
+Live mode uses NEAR mainnet, real USDC, and real NEAR Intents. NEAR Intents has no testnet. The demo above does not touch mainnet. Deploying or paying on mainnet is a human action, documented in [docs/GO-LIVE.md](docs/GO-LIVE.md). A screening run should stop at `pnpm demo`.
+
+## Trust
+
+- Intents delivers USDC with no order id. The settlement worker attributes the deposit and calls `mint_receipt`. The contract will not assign the same USDC to two receipts. `/verify/:id` shows that attribution.
+- The worker can send a refund only after the contract has approved it, only for the approved amount, and only inside the daily cap. `/verify/:id` compares the quoted recipient with the refund address on the receipt.
+- For a shop registered by the operator, refund approvals in the dashboard are signed by the app's relayer. A merchant can take over by calling `register_merchant` from their own account.
+- The contract is unaudited. Mainnet payments are capped per receipt. The owner can pause new payments and releases. Refunds still run while paused.
+
+## Repo
 
 | Path | What |
 |---|---|
-| `contracts/receipts` | Rust receipt contract: escrow, refund state machine, receipt-key signatures, pause, cap. Interface: [contracts/INTERFACE.md](contracts/INTERFACE.md). |
-| `contracts/mock-usdc` | NEP-141 faucet token for the sandbox |
-| `packages/sdk` | `<pay-button>` and the JS client, built to `pay.js` |
-| `packages/intents-adapter` | 1Click adapter (real), mock adapter (local) |
-| `packages/chain` | NEAR client and receipt-key signing (isomorphic) |
-| `packages/core` | Sessions, merchants, receipts, refund assistant, settlement logic, webhooks, email |
+| `contracts/receipts` | Receipt contract: escrow, refunds, receipt-key signatures. Interface: [contracts/INTERFACE.md](contracts/INTERFACE.md). |
+| `contracts/mock-usdc` | Faucet token for the sandbox |
+| `packages/sdk` | `<pay-button>`, built to `pay.js` |
+| `packages/intents-adapter` | Real 1Click adapter and the local mock |
+| `packages/chain` | NEAR client and receipt-key signing |
+| `packages/core` | Sessions, merchants, receipts, refund assistant, settlement, webhooks, email |
 | `packages/db` | Prisma schema (SQLite) |
-| `packages/landing` | The Zap landing page (React). Served at `/` by `apps/web` and by `apps/site` |
-| `apps/web` | Landing page, checkout, receipt, verify, demo checkout, dashboard, API |
-| `apps/site` | The same landing page as a static site (for Vercel). Loads `pay.js` and live data from `NEXT_PUBLIC_APP_URL` |
-| `services/settlement` | The worker: the only process with the executor key |
-| `examples/seller-site` | A plain HTML shop that uses only the two lines |
-
-Design decisions and deviations from the spec are recorded in [DECISIONS.md](DECISIONS.md).
-
-## Trust assumptions (stated plainly)
-
-- **The executor attributes payments to orders.** 1Click delivers USDC with a plain transfer that carries no order id, so the executor calls `mint_receipt`. The contract only credits USDC it holds and has not assigned to another receipt. Attribution is shown publicly on `/verify`.
-- **The executor passes refund deposit addresses.** It can only refund requests that are already approved, never more than what is unreleased, and within the merchant's daily cap. Each refund's 1Click quote id is logged on chain and checked on `/verify`.
-- **Operator-registered merchants trust the operator** for refund decisions made through the dashboard, which our relayer signs on their behalf. A merchant can take over their own registration by calling `register_merchant` from their own account.
-- **Unaudited prototype.** Payments are capped per receipt (default $50 on mainnet). The owner can pause new payments and releases; refunds keep working while paused.
+| `apps/web` | Checkout, receipt, verify, shop, dashboard, API |
+| `services/settlement` | Worker. In live mode it is the only process with the executor key |
+| `examples/seller-site` | A static page that embeds the button |
 
 ## Planned
 
-- Merchants signing settings and decisions with their own wallet (wallet selector)
-- Image upload and analysis in the refund chat (today only the file name is recorded)
-- Payouts to the merchant's preferred chain
-- Settlement worker inside a TEE (OutLayer) with attestations
-- Keeper-triggered releases
-- WooCommerce, Shopify and MCP integrations
+- The merchant signs settings and refund decisions with their own wallet
+- The refund chat uploads and reads the image. Today only the file name is stored
+- Payouts on the merchant's own chain
+- The settlement worker inside a TEE
+- WooCommerce, Shopify, and MCP integrations

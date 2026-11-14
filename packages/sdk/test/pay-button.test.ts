@@ -120,6 +120,29 @@ describe("<pay-button> registration and rendering", () => {
     await off.pay();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("preview mode never starts a checkout and explains why", async () => {
+    const fetchMock = mockFetch();
+    const el = mount({ merchant: "shop.testnet", amount: "49", preview: "" });
+    const seen = events(document.body, "zap-preview");
+    await el.pay();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(modal()).toBeNull();
+    expect(seen).toHaveLength(1);
+    expect(el.shadowRoot?.querySelector("[role=alert]")?.textContent).toMatch(/preview only/i);
+    expect(inner(el).disabled).toBe(false);
+  });
+
+  it("fires colon-free twins of every event (zap-error alongside uc:error)", async () => {
+    mockFetch({ error: "nope" }, 500);
+    const el = mount({ merchant: "shop.testnet", amount: "49" });
+    const a = events(document.body, "uc:error");
+    const b = events(document.body, "zap-error");
+    await el.pay();
+    expect(a).toHaveLength(1);
+    expect(b).toHaveLength(1);
+    expect(b[0]?.detail).toEqual(a[0]?.detail);
+  });
 });
 
 describe("<pay-button> checkout flow", () => {

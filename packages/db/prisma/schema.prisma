@@ -28,6 +28,7 @@ model Merchant {
   autoApproveMax    String   @default("20000000")
   vetoSecs          Int      @default(43200)
   minOrder          String   @default("1000000")
+  productsOnly      Boolean  @default(false) // refuse checkouts without a saved product-id (price set on the server)
   blockedRefundAddresses String @default("[]")
   webhookUrl        String?
   webhookSecret     String

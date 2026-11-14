@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { newReceiptKey, receiptPublicKey } from "@uc/chain/receipt-key";
 import { api, chainName, short, usd } from "@/lib/client";
 import { EVM_CHAINS, hasWallet, isEvmChain, payWithWallet, txUrl } from "@/lib/evm";
-import { CopyButton, Field, Logo, Notice, QR, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { CopyButton, Logo, Notice, QR, SimBadge, Spinner, usePoll } from "@/components/ui";
+import { CoinBadge, CoinPicker, type Token } from "./coin-picker";
 
 interface Session {
   id: string;
@@ -31,15 +32,6 @@ interface Session {
   mode: string;
   canSimulate: boolean;
   directAsset: string;
-}
-
-interface Token {
-  assetId: string;
-  symbol: string;
-  chain: string;
-  priceUsd: string;
-  decimals: number;
-  contractAddress?: string;
 }
 
 const KEY = (id: string) => `uc:receipt-key:${id}`;
@@ -73,7 +65,6 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
   const { data: s, error: loadError, refresh } = usePoll(() => api<Session>(`/api/sessions/${sessionId}`), 1500, [sessionId]);
   const [tokens, setTokens] = useState<Token[] | null>(null);
   const [tokensDown, setTokensDown] = useState(false);
-  const [query, setQuery] = useState("");
   const [asset, setAsset] = useState<string | null>(null);
   const [refund, setRefund] = useState("");
   const [email, setEmail] = useState("");
@@ -122,10 +113,6 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s?.status, s?.receiptId]);
 
-  const options = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (tokens ?? []).filter((t) => !q || t.symbol.toLowerCase().includes(q) || chainName(t.chain).toLowerCase().includes(q) || t.chain.includes(q)).slice(0, 60);
-  }, [tokens, query]);
   const picked = asset && s ? (asset === s.directAsset ? { symbol: "USDC", chain: "near" } : (tokens ?? []).find((t) => t.assetId === asset)) : null;
 
   if (loadError && !s) return <Shell embed={embed}>{<Notice tone="bad">{loadError}</Notice>}</Shell>;
@@ -199,22 +186,20 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
 
   return (
     <Shell embed={embed} innerRef={root}>
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-muted uppercase">{s.merchantName}</p>
-          <h1 className="mt-1 text-lg font-semibold">{s.product ?? "Your order"}</h1>
-          <p className="mt-0.5 text-xs text-muted">
-            {s.kind === "OneTime" ? "One-time payment" : s.kind === "Subscription" ? `Prepaid plan · ${s.schedule.length} periods, released to the business over time` : `Paid in ${s.schedule.length} milestones, released to the business over time`}
-          </p>
+      <header className="rounded-2xl bg-canvas px-4 py-3.5 ring-1 ring-line">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="mono text-[11px] font-semibold tracking-wider text-muted uppercase">{s.merchantName}</p>
+            <h1 className="mt-0.5 truncate text-lg font-bold">{s.product ?? "Your order"}</h1>
+          </div>
+          <p className="text-2xl font-bold tabular-nums" style={{ fontFamily: "var(--font-display)" }}>{usd(s.amount)}</p>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-semibold tabular-nums">{usd(s.amount)}</p>
-          <p className="text-xs text-muted">USD</p>
-        </div>
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-good"><path d="M12 3 5 6v5c0 4.5 3 8.4 7 10 4-1.6 7-5.5 7-10V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>
+          {s.kind === "OneTime" ? "One-time payment · held in escrow until the refund period ends" : s.kind === "Subscription" ? `Prepaid plan · ${s.schedule.length} periods, released to the business over time` : `Paid in ${s.schedule.length} milestones, released to the business over time`}
+        </p>
+        {s.mode !== "live" ? <div className="mt-2"><SimBadge mode={s.mode} /></div> : null}
       </header>
-      <div className="mt-3">
-        <SimBadge mode={s.mode} />
-      </div>
 
       <div className="mt-5 space-y-4">
         {error ? <Notice tone="bad">{error}</Notice> : null}
@@ -249,79 +234,48 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
             <p className="text-sm text-muted">Nothing was charged. Go back to the business's site to start a new payment.</p>
           </div>
         ) : choosing ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {s.status === "expired" ? <Notice tone="warn">The previous quote expired before a payment arrived. Pick a coin to get a fresh one.</Notice> : null}
-            <div>
-              <span className="label">Pay with</span>
-              <button
-                type="button"
-                onClick={() => setAsset(s.directAsset)}
-                aria-pressed={asset === s.directAsset}
-                className={`mb-2 flex w-full items-center justify-between rounded-xl border px-3.5 py-3 text-left text-sm transition ${asset === s.directAsset ? "border-accent bg-accent-soft" : "border-line hover:bg-canvas"}`}
-              >
-                <span>
-                  <span className="font-semibold">USDC on NEAR</span>
-                  <span className="block text-xs text-muted">No swap. Goes straight into the receipt contract.</span>
-                </span>
-                <span className="tabular-nums text-muted">{usd(s.amount).slice(1)} USDC</span>
-              </button>
-              {tokensDown ? (
-                <Notice tone="warn">Other coins are unavailable right now because prices could not be loaded. USDC on NEAR still works.</Notice>
-              ) : (
-                <>
-                  <input className="input" placeholder="Search coin or network (USDT, Polygon, SOL…)" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search coins" />
-                  <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-line" role="listbox" aria-label="Coins">
-                    {tokens === null ? (
-                      <p className="flex items-center gap-2 p-3 text-sm text-muted"><Spinner /> Loading coins…</p>
-                    ) : options.length === 0 ? (
-                      <p className="p-3 text-sm text-muted">No coin matches “{query}”. Try the network name, or pay with USDC on NEAR.</p>
-                    ) : (
-                      options.map((t) => (
-                        <button
-                          key={t.assetId}
-                          type="button"
-                          role="option"
-                          aria-selected={asset === t.assetId}
-                          onClick={() => setAsset(t.assetId)}
-                          className={`flex w-full items-center justify-between border-b border-line px-3.5 py-2.5 text-left text-sm last:border-b-0 ${asset === t.assetId ? "bg-accent-soft" : "hover:bg-canvas"}`}
-                        >
-                          <span className="font-semibold">{t.symbol}</span>
-                          <span className="text-xs text-muted">{chainName(t.chain)}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <Field
-              label={picked ? `Your ${chainName(picked.chain)} address for refunds` : "Refund address"}
-              hint="If you ask for a refund, it is sent here in the same coin. Use your own wallet, not an exchange deposit address: exchanges may not credit it."
-            >
+            <Step n={1} title="Pay with" hint="Prices are estimates before network fees.">
+              <CoinPicker tokens={tokens} tokensDown={tokensDown} amount={s.amount} directAsset={s.directAsset} value={asset} onChange={(id) => { setAsset(id); setError(null); }} />
+            </Step>
+            <Step n={2} title={picked ? `Your ${chainName(picked.chain)} address for refunds` : "Refund address"} muted={!picked}>
               <span className="flex gap-2">
-                <input className="input mono" value={refund} onChange={(e) => setRefund(e.target.value)} placeholder={picked ? (PLACEHOLDER[picked.chain] ?? "0x…") : "Pick a coin first"} autoComplete="off" spellCheck={false} />
+                <input
+                  className="input mono disabled:cursor-not-allowed disabled:bg-canvas"
+                  value={refund}
+                  onChange={(e) => setRefund(e.target.value)}
+                  placeholder={picked ? (PLACEHOLDER[picked.chain] ?? "0x…") : "Choose a coin above first"}
+                  disabled={!picked}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Refund address"
+                />
                 {walletOk && picked && isEvmChain(picked.chain) ? (
                   <button type="button" className="btn-ghost shrink-0" onClick={useWalletAddress}>Use MetaMask</button>
                 ) : null}
               </span>
-            </Field>
-            <Field label="Email (optional)" hint="For payment and refund updates.">
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
-            </Field>
-            <button className="btn-primary w-full" onClick={getQuote} disabled={busy !== null}>
-              {busy === "quote" ? <><Spinner /> Getting quote…</> : "Continue"}
+              <span className="mt-1.5 block text-xs leading-relaxed text-muted">If you ask for a refund it comes back here, in the same coin. Use your own wallet, not an exchange deposit address.</span>
+            </Step>
+            <Step n={3} title="Email" optional>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" aria-label="Email for updates" />
+              <span className="mt-1.5 block text-xs text-muted">Only for payment and refund updates.</span>
+            </Step>
+            <button className="btn-primary w-full !min-h-12 text-[15px]" onClick={getQuote} disabled={busy !== null || !asset}>
+              {busy === "quote" ? <><Spinner /> Getting your quote…</> : picked ? <>Continue with {picked.symbol} on {chainName(picked.chain)}</> : "Choose a coin to continue"}
             </button>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-xl border border-line bg-canvas p-4">
-              <p className="text-xs font-semibold tracking-wide text-muted uppercase">Send exactly</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">
-                {s.amountInFormatted} <span className="text-base text-muted">{s.originSymbol}</span>
-              </p>
-              <p className="text-xs text-muted">
-                on {chainName(s.originChain)} · the business receives {usd(s.amount)} in USDC
-              </p>
+            <div className="flex items-center gap-3.5 rounded-2xl bg-ink p-4 text-white">
+              {s.originSymbol ? <CoinBadge symbol={s.originSymbol} size={40} /> : null}
+              <div className="min-w-0">
+                <p className="mono text-[11px] font-semibold tracking-wider text-white/60 uppercase">Send exactly</p>
+                <p className="text-2xl font-bold tabular-nums" style={{ fontFamily: "var(--font-display)" }}>
+                  {s.amountInFormatted} <span className="text-base font-semibold text-white/70">{s.originSymbol}</span>
+                </p>
+                <p className="text-xs text-white/60">on {chainName(s.originChain)} · the business receives {usd(s.amount)} in USDC</p>
+              </div>
             </div>
             {s.status === "quoted" ? (
               s.direct && s.payTo ? (
@@ -381,6 +335,22 @@ export default function Checkout({ sessionId }: { sessionId: string }) {
         )}
       </div>
     </Shell>
+  );
+}
+
+function Step({ n, title, hint, optional, muted, children }: { n: number; title: string; hint?: string; optional?: boolean; muted?: boolean; children: ReactNode }) {
+  return (
+    <section className={`transition-opacity ${muted ? "opacity-60" : ""}`}>
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[15px] font-bold">
+          <span className="grid h-5 w-5 place-items-center rounded-full bg-ink text-[11px] text-white" style={{ fontFamily: "var(--font-mono)" }}>{n}</span>
+          {title}
+          {optional ? <span className="text-xs font-medium text-muted" style={{ fontFamily: "var(--font-sans)" }}>optional</span> : null}
+        </h2>
+        {hint ? <span className="hidden text-[11px] text-muted sm:block">{hint}</span> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
