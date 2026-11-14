@@ -57,26 +57,30 @@ function smtpTransport(): { t: Transporter; user: string } | null {
   return { t: smtp.t, user };
 }
 
+export type SendResult = { status: "sent" | "failed" | "dev"; via: "smtp" | "resend" | "none"; error?: string } | null;
+
 /** Store and (if configured) send. Never throws: email must not break a payment flow. */
-export async function sendEmail(m: Mail): Promise<void> {
-  if (!isEmail(m.to)) return;
+export async function sendEmail(m: Mail): Promise<SendResult> {
+  if (!isEmail(m.to)) return null;
   const { text, html } = render(m);
   const row = await db.email.create({ data: { to: m.to, subject: m.subject.slice(0, 200), text, html, status: "queued" } }).catch(() => null);
-  if (!row) return;
+  if (!row) return null;
   const mailer = smtpTransport();
   if (mailer) {
     try {
       await mailer.t.sendMail({ from: env().EMAIL_FROM || `Zap <${mailer.user}>`, to: m.to, subject: m.subject, text, html });
       await db.email.update({ where: { id: row.id }, data: { status: "sent" } });
+      return { status: "sent", via: "smtp" };
     } catch (e) {
-      await db.email.update({ where: { id: row.id }, data: { status: "failed", error: `SMTP: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500) } }).catch(() => {});
+      const error = `SMTP: ${e instanceof Error ? e.message : String(e)}`.slice(0, 500);
+      await db.email.update({ where: { id: row.id }, data: { status: "failed", error } }).catch(() => {});
+      return { status: "failed", via: "smtp", error };
     }
-    return;
   }
   const key = env().RESEND_API_KEY || env().RESEND;
   if (!key) {
     await db.email.update({ where: { id: row.id }, data: { status: "dev" } }).catch(() => {});
-    return;
+    return { status: "dev", via: "none" };
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -87,8 +91,11 @@ export async function sendEmail(m: Mail): Promise<void> {
     });
     if (!res.ok) throw new Error(`Resend HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
     await db.email.update({ where: { id: row.id }, data: { status: "sent" } });
+    return { status: "sent", via: "resend" };
   } catch (e) {
-    await db.email.update({ where: { id: row.id }, data: { status: "failed", error: e instanceof Error ? e.message : String(e) } }).catch(() => {});
+    const error = e instanceof Error ? e.message : String(e);
+    await db.email.update({ where: { id: row.id }, data: { status: "failed", error } }).catch(() => {});
+    return { status: "failed", via: "resend", error };
   }
 }
 
