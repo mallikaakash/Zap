@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SuperSaaaS · Pricing</title>
     <link rel="stylesheet" href="/style.css" />
+    <script src="https://zap-2lcs3sivbq-uc.a.run.app/pay.js" defer></script>
   </head>
   <body>
     <header class="top">
@@ -35,22 +36,37 @@
 
         <article class="plan pro">
           <p class="tag">Most popular</p>
-          <h2>SuperSaaaS Pro</h2>
-          <p class="price">$1 <span>one-time · 7-day refund window</span></p>
+          <h2>Saas Pro Subscription</h2>
+          <p class="price">$0.10 <span>one-time · refund window from Zap</span></p>
           <ul>
             <li>Unlimited dashboards</li>
             <li>Live alerts and exports</li>
             <li>Priority support</li>
           </ul>
 
-          <!-- Checkout goes here: the "Upgrade to Pro" button for this plan. -->
+          <pay-button
+            merchant="wrongzebra7564.near"
+            product-id="cmwgpm4wb0002s65j9wper93i"
+            label="Upgrade to Pro"
+          ></pay-button>
         </article>
       </section>
     </main>
 
     <footer class="wrap foot">
-      SuperSaaaS · a demo SaaS shop.
+      SuperSaaaS · a demo SaaS shop for Aakashs Saas.
     </footer>
 
+    <script>
+      let done = false;
+      const onPaid = (e) => {
+        if (done) return;
+        done = true;
+        const { receiptId } = e.detail;
+        setTimeout(() => (location.href = `/thanks.html?receipt=${encodeURIComponent(receiptId ?? "")}`), 1200);
+      };
+      document.addEventListener("zap-paid", onPaid);
+      document.addEventListener("uc:paid", onPaid);
+    </script>
   </body>
 </html>
