@@ -44,7 +44,7 @@ async function notify(receiptId: string, what: "paid" | "released" | "refund_sen
     if (s.customerEmail && (what === "paid" || what === "refund_sent")) {
       await sendEmail(
         what === "paid"
-          ? { to: s.customerEmail, subject: `Payment received by ${m.name}`, lines: [`${m.name} received your ${dollars(amount)} payment for ${item}.`, `Your money is held in receipt #${receiptId} by a public contract until the refund period ends. Use the receipt link you saved at checkout to ask for a refund.`], button: receiptPage }
+          ? { to: s.customerEmail, subject: `Payment received by ${m.name}`, lines: [`${m.name} received your ${dollars(amount)} payment for ${item}.`, `Your money is held in receipt #${receiptId} by a public contract until the refund period ends.`, `To ask for a refund, use your private receipt link: it comes in a separate email ("Your receipt from ${m.name}") or was shown at checkout. The button below only lets you view the receipt. Lost the link? ${m.name} can still refund you.`], button: receiptPage }
           : { to: s.customerEmail, subject: `Refund on its way from ${m.name}`, lines: [`Your refund for ${item} left escrow.`, extra], button: receiptPage },
       );
     }

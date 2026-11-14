@@ -90,6 +90,8 @@ sig      = ed25519_sign(receipt_private_key, sha256(preimage))
 
 The server relays it and pays gas (**meta-transaction** style). The contract verifies with `env::ed25519_verify` and bumps the nonce. So the customer never needs a NEAR account, never sees a wallet, and yet the server **cannot** request a refund on their behalf — it only holds the public key. Later, the customer can `claim` the receipt into a real NEAR account and it becomes a normal transferable NFT.
 
+**The receipt link and email (a deliberate trade-off).** The private key lives only in the customer's browser and in their receipt link (`/r/<id>#k=…`). If the customer gives an email at checkout, their browser sends that full link to them once the payment is confirmed, so they can ask for a refund later from any device. The server checks the key against the receipt, sends one email and does not store the key, but for that moment it passes through the server and the mail provider, and the inbox becomes the key. A refund request can only pay back to the refund target fixed at mint; changing that target or claiming the receipt also need only the key. Customers who leave the email blank keep the key entirely to themselves.
+
 **6. Prepaid passes and milestones.** A receipt can be `OneTime`, `Subscription` or `Schedule`. A subscription receipt holds, say, 6 months of USDC with a release schedule; cancel it and the periods that haven't started come back, the periods already due stay with the seller. A milestone project releases per tranche. Same contract, same receipt, different schedule.
 
 ---
