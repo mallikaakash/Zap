@@ -11,7 +11,7 @@ import { SiteHeader } from "@/components/site-header";
 type Panel = null | "refund" | "cancel" | "claim" | "transfer" | "address";
 
 export default function ReceiptPage({ id }: { id: string }) {
-  const { data: v, error: loadError, refresh } = usePoll(() => api<ReceiptView>(`/api/receipts/${id}`), 2000, [id]);
+  const { data: v, error: loadError, refresh } = usePoll(() => api<ReceiptView>(`/api/receipts/${id}`), 4000, [id]);
   const [key, setKey] = useState<string | null>(null);
   const [keyOk, setKeyOk] = useState<boolean | null>(null);
   const [panel, setPanel] = useState<Panel>(null);

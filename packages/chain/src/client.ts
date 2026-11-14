@@ -147,6 +147,32 @@ export function parseEvents(logs: string[]): ChainEventLog[] {
 }
 
 /** A contract panic or failed cross-contract step, with the contract's own message. */
+/** The NEAR RPC is rate-limiting us (HTTP 429). Nothing was changed on chain; safe to try again later. */
+export class RpcBusyError extends Error {
+  constructor() {
+    super("The NEAR network is busy right now. Nothing was changed. Try again in a minute.");
+    this.name = "RpcBusyError";
+  }
+}
+
+export function isRateLimited(e: unknown): boolean {
+  const x = e as { statusCode?: number; data?: { statusCode?: number }; message?: string } | null;
+  return x?.statusCode === 429 || x?.data?.statusCode === 429 || /\b429\b|too many requests/i.test(String(x?.message ?? ""));
+}
+
+/** Reads only: retry a rate-limited RPC call a few times with backoff, then give up with RpcBusyError. */
+async function retryReads<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!isRateLimited(e)) throw e;
+      if (attempt >= 3) throw new RpcBusyError();
+      await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 250));
+    }
+  }
+}
+
 export class ChainError extends Error {
   constructor(message: string, readonly logs: string[] = []) {
     super(message);
@@ -186,7 +212,7 @@ export class Chain {
   // ---------- low level ----------
 
   async view<T>(contract: string, method: string, args: object = {}): Promise<T> {
-    return (await this.near.view<T>(contract, method, args, { finality: "optimistic" })) as T;
+    return (await retryReads(() => this.near.view<T>(contract, method, args, { finality: "optimistic" }))) as T;
   }
 
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -213,6 +239,8 @@ export class Chain {
         .functionCall(contract, method, args, { gas: (opts.gas ?? GAS.light) as never, ...(opts.deposit ? { attachedDeposit: opts.deposit as never } : {}) })
         .send();
     } catch (e) {
+      // A send is not retried here: the RPC may already have broadcast it.
+      if (isRateLimited(e)) throw new RpcBusyError();
       throw new ChainError(cleanPanic(e), (e as { logs?: string[] })?.logs ?? []);
     }
     const o = outcome as unknown as {
@@ -237,7 +265,7 @@ export class Chain {
 
   /** Chain time (latest block), which is what the contract's windows and tranches are measured against. */
   async now(): Promise<Date> {
-    const block = (await this.near.rpc.getBlock({ finality: "optimistic" })) as unknown as { header: { timestamp_nanosec?: string; timestamp: number } };
+    const block = (await retryReads(() => this.near.rpc.getBlock({ finality: "optimistic" }))) as unknown as { header: { timestamp_nanosec?: string; timestamp: number } };
     const ns = block.header.timestamp_nanosec ?? String(block.header.timestamp);
     return new Date(Number(BigInt(ns) / 1_000_000n));
   }

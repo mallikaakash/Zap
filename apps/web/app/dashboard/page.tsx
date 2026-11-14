@@ -163,7 +163,7 @@ function MerchantDash({ id }: { id: string }) {
   const [tab, setTab] = useState<Tab>("Orders");
   const [m, setM] = useState<Merchant | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { data: dev, refresh: refreshDev } = usePoll(() => api<DevState>("/api/dev/state"), 4000);
+  const { data: dev, refresh: refreshDev } = usePoll(() => api<DevState>("/api/dev/state"), 20000);
   const reload = () =>
     api<Merchant>(`/api/merchants/${id}`)
       .then((r) => {
@@ -245,7 +245,7 @@ function TimeTravel({ onDone }: { onDone: () => void }) {
 }
 
 function OrdersTab({ id, onSetup }: { id: string; onSetup: () => void }) {
-  const { data, error, refresh } = usePoll(() => api<Orders>(`/api/merchants/${id}/receipts`), 2500, [id]);
+  const { data, error, refresh } = usePoll(() => api<Orders>(`/api/merchants/${id}/receipts`), 6000, [id]);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
