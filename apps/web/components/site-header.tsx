@@ -23,11 +23,12 @@ export function SiteHeader({ variant = "app", right }: { variant?: "app" | "cust
       .catch(() => setMe(null));
   }, [variant]);
 
-  const pill = (active: boolean) => `rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${active ? "bg-accent-soft text-ink" : "text-muted hover:bg-canvas hover:text-ink"}`;
+  const pill = (active: boolean) =>
+    `rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${active ? "bg-accent-soft text-ink ring-1 ring-accent/60" : "text-muted hover:bg-canvas hover:text-ink"}`;
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-5">
-        <Link href="/" aria-label="Zap Payments home" className="-m-1 rounded-xl p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink">
+        <Link href="/" aria-label="Zap Payments home" className="-m-1 rounded-xl p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
           <Logo />
         </Link>
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">

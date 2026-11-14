@@ -9,7 +9,7 @@ function invalidLinkPage(message: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>This payment link isn't valid · Zap</title>
 <style>
-:root{color-scheme:light dark;--bg:#fafaf8;--card:#fff;--fg:#111;--muted:#5c5c5c;--line:#e4e4e0;--pink:#ff2d87}
+:root{color-scheme:light dark;--bg:#fafaf8;--card:#fff;--fg:#000;--muted:#5c5c5c;--line:#e4e4e0;--pink:#ff5a0d;--accent:#c9cbcf}
 @media (prefers-color-scheme:dark){:root{--bg:#0b0b0b;--card:#161616;--fg:#f2f2ee;--muted:#a6a6a2;--line:#2c2c2c}}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:var(--bg);color:var(--fg);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 main{width:100%;max-width:520px;background:var(--card);border:1.5px solid var(--line);border-radius:24px;padding:28px}
@@ -21,7 +21,7 @@ code{display:block;margin:14px 0 18px;padding:12px 14px;border-radius:12px;backg
 a{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;background:var(--fg);color:var(--bg);font-weight:600;text-decoration:none}
 a:focus-visible{outline:2.5px solid var(--pink);outline-offset:2px}
 </style></head><body><main>
-<a class="mark" href="/" aria-label="Zap Payments home"><img src="/brand/mark.png" width="32" height="32" alt="">Zap<span class="pill">PAYMENTS</span></a>
+<a class="mark" href="/" aria-label="Zap Payments home"><img src="/brand/logo-lockup.png" height="32" alt="Zap Payments" style="height:32px;width:auto"></a>
 <h1>This payment link isn't valid</h1>
 <p>Nothing was charged. The business that sent you this link needs to fix it; let them know what went wrong:</p>
 <code>${esc(message)}</code>

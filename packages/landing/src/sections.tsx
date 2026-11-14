@@ -7,7 +7,8 @@ import { Bolt, Check, Cross } from "./icons";
 import { RealPayButton } from "./pay-button";
 import { evaluate, INITIAL_PROTECTIONS, nudge, REQUEST, type ProtectionIdx, type Tone } from "./protections";
 
-const ACCENT = "#FF2D87";
+const ACCENT = "#FF5A0D";
+const CHROME = "#C9CBCF";
 
 export function Head({ eyebrow, children, lead, xl, center }: { eyebrow: string; children: React.ReactNode; lead?: React.ReactNode; xl?: boolean; center?: boolean }) {
   return (
@@ -31,7 +32,7 @@ export function Problem() {
       <Head eyebrow="WHY ZAP" lead="Customers shouldn’t bridge, swap, or learn your stack just to pay you.">
         Checkout they can finish. <span className="z-acc">Refunds</span> that work.
       </Head>
-      <div className="z-grid" style={{ ["--min" as string]: "320px" }}>
+      <div className="z-grid z-reveal-stagger" style={{ ["--min" as string]: "320px" }}>
         <div className="z-card soft" style={{ borderRadius: 28, gap: 26 }}>
           <span className="z-eyebrow" style={{ letterSpacing: 0 }}>
             THE USUAL CRYPTO CHECKOUT
@@ -78,17 +79,17 @@ export function Problem() {
 /* ---------------- drop-in ---------------- */
 
 const COLORS = {
-  ink: { name: "Ink", bg: "#111111", fg: "#FFFFFF", bolt: ACCENT },
-  pink: { name: "Pink", bg: ACCENT, fg: "#111111", bolt: "#111111" },
-  blue: { name: "Blue", bg: "#2F7BFF", fg: "#FFFFFF", bolt: "#FFFFFF" },
-  white: { name: "White", bg: "#FFFFFF", fg: "#111111", bolt: ACCENT },
+  chrome: { name: "Chrome", bg: CHROME, fg: "#000000", bolt: "#000000" },
+  ink: { name: "Ink", bg: "#000000", fg: "#FFFFFF", bolt: ACCENT },
+  blaze: { name: "Blaze", bg: ACCENT, fg: "#000000", bolt: "#000000" },
+  white: { name: "White", bg: "#FFFFFF", fg: "#000000", bolt: ACCENT },
 } as const;
 const RADII = { square: ["Square", "6px"], rounded: ["Rounded", "14px"], pill: ["Pill", "999px"] } as const;
 const LABELS = ["Pay with Zap", "Pay with crypto", "Checkout"];
 
 export function DropIn() {
   const { host, merchant, payJsGzip, href, mode } = useApp();
-  const [color, setColor] = useState<keyof typeof COLORS>("ink");
+  const [color, setColor] = useState<keyof typeof COLORS>("chrome");
   const [radius, setRadius] = useState<keyof typeof RADII>("pill");
   const [label, setLabel] = useState(0);
   const col = COLORS[color];
@@ -224,22 +225,22 @@ export function DropIn() {
 /* ---------------- any coin ---------------- */
 
 const ASSETS: Array<[string, string, string]> = [
-  ["BTC", "Bitcoin", "#FFB23F"],
-  ["ETH", "Ethereum", "#9AA0FF"],
-  ["SOL", "Solana", "#3FE0A5"],
-  ["USDC", "Base", "#2F7BFF"],
-  ["USDT", "Tron", "#48C9A0"],
-  ["ARB", "Arbitrum", "#7FB2FF"],
-  ["DOGE", "Dogecoin", "#E8C66A"],
-  ["XRP", "XRP Ledger", "#BDBDBD"],
-  ["ZEC", "Zcash", "#F4B728"],
-  ["BNB", "BNB Chain", "#F3BA2F"],
-  ["NEAR", "NEAR", "#FFFFFF"],
-  ["POL", "Polygon", "#A98BFF"],
-  ["TON", "TON", "#5EC8FF"],
-  ["SUI", "Sui", "#6FB8FF"],
-  ["USDC", "Ethereum", "#2F7BFF"],
-  ["USDT", "Ethereum", "#48C9A0"],
+  ["BTC", "Bitcoin", "#B8A68C"],
+  ["ETH", "Ethereum", "#A8ABB0"],
+  ["SOL", "Solana", "#8C8F94"],
+  ["USDC", "Base", ACCENT],
+  ["USDT", "Tron", "#94979C"],
+  ["ARB", "Arbitrum", "#9A9DA2"],
+  ["DOGE", "Dogecoin", "#C4B69E"],
+  ["XRP", "XRP Ledger", "#B0B2B6"],
+  ["ZEC", "Zcash", "#B5A48A"],
+  ["BNB", "BNB Chain", "#C9B896"],
+  ["NEAR", "NEAR", CHROME],
+  ["POL", "Polygon", "#A0A3A8"],
+  ["TON", "TON", "#98A0A8"],
+  ["SUI", "Sui", "#9EA2A7"],
+  ["USDC", "Ethereum", ACCENT],
+  ["USDT", "Ethereum", "#94979C"],
 ];
 
 function Marquee({ items, reverse }: { items: Array<[string, string, string]>; reverse?: boolean }) {

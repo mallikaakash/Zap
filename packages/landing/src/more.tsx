@@ -9,7 +9,7 @@ import { PASS_PERIODS, passTotals, usdc2 } from "./protections";
 import { Head } from "./sections";
 import { ZAP_GITHUB } from "./site-links";
 
-const ACCENT = "#FF2D87";
+const ACCENT = "#FF5A0D";
 
 export function Gasless() {
   const items = [
@@ -57,7 +57,7 @@ export function Gasless() {
       <Head eyebrow="FOR YOUR CUSTOMERS" lead="Customers manage their receipt, and ask for refunds, without ever setting up NEAR.">
         No NEAR wallet. <span className="z-acc">No gas.</span>
       </Head>
-      <div className="z-grid" style={{ ["--min" as string]: "280px", gap: 16 }}>
+      <div className="z-grid z-reveal-stagger" style={{ ["--min" as string]: "280px", gap: 16 }}>
         {items.map((it) => (
           <div key={it.n} className={`z-card${it.ink ? " ink" : ""}`}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

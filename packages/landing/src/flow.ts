@@ -21,14 +21,15 @@ export interface Coin {
   addr: string;
 }
 
+/** Muted coin chips on the phone; orange is reserved for USDC / settlement. */
 export const COINS: Record<CoinKey, Coin> = {
-  ETH: { color: "#9AA0FF", chain: "Ethereum", label: "ETH", how: "MetaMask", addr: "0x8f3a…c21a" },
-  SOL: { color: "#3FE0A5", chain: "Solana", label: "SOL", how: "deposit address", addr: "7xKp…9fQe" },
-  BTC: { color: "#FFB23F", chain: "Bitcoin", label: "BTC", how: "deposit address", addr: "bc1q…h7lw" },
-  USDT: { color: "#48C9A0", chain: "Polygon", label: "USDT", how: "MetaMask", addr: "0x8f3a…c21a" },
+  ETH: { color: "#A8ABB0", chain: "Ethereum", label: "ETH", how: "MetaMask", addr: "0x8f3a…c21a" },
+  SOL: { color: "#8C8F94", chain: "Solana", label: "SOL", how: "deposit address", addr: "7xKp…9fQe" },
+  BTC: { color: "#B8A68C", chain: "Bitcoin", label: "BTC", how: "deposit address", addr: "bc1q…h7lw" },
+  USDT: { color: "#94979C", chain: "Polygon", label: "USDT", how: "MetaMask", addr: "0x8f3a…c21a" },
 };
 export const COIN_KEYS = Object.keys(COINS) as CoinKey[];
-export const USDC_COLOR = "#2F7BFF";
+export const USDC_COLOR = "#FF5A0D";
 
 export interface FlowState {
   step: number;
@@ -165,7 +166,7 @@ export function flowView(s: FlowState) {
   const usdcCount = 2 + (!isRefund && step >= 9 ? 1 : 0);
   const usdcDiscs: Disc[] = [];
   for (let i = 0; i < usdcCount; i++) {
-    usdcDiscs.push({ y: -i * 9 - 1, c: "#1D5BD0", t: "" });
+    usdcDiscs.push({ y: -i * 9 - 1, c: "#4A4D52", t: "" });
     usdcDiscs.push({ y: -i * 9 - 6, c: USDC_COLOR, t: i === usdcCount - 1 ? "USDC" : "" });
   }
 

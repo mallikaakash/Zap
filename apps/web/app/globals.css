@@ -12,21 +12,31 @@
   --color-warn: var(--warn);
   --color-bad: var(--bad);
   --color-pink: var(--pink);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Space Grotesk Variable", "Space Grotesk", var(--font-sans);
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Zap look (matches packages/landing): ink for actions, pink only for the brand mark and money. */
+/* Zap palette: Chrome Silver = attention (CTAs), Blaze Orange = brand highlight, Jet Black = ink. */
 :root {
-  --accent: #111111;
-  --accent-soft: #f4f4f1;
-  --pink: #ff2d87;
-  --ink: #111111;
-  --muted: #5c5c5c;
-  --line: #e4e4e0;
+  --accent: #c9cbcf;
+  --accent-soft: #ebecef;
+  --chrome-grad: linear-gradient(180deg, #e4e5e9 0%, #c9cbcf 52%, #aeb0b6 100%);
+  --logo-chrome-focus: var(--chrome-grad);
+  --gloss-chrome-border: rgba(255, 255, 255, 0.38);
+  --gloss-chrome-inset: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --gloss-chrome-outer: 0 16px 40px -20px rgba(0, 0, 0, 0.38);
+  --gloss-specular: none;
+  --brand: #ff5a0d;
+  --brand-soft: rgba(255, 90, 13, 0.12);
+  --pink: #ff5a0d;
+  --ink: #000000;
+  --muted: #5a5a5a;
+  --line: #dfdfdb;
   --surface: #ffffff;
-  --canvas: #fafaf8;
+  --canvas: #f3f3f1;
   --good: #059669;
   --warn: #b45309;
   --bad: #dc2626;
@@ -57,10 +67,10 @@ h3 {
 }
 
 :focus-visible {
-  outline-color: var(--pink);
+  outline-color: var(--accent);
 }
 
-/* Shared primitives. One accent colour; everything else is ink on white. */
+/* Shared primitives. Silver CTAs; orange for brand moments. */
 @layer components {
   .card {
     @apply rounded-3xl border border-line bg-surface shadow-[0_1px_2px_rgba(17,17,17,0.03),0_10px_28px_-16px_rgba(17,17,17,0.12)];
@@ -69,26 +79,33 @@ h3 {
   .btn-primary,
   .btn-ghost,
   .btn-danger {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink active:scale-[0.98];
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98];
   }
   .btn-primary {
-    @apply bg-accent text-white hover:bg-black shadow-[0_6px_16px_-8px_rgba(17,17,17,0.5)];
+    @apply text-ink;
+    background: var(--chrome-grad);
+    border: 1px solid var(--gloss-chrome-border);
+    box-shadow: var(--gloss-chrome-inset), var(--gloss-chrome-outer);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, #eceef1 0%, #d4d6da 45%, #c9cbcf 100%);
+    box-shadow: var(--gloss-chrome-inset), 0 20px 44px -18px rgba(0, 0, 0, 0.42);
   }
   .btn-ghost {
-    @apply border-[1.5px] border-ink bg-surface text-ink hover:bg-canvas;
+    @apply border-[1.5px] border-line bg-surface text-ink hover:border-ink hover:bg-canvas;
   }
   .btn-danger {
     @apply border border-red-200 bg-red-50 text-bad hover:bg-red-100;
   }
   .input {
-    @apply w-full rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-[#8a8a8a] focus:border-ink focus:ring-4 focus:ring-pink/15;
+    @apply w-full rounded-xl border-[1.5px] border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-[#8a8a8a] focus:border-ink focus:ring-4 focus:ring-accent/35;
   }
   .label {
     @apply mb-1.5 block text-xs font-semibold tracking-wide text-muted uppercase;
     font-family: var(--font-mono);
   }
   .link {
-    @apply font-semibold text-ink underline decoration-pink decoration-2 underline-offset-4 hover:decoration-ink;
+    @apply font-semibold text-ink underline decoration-brand decoration-2 underline-offset-4 hover:decoration-ink;
   }
   .pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap;

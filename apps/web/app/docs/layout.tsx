@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { DocsLayout } from "@uc/landing/docs";
 
 export const metadata: Metadata = {
-  title: { default: "Documentation", template: "%s · Docs · Zap" },
+  title: { default: "Documentation", template: "%s · Docs · Zap Payments" },
   description: "Integrate Zap: pay.js, webhooks, checkout events, and the HTTP API.",
 };
 

@@ -8,7 +8,10 @@ import { Arrow, Bolt, Check, Mark } from "./icons";
 import { LandingModeKicker } from "./landing-mode-kicker";
 import { SiteHeader } from "./site-header";
 
-const ACCENT = "#FF2D87";
+const ACCENT = "#FF5A0D";
+const CHROME = "#C9CBCF";
+const CHROME_DECK = ["#D6D8DC", "#B8BABF", "#7E8187"] as const;
+const CHROME_TINT = "#E4E5E9";
 
 /* Poster coordinate system (desktop). Everything in the hero is laid out here and scaled as one picture. */
 const W = 1360;
@@ -42,20 +45,23 @@ function useWidth(ref: RefObject<HTMLElement | null>) {
   return w;
 }
 
-/** Height of the window left below an element's top (page coordinates), for fit-to-screen. */
-function useFitHeight(ref: RefObject<HTMLElement | null>) {
-  const [h, setH] = useState(10_000);
+/** Poster stage height: viewport minus header (not “space below” the poster). */
+function useHeroStageHeight(poster: boolean) {
+  const [h, setH] = useState(700);
   useLayoutEffect(() => {
     const measure = () => {
-      const el = ref.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      setH(window.innerHeight - top - 12);
+      if (!poster) {
+        setH(Math.max(520, window.innerHeight * 0.72));
+        return;
+      }
+      const header = document.querySelector(".z-header");
+      const headerH = header?.getBoundingClientRect().height ?? 60;
+      setH(Math.max(420, window.innerHeight - headerH - 20));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [ref]);
+  }, [poster]);
   return h;
 }
 
@@ -134,45 +140,48 @@ export function HeroFlow() {
   const boxRef = useRef<HTMLDivElement>(null);
   const width = useWidth(boxRef);
   const poster = width >= POSTER_MIN;
-  const fitHeight = useFitHeight(boxRef);
+  const fitHeight = useHeroStageHeight(poster);
   const posterScale = poster && width > 0 ? Math.max(0.5, Math.min(0.92, width / W, fitHeight / H)) : 0;
   /* Walkthrough bar: vertically centered on the phone’s bottom edge (poster space × scale). */
   const phoneBottomY = PHONE.top + PHONE_STACK_H * PHONE.scale;
-  const captionBarH = 38;
-  const captionTop = posterScale > 0 ? Math.round(phoneBottomY * posterScale - captionBarH / 2) : 0;
+  const captionH = 48;
+  const captionPad = 36;
+  const captionBottom =
+    posterScale > 0 ? Math.max(6, Math.round((H - phoneBottomY) * posterScale + captionPad - captionH / 2)) : 6;
 
   return (
-    <section id="top" className="z-hero" aria-label="Zap: any coin in, USDC out">
-      <div ref={boxRef} className="z-posterbox">
-        {width === 0 ? (
-          <div style={{ height: 600 }} />
-        ) : poster ? (
-          <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} hint={hint} />
-        ) : (
-          <Stacked s={s} f={f} go={go} width={width} hint={hint} />
-        )}
-        {poster && width > 0 ? (
-          <div className="z-caption-anchor" style={{ top: captionTop }}>
-            <FlowCaption f={f} go={go} reduced={reduced} />
-          </div>
-        ) : null}
+    <section id="top" className={`z-hero${poster && width > 0 ? " z-hero-poster" : ""}`} aria-label="Zap: any coin in, USDC out">
+      <div className={poster && width > 0 ? "z-hero-viewport" : undefined}>
+        <div ref={boxRef} className={`z-posterbox${poster ? " has-caption" : ""}`}>
+          {width === 0 ? (
+            <div style={{ height: 600 }} />
+          ) : poster ? (
+            <Poster s={s} f={f} go={go} width={width} fitHeight={fitHeight} hint={hint} />
+          ) : (
+            <Stacked s={s} f={f} go={go} width={width} hint={hint} />
+          )}
+          {poster && width > 0 ? (
+            <div className="z-caption-anchor z-enter z-enter-5" style={{ bottom: captionBottom }}>
+              <FlowCaption f={f} go={go} reduced={reduced} />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div
-        className="z-wrap"
+        className="z-wrap z-hero-foot"
         style={{
           display: "flex",
           flexWrap: "wrap",
           alignItems: "flex-end",
           justifyContent: "space-between",
           gap: 22,
-          marginTop: poster ? 20 : 16,
         }}
       >
-        <div className="z-col" style={{ flex: "1 1 280px", maxWidth: 460, gap: 20 }}>
+        <div className="z-col z-enter z-enter-6" style={{ flex: "1 1 280px", maxWidth: 460, gap: 20 }}>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: "var(--z-body)", margin: 0 }}>
             Checkout for SaaS and online businesses. Customers pay in the assets they already hold; you receive USDC in escrow until the refund window closes.{" "}
-            <a href="#refunds" style={{ color: "var(--z-fg)", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>
+            <a href="#refunds" style={{ color: "var(--z-chrome)", fontWeight: 600, textDecoration: "underline", textDecorationColor: "rgba(201, 203, 207, 0.55)", textUnderlineOffset: 3 }}>
               How refunds work
             </a>
           </p>
@@ -194,12 +203,13 @@ export function HeroFlow() {
   );
 }
 
-function Headline({ style }: { style?: React.CSSProperties }) {
+function Headline({ style, className }: { style?: React.CSSProperties; className?: string }) {
   return (
-    <h1 className="z-h1" style={style}>
-      Any coin in.
+    <h1 className={`z-h1 z-h1-hero${className ? ` ${className}` : ""}`} style={style}>
+      Any coin <span className="z-chrome">in.</span>
       <br />
-      <span className="z-acc">USDC</span> out.
+      <span className="z-acc">USDC</span>
+      <span className="z-chrome"> out.</span>
     </h1>
   );
 }
@@ -212,10 +222,10 @@ interface HintState {
 }
 
 /** A small floating nudge beside the phone: it is a real checkout you can tap. Fades for good after the first touch. */
-function TryHint({ hint, style, compact }: { hint: HintState; style?: React.CSSProperties; compact?: boolean }) {
+function TryHint({ hint, style, compact, className }: { hint: HintState; style?: React.CSSProperties; compact?: boolean; className?: string }) {
   if (compact)
     return (
-      <p className={`z-hint-pill${hint.hidden ? " gone" : ""}`} aria-hidden={hint.hidden || undefined}>
+      <p className={`z-hint-pill${hint.hidden ? " gone" : ""}${className ? ` ${className}` : ""}`} aria-hidden={hint.hidden || undefined}>
         <span className="z-hint-spark" aria-hidden="true" />
         Tap the phone to try it
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -224,7 +234,7 @@ function TryHint({ hint, style, compact }: { hint: HintState; style?: React.CSSP
       </p>
     );
   return (
-    <div className={`z-hint${hint.hidden ? " gone" : ""}${hint.near ? " near" : ""}`} style={style} aria-hidden={hint.hidden || undefined}>
+    <div className={`z-hint${hint.hidden ? " gone" : ""}${hint.near ? " near" : ""}${className ? ` ${className}` : ""}`} style={style} aria-hidden={hint.hidden || undefined}>
       <svg className="z-hint-arrow" width="90" height="120" viewBox="0 0 90 120" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M86 30 C 50 26, 22 52, 14 104" strokeDasharray="2 6" />
         <path d="M9.7 94.8 L14 106 L21.5 96.6" />
@@ -263,23 +273,26 @@ function Poster({ s, f, go, width, fitHeight, hint }: { s: FlowState; f: View; g
   }, [width]);
 
   return (
-    <div style={{ height: H * scale, position: "relative", overflow: "hidden" }}>
+    <div className="z-poster-stage" style={{ height: H * scale, position: "relative", overflow: "hidden" }}>
       <div ref={stageRef} className="z-poster" style={{ width: W, height: H, transform: `translate(${offsetX}px,0) scale(${scale})` }}>
         <Floor x={0} y={160} w={W} h={H - 160} />
-        <Headline style={{ left: 40, top: 6, maxWidth: 720 }} />
+        <Headline className="z-enter z-enter-1" style={{ left: 40, top: 6, maxWidth: 720 }} />
         {/* scale and perspective live on separate elements: combined, Chromium mis-hit-tests the tilted screen */}
         <div
+          className="z-enter z-enter-2"
           style={{ position: "absolute", left: PHONE.left, top: PHONE.top, zIndex: 2, transform: `scale(${PHONE.scale})`, transformOrigin: "0 0" }}
           onPointerDown={hint.touch}
           onPointerEnter={() => hint.hover(true)}
           onPointerLeave={() => hint.hover(false)}
         >
-          <div className="z-phw">
+          <div className="z-phw z-phw-spotlight">
             <Phone s={s} f={f} go={go} anchorRef={anchorRef} />
           </div>
         </div>
-        <TryHint hint={hint} style={{ left: 300, top: 292 }} />
-        <SceneLayer s={s} f={f} phone={anchor} />
+        <TryHint hint={hint} className="z-enter z-enter-3" style={{ left: 300, top: 292 }} />
+        <div className="z-enter z-enter-4" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+          <SceneLayer s={s} f={f} phone={anchor} />
+        </div>
       </div>
     </div>
   );
@@ -294,9 +307,9 @@ function Stacked({ s, f, go, width, hint }: { s: FlowState; f: View; go: Go; wid
   const anchorRef = useRef<HTMLSpanElement>(null);
   return (
     <div className="z-wrap z-col" style={{ gap: 28, paddingTop: 12 }}>
-      <Headline style={{ fontSize: "clamp(44px, 13vw, 80px)" }} />
-      <TryHint hint={hint} compact />
-      <div className="z-phw" style={{ alignSelf: "center", maxWidth: "100%" }} onPointerDown={hint.touch}>
+      <Headline className="z-enter z-enter-1" style={{ fontSize: "clamp(44px, 13vw, 80px)" }} />
+      <TryHint hint={hint} compact className="z-enter z-enter-2" />
+      <div className="z-phw z-phw-spotlight z-enter z-enter-3" style={{ alignSelf: "center", maxWidth: "100%" }} onPointerDown={hint.touch}>
         <Phone s={s} f={f} go={go} anchorRef={anchorRef} flat={width < 420} />
       </div>
       <div ref={sceneRef} aria-hidden="true" style={{ height: CROP.h * k, position: "relative", overflow: "hidden" }}>
@@ -330,6 +343,8 @@ function Phone({ s, f, go, anchorRef, flat }: { s: FlowState; f: View; go: Go; a
   return (
     <>
       <div className="z-ph" style={flat ? { transform: "none" } : undefined}>
+        <span className="z-ph-layer z-ph-layer--back" aria-hidden="true" />
+        <span className="z-ph-layer z-ph-layer--mid" aria-hidden="true" />
         <div className="z-ph-body">
           <div className="z-ph-screen">
             <div style={{ height: 34, display: "flex", justifyContent: "center", alignItems: "flex-end", flex: "none" }}>
@@ -349,9 +364,9 @@ function Phone({ s, f, go, anchorRef, flat }: { s: FlowState; f: View; go: Go; a
 
 function PayCta({ onClick, children, primary }: { onClick: () => void; children: React.ReactNode; primary?: boolean }) {
   return (
-    <button type="button" onClick={onClick} style={{ marginTop: "auto", minHeight: 56, border: 0, borderRadius: 16, background: "#111111", color: "#FFFFFF", fontWeight: 700, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flex: "none" }}>
-      {primary ? <span className="z-seed" aria-hidden="true" /> : null}
-      {children}
+    <button type="button" onClick={onClick} className="z-pay-gloss">
+      {primary ? <span className="z-seed" aria-hidden="true" style={{ position: "relative", zIndex: 1 }} /> : null}
+      <span style={{ position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", gap: 10 }}>{children}</span>
     </button>
   );
 }
@@ -417,7 +432,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
             {COIN_KEYS.map((k) => {
               const on = s.coin === k;
               return (
-                <button key={k} type="button" aria-pressed={on} onClick={() => go({ coin: k, step: 1, mode: "pay" })} style={{ minHeight: 52, borderRadius: 14, border: `1.5px solid ${on ? "#111111" : "#E2E2DD"}`, background: on ? "#F4F4F1" : "#FFFFFF", color: "#111111", display: "flex", alignItems: "center", gap: 10, padding: "0 12px", textAlign: "left" }}>
+                <button key={k} type="button" aria-pressed={on} onClick={() => go({ coin: k, step: 1, mode: "pay" })} style={{ minHeight: 52, borderRadius: 14, border: `1.5px solid ${on ? ACCENT : "#E2E2DD"}`, background: on ? "rgba(255,90,13,0.08)" : "#FFFFFF", color: "#111111", display: "flex", alignItems: "center", gap: 10, padding: "0 12px", textAlign: "left" }}>
                   <span className="z-coin" style={{ background: COINS[k].color }} />
                   <span className="z-col" style={{ gap: 1 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{COINS[k].label}</span>
@@ -484,7 +499,7 @@ function PhoneScreen({ s, f, go }: { s: FlowState; f: View; go: Go }) {
           Paid. Here&apos;s your receipt.
         </span>
         <ReceiptCard f={f} big />
-        <button type="button" onClick={() => go({ mode: "refund", step: 8 })} style={{ marginTop: "auto", minHeight: 52, borderRadius: 16, border: "1.5px solid #111111", background: "#FFFFFF", color: "#111111", fontWeight: 600, fontSize: 15, flex: "none" }}>
+        <button type="button" className="z-pay-gloss" onClick={() => go({ mode: "refund", step: 8 })} style={{ marginTop: "auto", minHeight: 52, fontSize: 15 }}>
           Request refund
         </button>
       </div>
@@ -583,9 +598,18 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
     <>
       {/* route: phone → bridge in the customer's coin, then USDC to the safe and the business, then off the edge */}
       <svg aria-hidden="true" viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0, width: W, height: H, overflow: "visible", pointerEvents: "none" }}>
-        <path d={`M${phone[0]},${phone[1] - 58} Q${(phone[0] + bridgeStart[0]) / 2},${Math.min(phone[1], bridgeStart[1]) - 150} ${bridgeStart[0]},${bridgeStart[1]}`} fill="none" stroke={coin.color} strokeWidth="3" strokeDasharray="2 9" strokeLinecap="round" style={{ transition: "stroke .4s ease" }} />
+        <path d={`M${phone[0]},${phone[1] - 58} Q${(phone[0] + bridgeStart[0]) / 2},${Math.min(phone[1], bridgeStart[1]) - 150} ${bridgeStart[0]},${bridgeStart[1]}`} fill="none" stroke={f.cur.usdc ? USDC_COLOR : CHROME} strokeWidth="3" strokeDasharray="2 9" strokeLinecap="round" style={{ transition: "stroke .4s ease" }} />
         <g transform={`translate(${SX} ${SY})`}>
-          <polyline points={f.route} fill="none" stroke="var(--z-fg)" strokeWidth="2.5" strokeDasharray="2 9" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+          <polyline
+            points={f.route}
+            fill="none"
+            stroke={f.usdcCount > 0 ? USDC_COLOR : "var(--z-chrome)"}
+            strokeWidth="2.5"
+            strokeDasharray="2 9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
           <polyline points={f.branch} fill="none" stroke="var(--z-muted)" strokeWidth="2.5" strokeDasharray="2 9" strokeLinecap="round" style={{ opacity: f.branchOn ? 1 : 0, transition: "opacity .4s ease" }} />
         </g>
       </svg>
@@ -598,7 +622,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
           {pillar(148)}
           {tower(-104)}
           {tower(104)}
-          <Bx style={box(318, 14, 58, "#5A76FF", "#3D5AFE", "#2A42D6", { "--y": "-58px" })} top={<div style={{ position: "absolute", left: 10, right: 10, top: "50%", height: 2, marginTop: -1, background: "repeating-linear-gradient(90deg,#FFFFFF 0 16px,transparent 16px 28px)" }} />} />
+          <Bx style={box(318, 14, 58, CHROME_DECK[0], CHROME_DECK[1], CHROME_DECK[2], { "--y": "-58px" })} top={<div style={{ position: "absolute", left: 10, right: 10, top: "50%", height: 2, marginTop: -1, background: "repeating-linear-gradient(90deg,#FFFFFF 0 16px,transparent 16px 28px)" }} />} />
           <div className="z-cab" style={{ left: -104, top: -148, width: 208, height: 72, transform: "translateZ(32px)" }} />
           <div className="z-cab" style={{ left: -104, top: -148, width: 208, height: 72, transform: "translateZ(-32px)" }} />
         </Obj>
@@ -624,7 +648,7 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
           />
         </Obj>
 
-        {/* receipt contract: an ink safe with a pink door (money lives here) */}
+        {/* receipt contract: escrow vault (orange = funds) */}
         <Obj x={P.vault.x} z={P.vault.z} lift={f.lf.vault} k={P.vault.k} landKey={f.landed ? `land-${s.run}-${s.mode}` : undefined}>
           <div className="z-gs" style={v({ "--sw": "220px", "--sh": "190px" })} />
           <Bx
@@ -675,11 +699,11 @@ function SceneLayer({ s, f, phone }: { s: FlowState; f: View; phone: Pt }) {
                 <div style={{ position: "absolute", left: 18, bottom: -1.5, width: 36, height: 56, border: "1.5px solid #111111", borderBottom: 0, background: "#F0F0EC" }}>
                   <span style={{ position: "absolute", right: 5, top: 26, width: 5, height: 5, borderRadius: "50%", background: "#111111" }} />
                 </div>
-                <div style={{ position: "absolute", right: 16, top: 34, width: 68, height: 38, border: "1.5px solid #111111", backgroundColor: "#E3EAFF", backgroundImage: "linear-gradient(#111111,#111111), linear-gradient(#111111,#111111)", backgroundSize: "1.5px 100%, 100% 1.5px", backgroundPosition: "center, center", backgroundRepeat: "no-repeat" }} />
-                <div style={{ position: "absolute", left: 18, top: 10, width: 36, height: 18, border: "1.5px solid #111111", background: "#E3EAFF" }} />
+                <div style={{ position: "absolute", right: 16, top: 34, width: 68, height: 38, border: "1.5px solid #111111", backgroundColor: CHROME_TINT, backgroundImage: "linear-gradient(#111111,#111111), linear-gradient(#111111,#111111)", backgroundSize: "1.5px 100%, 100% 1.5px", backgroundPosition: "center, center", backgroundRepeat: "no-repeat" }} />
+                <div style={{ position: "absolute", left: 18, top: 10, width: 36, height: 18, border: "1.5px solid #111111", background: CHROME_TINT }} />
               </>
             }
-            right={<div style={{ position: "absolute", left: 30, top: 30, width: 50, height: 36, border: "1.5px solid #111111", background: "#D3DCF5" }} />}
+            right={<div style={{ position: "absolute", left: 30, top: 30, width: 50, height: 36, border: "1.5px solid #111111", background: CHROME_TINT }} />}
           />
           <Bx style={box(162, 10, 122, "#2A2A2A", "#141414", "#0E0E0E", { "--y": "-92px" })} />
           <Bx

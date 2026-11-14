@@ -345,7 +345,7 @@ function Chat({ c, v, canAct, busy, onSend, onAppeal }: { c: CaseView; v: Receip
       <ol className="mt-3 space-y-2.5" aria-live="polite">
         {c.messages.map((m, i) => (
           <li key={i} className={`flex ${m.role === "customer" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === "customer" ? "bg-accent text-white" : m.role === "system" ? "bg-canvas text-muted" : "border border-line bg-surface"}`}>
+            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === "customer" ? "bg-accent text-ink" : m.role === "system" ? "bg-canvas text-muted" : "border border-line bg-surface"}`}>
               {m.role !== "customer" && m.role !== "system" ? <span className="mb-0.5 block text-[11px] font-semibold tracking-wide text-muted uppercase">{m.role === "agent" ? "Refund assistant" : v.merchant.name}</span> : null}
               {m.text}
               {m.imageName ? <span className="mt-1 block text-xs opacity-80">📎 {m.imageName}</span> : null}

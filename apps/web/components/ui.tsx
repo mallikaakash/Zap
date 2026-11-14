@@ -5,27 +5,40 @@ import QRCode from "qrcode";
 import { copy } from "@/lib/client";
 
 /**
- * The Zap mark (`/brand/mark.png`, transparent) with the "Zap PAYMENTS" wordmark, as on the landing page.
+ * The chrome Zap Payments lockup (`/brand/logo-lockup.png`).
  * `wordmark={false}` (or the legacy `compact`) shows the mark alone.
  */
 export function Logo({ className = "", compact = false, wordmark = !compact, size = 32 }: { className?: string; compact?: boolean; wordmark?: boolean; size?: number }) {
+  if (wordmark) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        src="/brand/logo-lockup.png"
+        alt="Zap Payments"
+        draggable={false}
+        className={`block shrink-0 select-none object-contain ${className}`}
+        height={size}
+        style={{ height: size, width: "auto", maxWidth: "min(420px, 88vw)" }}
+      />
+    );
+  }
   return (
-    <span className={`inline-flex items-center gap-2 text-ink ${className}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/brand/mark.png" alt={wordmark ? "" : "Zap Payments"} aria-hidden={wordmark || undefined} width={size} height={size} draggable={false} className="shrink-0 select-none" style={{ width: size, height: size }} />
-      {wordmark ? (
-        <>
-          <span className="font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: Math.round(size * 0.62) }}>Zap</span>
-          <span className="hidden rounded-full border-[1.5px] border-current px-2 py-px text-[9.5px] leading-[1.35] font-semibold tracking-[0.18em] sm:inline-block">PAYMENTS</span>
-        </>
-      ) : null}
-    </span>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src="/brand/mark.png"
+      alt="Zap Payments"
+      draggable={false}
+      width={size}
+      height={size}
+      className={`block shrink-0 select-none object-contain ${className}`}
+      style={{ width: size, height: size }}
+    />
   );
 }
 
 const TONES = {
   neutral: "bg-accent-soft text-ink",
-  accent: "bg-accent-soft text-accent",
+  accent: "bg-brand-soft text-brand",
   good: "bg-emerald-50 text-emerald-700",
   warn: "bg-amber-50 text-amber-800",
   bad: "bg-red-50 text-red-700",

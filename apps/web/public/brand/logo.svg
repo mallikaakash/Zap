@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" role="img" aria-label="Zap">
+  <path fill="#FF5A0D" d="M9.75.6 1.75 11.9H7.2l-2.55 11.25L16.1 9.35H10.65L13.2.6H9.75z" transform="translate(0 4)" />
+  <text
+    x="34"
+    y="23"
+    fill="#F4F4F2"
+    font-family="Space Grotesk, Inter, system-ui, sans-serif"
+    font-size="22"
+    font-weight="600"
+    letter-spacing="-0.04em"
+  >
+    Zap
+  </text>
+</svg>

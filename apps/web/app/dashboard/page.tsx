@@ -205,7 +205,7 @@ function MerchantDash({ id }: { id: string }) {
       ) : null}
       <div role="tablist" className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`-mb-px border-b-2 px-3.5 py-2.5 text-sm font-semibold transition ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-ink"}`}>
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`-mb-px border-b-2 px-3.5 py-2.5 text-sm font-semibold transition ${tab === t ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`}>
             {t}
           </button>
         ))}
@@ -350,7 +350,7 @@ function OrdersTab({ id, onSetup }: { id: string; onSetup: () => void }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold tracking-wide text-muted uppercase">Fulfilment</span>
                         {["none", "shipped", "delivered", "digital_accessed"].map((s) => (
-                          <button key={s} disabled={busy !== null} onClick={() => act(`f${r.id}`, `/api/merchants/${id}/fulfilment`, { orderRef: r.orderRef, status: s }, "Fulfilment status updated. The refund assistant takes it into account.")} className={`pill ring-1 ${r.fulfilment === s ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line hover:bg-canvas"}`}>
+                          <button key={s} disabled={busy !== null} onClick={() => act(`f${r.id}`, `/api/merchants/${id}/fulfilment`, { orderRef: r.orderRef, status: s }, "Fulfilment status updated. The refund assistant takes it into account.")} className={`pill ring-1 ${r.fulfilment === s ? "bg-accent text-ink ring-accent" : "bg-white text-muted ring-line hover:bg-canvas"}`}>
                             {s.replace("_", " ")}
                           </button>
                         ))}
@@ -464,9 +464,9 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
         </div>
         <fieldset disabled={!f.ai} className="space-y-2">
           <legend className="label">Reasons it may approve on its own</legend>
-          <div className="flex flex-wrap gap-2">{CATEGORIES.map((c) => <button type="button" key={c} onClick={() => toggle("cats", c)} aria-pressed={f.cats.includes(c)} className={`pill ring-1 ${f.cats.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{CATEGORIES.map((c) => <button type="button" key={c} onClick={() => toggle("cats", c)} aria-pressed={f.cats.includes(c)} className={`pill ring-1 ${f.cats.includes(c) ? "bg-accent text-ink ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
           <legend className="label pt-2">Needs a photo first</legend>
-          <div className="flex flex-wrap gap-2">{CATEGORIES.slice(0, 3).map((c) => <button type="button" key={c} onClick={() => toggle("photo", c)} aria-pressed={f.photo.includes(c)} className={`pill ring-1 ${f.photo.includes(c) ? "bg-accent text-white ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{CATEGORIES.slice(0, 3).map((c) => <button type="button" key={c} onClick={() => toggle("photo", c)} aria-pressed={f.photo.includes(c)} className={`pill ring-1 ${f.photo.includes(c) ? "bg-accent text-ink ring-accent" : "bg-white text-muted ring-line"}`}>{c.replace(/_/g, " ")}</button>)}</div>
         </fieldset>
         <label className="flex items-center gap-3 text-sm"><input type="checkbox" className="accent-[var(--accent)]" checked={f.escalateAlways} onChange={(e) => setF({ ...f, escalateAlways: e.target.checked })} disabled={!f.ai} /> Never decide for me; only gather facts and summarise</label>
         <p className="text-xs leading-relaxed text-muted">These limits are enforced in code and by the contract, not by the AI model's instructions, so a customer cannot talk the assistant past them.</p>

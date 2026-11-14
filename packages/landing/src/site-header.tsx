@@ -13,22 +13,22 @@ export function SiteHeader({ section = "home" }: { section?: SiteSection }) {
   const home = href("/");
 
   return (
-    <header className="z-header">
+    <header className="z-header z-enter z-enter-header">
       <a href={section === "home" ? "#top" : home} className="z-brand">
-        <LogoWordmark height={58} className="z-logo-wordmark-header" />
+        <LogoWordmark height={56} className="z-logo-wordmark-header" />
       </a>
       <nav aria-label="Primary" className="z-nav">
         <a className={`z-navlink${section === "docs" ? " on" : ""}`} href={href("/docs")} aria-current={section === "docs" ? "page" : undefined}>
-          <IconDocs size={15} />
+          <IconDocs size={13} />
           Docs
         </a>
         <a className="z-navlink" href={ZAP_GITHUB} target="_blank" rel="noopener noreferrer">
-          <IconGitHub size={15} />
+          <IconGitHub size={13} />
           GitHub
         </a>
         <a className="z-btn ink sm z-nav-cta" href={href("/dashboard")}>
           Get started
-          <IconLaunch size={14} />
+          <IconLaunch size={12} />
         </a>
       </nav>
     </header>

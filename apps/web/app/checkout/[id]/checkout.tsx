@@ -48,7 +48,7 @@ function Steps({ status }: { status: string }) {
         const active = !done && (i === at || (at === 1 && i === 2));
         return (
           <li key={label} className="flex items-center gap-3 text-sm">
-            <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors ${done ? "bg-good text-white" : active ? "bg-accent-soft text-accent" : "bg-accent-soft text-[#8a8a8a]"}`}>
+            <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors ${done ? "bg-good text-white" : active ? "bg-brand-soft text-brand" : "bg-accent-soft text-muted"}`}>
               {done ? "✓" : active ? <Spinner /> : i + 1}
             </span>
             <span className={done || active ? "font-medium text-ink" : "text-muted"}>{label}</span>

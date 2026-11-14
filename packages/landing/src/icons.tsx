@@ -1,9 +1,12 @@
 import { LogoMark } from "./brand";
 
+import { ZAP_BOLT_PATH } from "./brand";
+
 export function Bolt({ size = 16, color = "var(--z-accent)" }: { size?: number; color?: string }) {
+  const h = Math.round(size * 1.2);
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
-      <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
+    <svg width={size} height={h} viewBox="0 0 20 24" fill={color} aria-hidden="true">
+      <path d={ZAP_BOLT_PATH} />
     </svg>
   );
 }
