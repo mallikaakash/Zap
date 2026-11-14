@@ -160,17 +160,32 @@ export function isRateLimited(e: unknown): boolean {
   return x?.statusCode === 429 || x?.data?.statusCode === 429 || /\b429\b|too many requests/i.test(String(x?.message ?? ""));
 }
 
-/** Reads only: retry a rate-limited RPC call a few times with backoff, then give up with RpcBusyError. */
-async function retryReads<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * Reads only: retry a rate-limited RPC call with backoff, then give up with RpcBusyError.
+ * `fn` gets the attempt number, so a caller with several RPC endpoints can move to the next one.
+ */
+async function retryReads<T>(fn: (attempt: number) => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await fn();
+      return await fn(attempt);
     } catch (e) {
       if (!isRateLimited(e)) throw e;
       if (attempt >= 3) throw new RpcBusyError();
       await new Promise((r) => setTimeout(r, 400 * 2 ** attempt + Math.random() * 250));
     }
   }
+}
+
+/** Public RPC endpoints used as read fallbacks when the configured one is rate limited. */
+const PUBLIC_RPC: Record<string, string[]> = {
+  mainnet: ["https://free.rpc.fastnear.com", "https://rpc.mainnet.near.org"],
+  testnet: ["https://test.rpc.fastnear.com", "https://rpc.testnet.near.org"],
+};
+
+/** `NEAR_RPC_URL` may list several endpoints, comma separated. The first one also sends transactions. */
+function rpcList(rpcUrl: string, networkId: string): string[] {
+  const listed = rpcUrl.split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean);
+  return [...new Set([...listed, ...(PUBLIC_RPC[networkId] ?? [])])];
 }
 
 export class ChainError extends Error {
@@ -194,25 +209,36 @@ export class Chain {
   readonly networkId: string;
   private readonly keys = new Set<string>();
   private readonly keyStore: InMemoryKeyStore;
+  /** One client per RPC endpoint. [0] is the primary (all sends); reads move down the list on a 429. */
+  private readonly readers: Near[];
+  /** The RPC endpoints in use, primary first (for logs). */
+  readonly rpcHosts: string[];
 
   constructor(opts: ChainOptions) {
     this.receipts = opts.receipts;
     this.usdc = opts.usdc;
-    this.rpcUrl = opts.rpcUrl;
     this.networkId = opts.networkId;
     this.keyStore = new InMemoryKeyStore(opts.keys);
     for (const id of Object.keys(opts.keys)) this.keys.add(id);
-    this.near = new Near({ network: { rpcUrl: opts.rpcUrl, networkId: opts.networkId }, keyStore: this.keyStore });
+    const urls = rpcList(opts.rpcUrl, opts.networkId);
+    this.rpcUrl = urls[0]!;
+    this.rpcHosts = urls.map((u) => u.replace(/^https?:\/\//, ""));
+    this.readers = urls.map((rpcUrl) => new Near({ network: { rpcUrl, networkId: opts.networkId }, keyStore: this.keyStore }));
+    this.near = this.readers[0]!;
   }
 
   canSignFor(accountId: string): boolean {
     return this.keys.has(accountId);
   }
 
+  private reader(attempt: number): Near {
+    return this.readers[attempt % this.readers.length]!;
+  }
+
   // ---------- low level ----------
 
   async view<T>(contract: string, method: string, args: object = {}): Promise<T> {
-    return (await retryReads(() => this.near.view<T>(contract, method, args, { finality: "optimistic" }))) as T;
+    return (await retryReads((a) => this.reader(a).view<T>(contract, method, args, { finality: "optimistic" }))) as T;
   }
 
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -265,7 +291,7 @@ export class Chain {
 
   /** Chain time (latest block), which is what the contract's windows and tranches are measured against. */
   async now(): Promise<Date> {
-    const block = (await retryReads(() => this.near.rpc.getBlock({ finality: "optimistic" }))) as unknown as { header: { timestamp_nanosec?: string; timestamp: number } };
+    const block = (await retryReads((a) => this.reader(a).rpc.getBlock({ finality: "optimistic" }))) as unknown as { header: { timestamp_nanosec?: string; timestamp: number } };
     const ns = block.header.timestamp_nanosec ?? String(block.header.timestamp);
     return new Date(Number(BigInt(ns) / 1_000_000n));
   }
