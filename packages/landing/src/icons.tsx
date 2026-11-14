@@ -1,3 +1,5 @@
+import { LogoMark } from "./brand";
+
 export function Bolt({ size = 16, color = "var(--z-accent)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
@@ -30,10 +32,6 @@ export function Cross({ size = 14, color = "#6B6B6B" }: { size?: number; color?:
   );
 }
 
-export function Mark({ size = 34, radius = 9 }: { size?: number; radius?: number }) {
-  return (
-    <span className="z-mark" style={{ width: size, height: size, borderRadius: radius }}>
-      <Bolt size={Math.round(size * 0.52)} />
-    </span>
-  );
+export function Mark({ size = 34, radius: _radius = 9 }: { size?: number; radius?: number }) {
+  return <LogoMark size={size} />;
 }

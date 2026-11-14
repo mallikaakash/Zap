@@ -5,8 +5,8 @@ import "@fontsource-variable/space-grotesk";
 import "@fontsource-variable/jetbrains-mono";
 import "./landing.css";
 import { AppProvider } from "./context";
-import { Header, HeroFlow, Stats } from "./hero";
-import { Cta, Dashboard, Developers, Footer, Gasless, Passes, Roadmap } from "./more";
+import { Header, HeroFlow } from "./hero";
+import { Dashboard, Footer, Gasless } from "./more";
 import { AnyCoin, DropIn, Problem, Protections, Refunds, Verify } from "./sections";
 
 export interface LandingProps {
@@ -24,7 +24,6 @@ export function Landing({ appUrl = "", demoMerchant }: LandingProps) {
         <Header />
         <main>
           <HeroFlow />
-          <Stats />
           <Problem />
           <DropIn />
           <AnyCoin />
@@ -32,11 +31,7 @@ export function Landing({ appUrl = "", demoMerchant }: LandingProps) {
           <Protections />
           <Verify />
           <Gasless />
-          <Passes />
           <Dashboard />
-          <Developers />
-          <Roadmap />
-          <Cta />
         </main>
         <Footer />
       </div>

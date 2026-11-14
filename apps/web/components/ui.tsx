@@ -4,20 +4,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import QRCode from "qrcode";
 import { copy } from "@/lib/client";
 
-/** The Zap mark: an ink tile with a pink bolt (same as the landing page). */
-export function Logo({ className = "" }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-2.5 tracking-tight ${className}`}>
-      <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-ink">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--pink)" aria-hidden="true">
-          <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" />
-        </svg>
-      </span>
-      <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-        Zap
-      </span>
-    </span>
-  );
+/** Zap Payments wordmark from `/brand/logo.jpg`. */
+export function Logo({ className = "", compact = false }: { className?: string; compact?: boolean }) {
+  if (compact) {
+    return <img src="/brand/logo.jpg" alt="" aria-hidden className={`h-8 w-8 rounded-lg object-cover object-left ${className}`} />;
+  }
+  return <img src="/brand/logo.jpg" alt="Zap Payments" className={`h-12 w-auto max-w-[300px] object-contain ${className}`} />;
 }
 
 const TONES = {
