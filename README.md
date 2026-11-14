@@ -28,9 +28,10 @@
 | **Receipt contract (mainnet)** | [`checkout.aakash7777.near`](https://nearblocks.io/address/checkout.aakash7777.near) |
 | **Demo video** | _coming — see [Demo video](#demo-video)_ |
 | **Demo post on X** | _coming — link lands here once posted_ |
+| **Try it live (mainnet, ~$0.10)** | [Hosted checkout for a $0.10 test product](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i) — see [Try it live](#try-it-live-on-mainnet-real-money) |
 | **Try it locally, no keys** | `pnpm install && pnpm demo` — see [Try it](#try-it) |
 
-Live on Mainnnet. Receipt NFT as escrow. Funds are held by a public contract, not by a company.
+Live on mainnet. Receipt NFT as escrow. Funds are held by a public contract, not by a company.
 
 ---
 
@@ -140,6 +141,33 @@ The terminal prints four URLs when the app is up. Use those URLs. Then:
 
 The demo shop is **Tallyfox**. It has a one-time plan, a prepaid pass, and a milestone project. Swaps are simulated. The refund assistant runs on deterministic rules — no network, no API key. The receipt contract on the sandbox is the **real contract**, not a stub.
 
+### Try it live on mainnet (real money)
+
+The hosted app runs on NEAR mainnet with real NEAR Intents swaps. It stays up through judging (at least until 2026-11-25). A test costs the price plus about 1% in swap fees plus gas, from your own wallet. $0.10 works with USDT or POL on Polygon; some coins have a higher minimum (about $1).
+
+1. **Do:** open the [hosted checkout for the $0.10 test product](https://zap-2lcs3sivbq-uc.a.run.app/pay?merchant=wrongzebra7564.near&product-id=cmwgpm4wb0002s65j9wper93i).
+   **See:** a checkout for "Saas Pro Subscription", $0.10, held in escrow until the refund window ends.
+2. **Do:** pick a coin (for example **POL · Polygon**), use your own wallet address as the refund address, **enter your email**, then pay with MetaMask (or send the exact amount shown).
+   **See:** the steps move to **Paid** in about 1–2 minutes, and an email "Your receipt from …" with your private receipt link.
+3. **Do:** open the receipt link and press **Request refund**.
+   **See:** the refund assistant asks a question or approves under the shop's rules; once approved, the refund leaves escrow and arrives in the **same coin on the same chain** you paid from.
+4. **Do:** open `https://zap-2lcs3sivbq-uc.a.run.app/verify/<receipt id>`.
+   **See:** the receipt read straight from the contract: amount, refunded, refund target, and that the contract's USDC covers every open receipt.
+
+### Mainnet proof (a full payment and refund, already done)
+
+One real round trip, Polygon → NEAR escrow → Polygon. Every step is on chain:
+
+| Step | Chain | Transaction |
+|---|---|---|
+| Paid 0.2433 POL; 1Click swapped it to $0.02 USDC and receipt #1 was minted into escrow | NEAR | [`HzGYXncA…WgpP`](https://nearblocks.io/txns/HzGYXncAYQfF1b2BLMH282oeXc84UaYohSwS1485WgpP) |
+| Refund requested with the receipt key (relayed, walletless) | NEAR | [`EYqRgajp…7HsKG`](https://nearblocks.io/txns/EYqRgajpC2AAzFD4DbguXPnhk6J2N8T8jHzeooS7HsKG) |
+| Seller approved | NEAR | [`GaBoeKPW…RKyFtN`](https://nearblocks.io/txns/GaBoeKPWCTJVKjUnqk9Na5gsQkmKyW5p3yc1YiRKyFtN) |
+| $0.02 left escrow to a 1Click deposit address (`receipt:1:refund`) | NEAR | [`FfjMqVPP…CxjzBr`](https://nearblocks.io/txns/FfjMqVPPGjrMBK45tUsSmbWckcrp6tw3Uw5YDfCxjzBr) |
+| 0.11926 POL delivered back to the payer's wallet | Polygon | [`0xd8be9a75…138f8b`](https://polygonscan.com/tx/0xd8be9a75f4ae92f0bf8c79437a41a2d7a9ae973bc84711586ea318256a138f8b) |
+
+The 1Click status for the refund swap links the NEAR and Polygon transactions: `curl "https://1click.chaindefuser.com/v0/status?depositAddress=0ef2daad06916132bf1a292fccd6067ca1b7001818d31c6ab00f85247a9e11b9"`. Receipt #1 on the contract: [`/verify/1`](https://zap-2lcs3sivbq-uc.a.run.app/verify/1).
+
 ### Seller onboarding (the two-line thing)
 
 [`examples/seller-site/index.html`](examples/seller-site/index.html) is a plain page with those two lines. [`examples/demo-store/`](examples/demo-store/) is a slightly bigger SaaS pricing page that starts with **no payments at all** — the dashboard has a **Copy prompt for your AI** button, and pasting that prompt into Claude Code or Cursor adds the button and the signed-webhook endpoint. That's the onboarding story in the video.
@@ -191,7 +219,7 @@ Mainnet payments are capped per receipt (default $50). The owner can pause new p
 Per the hackathon rules ([HACKATHON.md](https://nearhackathon.com/HACKATHON.md), Q-001 to Q-005):
 
 - **Everything here was written in the window.** First commit 2026-11-11. No pre-hackathon code, no prior product on another chain.
-- **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, Resend for email. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006).
+- **Libraries:** `near-sdk` 5.29.1 (Rust), `near-kit` 0.20.2, Next.js, Prisma + SQLite, Litestream, `tsx`, vitest, nodemailer (Gmail SMTP) for email with Resend as a fallback. NEAR Intents 1Click API without a JWT (0.2% fee, Q-006).
 - **AI code:** Claude Code and Cursor were used throughout; the agent rules and skills they ran under are in the repo (`.cursor/`, `.agents/`). Design, contract interface, threat model and every decision about money are ours - [Violina](https://github.com/violinadoley) and [Aakash](https://github.com/mallikaakash) .
 - **License:** MIT — see [LICENSE](LICENSE).
 - **Other submissions by me:** none.
