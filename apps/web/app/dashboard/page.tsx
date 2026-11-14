@@ -441,6 +441,38 @@ function SettingsTab({ m, onSaved }: { m: Merchant; onSaved: () => void }) {
   );
 }
 
+function TestEmail({ m }: { m: Merchant }) {
+  const [state, setState] = useState<{ kind: "idle" | "busy" } | { kind: "done"; ok: boolean; text: string }>({ kind: "idle" });
+  return (
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      {state.kind === "done" ? <span className={`max-w-md text-xs ${state.ok ? "text-good" : "text-bad"}`}>{state.text}</span> : null}
+      <button
+        type="button"
+        className="btn-ghost"
+        disabled={state.kind === "busy" || !m.email}
+        title={m.email ? `Send a test email to ${m.email}` : "Add an email address in Settings first"}
+        onClick={async () => {
+          setState({ kind: "busy" });
+          try {
+            const r = await api<{ to: string; status: string; via: string; error?: string }>(`/api/merchants/${m.id}/test-email`, { method: "POST", body: {} });
+            setState(
+              r.status === "sent"
+                ? { kind: "done", ok: true, text: `Sent to ${r.to} via ${r.via === "smtp" ? "Gmail/SMTP" : "Resend"}. Check the inbox (and spam).` }
+                : r.status === "dev"
+                  ? { kind: "done", ok: false, text: "No email provider is configured on the server (stored in the dev inbox only)." }
+                  : { kind: "done", ok: false, text: `Failed via ${r.via === "smtp" ? "Gmail/SMTP" : "Resend"}: ${r.error ?? "unknown error"}` },
+            );
+          } catch (e) {
+            setState({ kind: "done", ok: false, text: e instanceof Error ? e.message : "Could not send" });
+          }
+        }}
+      >
+        {state.kind === "busy" ? <Spinner /> : null} Send test email
+      </button>
+    </span>
+  );
+}
+
 function TestWebhook({ m }: { m: Merchant }) {
   const [state, setState] = useState<"idle" | "busy" | "sent" | string>("idle");
   return (
@@ -494,7 +526,10 @@ if (!fresh || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
         <pre className="mono overflow-x-auto rounded-xl bg-[#0e0e0e] p-4 text-[12px] leading-relaxed text-[#ededed]">{sample}</pre>
       </div>
       <div className="card p-6 lg:col-span-2">
-        <h2 className="font-semibold">Emails to {m.email ?? "you"}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Emails to {m.email ?? "you"}</h2>
+          <TestEmail m={m} />
+        </div>
         {!m.email ? <p className="mt-2 text-sm text-muted">Add an email in Settings to get payment and refund notices.</p> : !data || data.emails.length === 0 ? <p className="mt-2 text-sm text-muted">No emails yet.</p> : (
           <ul className="mt-3 divide-y divide-line">
             {data.emails.map((e) => (
